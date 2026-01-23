@@ -227,6 +227,62 @@ function App() {
               </div>
             )}
           </div>
+
+          {/* Ledger positioned on board */}
+          <div style={{
+            position: "absolute",
+            top: 260,
+            right: 40,
+            width: 420,
+            background: "rgba(255,255,255,0.95)",
+            padding: "12px 16px",
+            borderRadius: 8,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            zIndex: 5,
+            maxHeight: 400,
+            overflowY: "auto"
+          }}>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "1.1rem" }}>Ledger (latest)</h3>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #ccc" }}>
+                  <th align="left">Type</th>
+                  <th align="left">Amount</th>
+                  <th align="left">From</th>
+                  <th align="left">To</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ledger.slice(0, 12).map((txn) => (
+                  <tr key={txn.id} style={{ borderBottom: "1px solid #eee" }}>
+                    <td>{txn.type}</td>
+                    <td>${txn.amount}</td>
+                    <td>{txn.from ?? "BANK"}</td>
+                    <td>{txn.to ?? "BANK"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Jackpot positioned at square 20 (Salvo Rest Home - top-left corner) */}
+          {jackpot !== null && (
+            <div style={{
+              position: "absolute",
+              top: 40,
+              left: 40,
+              background: "rgba(255,255,255,0.95)",
+              padding: "10px 16px",
+              borderRadius: 8,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              zIndex: 5,
+              fontWeight: "bold",
+              fontSize: "1.2em",
+              color: "#b28500"
+            }}>
+              💰 Jackpot: ${jackpot}
+            </div>
+          )}
         </div>
 
         {/* Card display section - below board */}
@@ -323,52 +379,17 @@ function App() {
         </div>
         </div>
 
-        {/* Right column: player list + jackpot + ledger */}                                                                                                                           
-        <div                                                                                                                                                                           
-          style={{                                                                                                                                                                     
-            flex: 1,                                                                                                                                                                   
-            minWidth: 360,                                                                                                                                                             
-            marginTop: "1rem",                                                                                                                                                         
-            paddingLeft: "120px",                                                                                                                                                      
-            position: "sticky",                                                                                                                                                        
-            top: 20,                                                                                                                                                                   
-          }}                                                                                                                                                                           
-        >                                                                                                                                                                              
-          <h2>Ledger (latest)</h2>                                                                                                                                                     
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>                                                                                                                
-            <thead>                                                                                                                                                                    
-              <tr style={{ borderBottom: "1px solid #ccc" }}>                                                                                                                          
-                <th align="left">Type</th>                                                                                                                                             
-                <th align="left">Amount</th>                                                                                                                                           
-                <th align="left">From</th>                                                                                                                                             
-                <th align="left">To</th>                                                                                                                                               
-              </tr>                                                                                                                                                                    
-            </thead>                                                                                                                                                                   
-            <tbody>                                                                                                                                                                    
-              {ledger.slice(0, 12).map((txn) => (                                                                                                                                                   
-                <tr key={txn.id} style={{ borderBottom: "1px solid #eee" }}>                                                                                                           
-                  <td>{txn.type}</td>                                                                                                                                                  
-                  <td>${txn.amount}</td>                                                                                                                                               
-                  <td>{txn.from ?? "BANK"}</td>                                                                                                                                        
-                  <td>{txn.to ?? "BANK"}</td>                                                                                                                                          
-                </tr>                                                                                                                                                                  
-              ))}                                                                                                                                                                      
-            </tbody>                                                                                                                                                                   
-          </table>                                                                                                                                                                     
-
-          <h2 style={{ marginTop: "2rem" }}>Players</h2>                                                                                                                                                             
-          {jackpot !== null && (                                                                                                                                                       
-            <div                                                                                                                                                                       
-              style={{                                                                                                                                                                 
-                fontWeight: "bold",                                                                                                                                                    
-                fontSize: "1.2em",                                                                                                                                                     
-                color: "#b28500",                                                                                                                                                      
-                marginBottom: 12,                                                                                                                                                      
-              }}                                                                                                                                                                       
-            >                                                                                                                                                                          
-              💰 Jackpot: ${jackpot}                                                                                                                                                   
-            </div>                                                                                                                                                                     
-          )}                                                                                                                                                                           
+        {/* Right column: player list */}
+        <div
+          style={{
+            flex: 1,
+            minWidth: 360,
+            paddingLeft: "120px",
+            position: "sticky",
+            top: 20,
+          }}
+        >
+          <h2>Players</h2>
           <ul style={{ paddingLeft: "1rem" }}>
             {game.players?.map((p) => {
               const idx = p.current_space_id ?? 0;
