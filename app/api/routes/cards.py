@@ -30,12 +30,43 @@ def get_retained_cards(game_id: int, player_id: int, session: Session = Depends(
     ]
 
 
+@router.get("/games/{game_id}/player_retained_cards")
+def get_all_player_retained_cards(game_id: int, session: Session = Depends(get_session)):
+    """Get all retained cards for all players in a game, keyed by player_id"""
+    # Get all retained (not discarded) cards for all players in the game
+    draws = (
+        session.query(models.CardDraw)
+        .join(models.Card, models.CardDraw.card_id == models.Card.card_id)
+        .filter(
+            models.CardDraw.game_id == game_id,
+            models.CardDraw.kept_by_player_id.isnot(None),
+            models.CardDraw.discarded_at.is_(None),
+        )
+        .all()
+    )
+
+    # Group by player_id
+    result = {}
+    for draw in draws:
+        player_id = draw.kept_by_player_id
+        if player_id not in result:
+            result[player_id] = []
+        result[player_id].append({
+            "title": draw.card.title,
+            "body_text": draw.card.body_text,
+            "deck_type": draw.deck_type,
+            "draw_order": draw.draw_order,
+        })
+
+    return result
+
+
 @router.get("/games/{game_id}/last_drawn_cards")
 def get_last_drawn_cards(game_id: int, session: Session = Depends(get_session)):
     """Get the most recently drawn card for each deck type (CHANCE, WELFARE)"""
     result = {"CHANCE": None, "WELFARE": None}
 
-    for deck_type in ["CHANCE", "WELFARE"]:
+    for deck_type in ["chance", "welfare"]:
         draw = (
             session.query(models.CardDraw)
             .join(models.Card, models.CardDraw.card_id == models.Card.card_id)
@@ -48,7 +79,7 @@ def get_last_drawn_cards(game_id: int, session: Session = Depends(get_session)):
         )
 
         if draw:
-            result[deck_type] = {
+            result[deck_type.upper()] = {
                 "title": draw.card.title,
                 "body_text": draw.card.body_text,
                 "draw_order": draw.draw_order,

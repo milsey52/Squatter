@@ -145,10 +145,10 @@ function App() {
           maxWidth: 1800,                                                                                                                                                              
           margin: "0 auto",                                                                                                                                                            
         }}                                                                                                                                                                             
-      >                                                                                                                                                                                
+      >
         {/* Left column: board + cards */}
-        <div>
-        {/* Board + floating controls */}                                                                                                                                              
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {/* Board + floating controls */}
         <div style={{ position: "relative", width: 1100, height: 1100 }}>                                                                                                              
           <Board players={game.players} currentPlayerId={game.current_player_id} />                                                                                                    
                                                                                                                                                                                        
@@ -189,37 +189,41 @@ function App() {
         <div style={{
           width: 1100,
           display: 'flex',
-          gap: '2rem',
+          gap: '1.5rem',
           marginTop: '1.5rem',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          position: 'relative',
+          left: '100px',
+          top: '-233px',
+          zIndex: 10
         }}>
           {/* Welfare Centre Card */}
           <div style={{
             background: 'linear-gradient(135deg, #fff 0%, #f8f9fa 100%)',
             border: '2px solid #dee2e6',
-            borderRadius: '12px',
+            borderRadius: '8px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            padding: '20px',
-            minHeight: '200px',
-            width: '500px',
+            padding: '14px',
+            minHeight: '133px',
+            width: '333px',
           }}>
-            <h3 style={{ margin: 0, fontSize: '1.3rem', color: '#6a4c93' }}>
+            <h3 style={{ margin: 0, fontSize: '0.95rem', color: '#6a4c93' }}>
               Welfare Centre
             </h3>
             {lastDrawnCards.WELFARE ? (
               <>
                 <h4 style={{
-                    fontSize: '1.1rem',
+                    fontSize: '0.85rem',
                     fontWeight: 'bold',
                     color: '#1982c4',
-                    marginTop: '0.8rem',
-                    marginBottom: '0.5rem',
+                    marginTop: '0.5rem',
+                    marginBottom: '0.3rem',
                 }}>
                     {lastDrawnCards.WELFARE.title}
                 </h4>
                 <p style={{
-                    fontSize: '0.95rem',
-                    lineHeight: '1.5',
+                    fontSize: '0.75rem',
+                    lineHeight: '1.4',
                     color: '#333',
                     margin: 0,
                 }}>
@@ -227,7 +231,7 @@ function App() {
                 </p>
               </>
             ) : (
-              <p style={{ fontStyle: 'italic', color: '#999', marginTop: '1rem' }}>
+              <p style={{ fontStyle: 'italic', color: '#999', marginTop: '0.7rem', fontSize: '0.75rem' }}>
                 No cards drawn yet
               </p>
             )}
@@ -237,29 +241,29 @@ function App() {
           <div style={{
             background: 'linear-gradient(135deg, #fff 0%, #f8f9fa 100%)',
             border: '2px solid #dee2e6',
-            borderRadius: '12px',
+            borderRadius: '8px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            padding: '20px',
-            minHeight: '200px',
-            width: '500px',
+            padding: '14px',
+            minHeight: '133px',
+            width: '333px',
           }}>
-            <h3 style={{ margin: 0, fontSize: '1.3rem', color: '#ff924c' }}>
+            <h3 style={{ margin: 0, fontSize: '0.95rem', color: '#ff924c' }}>
               Chance
             </h3>
             {lastDrawnCards.CHANCE ? (
               <>
                 <h4 style={{
-                    fontSize: '1.1rem',
+                    fontSize: '0.85rem',
                     fontWeight: 'bold',
                     color: '#1982c4',
-                    marginTop: '0.8rem',
-                    marginBottom: '0.5rem',
+                    marginTop: '0.5rem',
+                    marginBottom: '0.3rem',
                 }}>
                     {lastDrawnCards.CHANCE.title}
                 </h4>
                 <p style={{
-                    fontSize: '0.95rem',
-                    lineHeight: '1.5',
+                    fontSize: '0.75rem',
+                    lineHeight: '1.4',
                     color: '#333',
                     margin: 0,
                 }}>
@@ -267,7 +271,7 @@ function App() {
                 </p>
               </>
             ) : (
-              <p style={{ fontStyle: 'italic', color: '#999', marginTop: '1rem' }}>
+              <p style={{ fontStyle: 'italic', color: '#999', marginTop: '0.7rem', fontSize: '0.75rem' }}>
                 No cards drawn yet
               </p>
             )}
