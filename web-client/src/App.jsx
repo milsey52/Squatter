@@ -82,9 +82,9 @@ function App() {
                                                                                                                                                                                        
     const gameData = await gameRes.json();                                                                                                                                             
     const ledgerData = await ledgerRes.json();                                                                                                                                         
-    const jackpotData = jackpotRes.ok ? await jackpotRes.json() : { jackpot: null };                                                                                                   
-    const balancesData = balancesRes.ok ? await balancesRes.json() : {};                                                                                                               
-    const assetsData = assetsRes.ok ? await assetsRes.json() : {};                                                                                                                     
+    const jackpotData = jackpotRes.ok ? await jackpotRes.json() : { jackpot: null };
+    const balancesData = balancesRes.ok ? await balancesRes.json() : {};
+    const assetsData = assetsRes.ok ? await assetsRes.json() : {};
     const cardsData = cardsRes.ok ? await cardsRes.json() : {};
     const lastDrawnCardsData = lastDrawnCardsRes.ok ? await lastDrawnCardsRes.json() : { CHANCE: null, WELFARE: null };
 
@@ -93,7 +93,7 @@ function App() {
     setJackpot(jackpotData.jackpot);                                                                                                                                                   
     setPlayerBalances(balancesData);                                                                                                                                                   
     setAllPlayerAssets(assetsData);                                                                                                                                                    
-    setPlayerRetainedCards(cardsData);                                                                                                                                                 
+    setPlayerRetainedCards(cardsData);
     setLastDrawnCards(lastDrawnCardsData);
     setError(null);                                                                                                                                                                    
   }, [gameId]);                                                                                                                                                                        
@@ -107,7 +107,7 @@ function App() {
         setLedger([]);                                                                                                                                                                 
         setJackpot(null);                                                                                                                                                              
         setAllPlayerAssets({});                                                                                                                                                        
-        setPlayerRetainedCards({});                                                                                                                                                    
+        setPlayerRetainedCards({});
         setLastDrawnCards({ CHANCE: null, WELFARE: null });
       })                                                                                                                                                                               
       .finally(() => setLoading(false));                                                                                                                                               
@@ -181,9 +181,8 @@ function App() {
             >                                                                                                                                                                          
               {isSubmitting ? "Processing..." : "Next Turn"}                                                                                                                           
             </button>                                                                                                                                                                  
-          </div>                                                                                                                                                                       
+          </div>
         </div>
-
 
         {/* Card display section - below board */}
         <div style={{
@@ -279,7 +278,6 @@ function App() {
         </div>
         </div>
 
-                                                                                                                                                                                       
         {/* Right column: player list + jackpot + ledger */}                                                                                                                           
         <div                                                                                                                                                                           
           style={{                                                                                                                                                                     
