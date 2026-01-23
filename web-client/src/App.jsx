@@ -55,8 +55,9 @@ function App() {
   const [loading, setLoading] = useState(true);                                                                                                                                        
   const [error, setError] = useState(null);                                                                                                                                            
   const [isSubmitting, setIsSubmitting] = useState(false);                                                                                                                             
-  const [playerRetainedCards, setPlayerRetainedCards] = useState({});                                                                                                                  
+  const [playerRetainedCards, setPlayerRetainedCards] = useState({});
   const [lastDrawnCards, setLastDrawnCards] = useState({ CHANCE: null, WELFARE: null });
+  const [lastDiceRoll, setLastDiceRoll] = useState(null);
                                                                                                                                                                                        
   const fetchGameLedgerJackpot = useCallback(async () => {                                                                                                                             
     const [gameRes, ledgerRes, jackpotRes, balancesRes, assetsRes, cardsRes, lastDrawnCardsRes] = await Promise.all([                                                                                     
@@ -113,15 +114,17 @@ function App() {
       .finally(() => setLoading(false));                                                                                                                                               
   }, [gameId, fetchGameLedgerJackpot]);                                                                                                                                                
                                                                                                                                                                                        
-  const nextTurn = async () => {                                                                                                                                                       
-    if (isSubmitting) return;                                                                                                                                                          
-                                                                                                                                                                                       
-    setIsSubmitting(true);                                                                                                                                                             
-    try {                                                                                                                                                                              
-      const response = await fetch(`${API_BASE}/games/${gameId}/turns`, { method: "POST" });                                                                                           
-      if (!response.ok) {                                                                                                                                                              
-        throw new Error(`Failed to execute turn: ${response.status}`);                                                                                                                 
-      }                                                                                                                                                                                
+  const nextTurn = async () => {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`${API_BASE}/games/${gameId}/turns`, { method: "POST" });
+      if (!response.ok) {
+        throw new Error(`Failed to execute turn: ${response.status}`);
+      }
+      const turnData = await response.json();
+      setLastDiceRoll(turnData);
       await fetchGameLedgerJackpot();                                                                                                                                                  
     } catch (err) {                                                                                                                                                                    
       setError(err.message);                                                                                                                                                           
@@ -178,9 +181,51 @@ function App() {
                 cursor: isSubmitting ? "not-allowed" : "pointer",                                                                                                                      
                 fontSize: "1rem",                                                                                                                                                      
               }}                                                                                                                                                                       
-            >                                                                                                                                                                          
-              {isSubmitting ? "Processing..." : "Next Turn"}                                                                                                                           
-            </button>                                                                                                                                                                  
+            >
+              {isSubmitting ? "Processing..." : "Next Turn"}
+            </button>
+            {lastDiceRoll && (
+              <div style={{ marginTop: "0.8rem", fontSize: "0.95rem", color: "#333" }}>
+                <div style={{ fontWeight: "bold", marginBottom: "0.3rem" }}>Last Roll:</div>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                  <span style={{
+                    background: "#fff",
+                    border: "2px solid #1982c4",
+                    borderRadius: "6px",
+                    padding: "0.4rem 0.6rem",
+                    fontWeight: "bold",
+                    fontSize: "1.1rem"
+                  }}>
+                    {lastDiceRoll.dice_roll_1}
+                  </span>
+                  <span>+</span>
+                  <span style={{
+                    background: "#fff",
+                    border: "2px solid #1982c4",
+                    borderRadius: "6px",
+                    padding: "0.4rem 0.6rem",
+                    fontWeight: "bold",
+                    fontSize: "1.1rem"
+                  }}>
+                    {lastDiceRoll.dice_roll_2}
+                  </span>
+                  <span>=</span>
+                  <span style={{ fontWeight: "bold", fontSize: "1.1rem", color: "#1982c4" }}>
+                    {lastDiceRoll.total_roll}
+                  </span>
+                  {lastDiceRoll.is_double && (
+                    <span style={{
+                      marginLeft: "0.5rem",
+                      color: "#ff6b6b",
+                      fontWeight: "bold",
+                      fontSize: "0.9rem"
+                    }}>
+                      DOUBLE!
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -324,54 +369,95 @@ function App() {
               💰 Jackpot: ${jackpot}                                                                                                                                                   
             </div>                                                                                                                                                                     
           )}                                                                                                                                                                           
-          <ul style={{ paddingLeft: "1rem" }}>                                                                                                                                         
-            {game.players?.map((p) => {                                                                                                                                                
-              const idx = p.current_space_id ?? 0;                                                                                                                                     
-              const spaceLabel = SPACE_LABELS[idx];                                                                                                                                    
-              const cash = playerBalances[String(p.game_player_id)] ?? "?";                                                                                                            
-              const assets = allPlayerAssets[p.game_player_id] || allPlayerAssets[String(p.game_player_id)] || [];                                                                     
-              const retained = playerRetainedCards[p.game_player_id] || [];                                                                                                            
-              return (                                                                                                                                                                 
-                <li key={p.game_player_id} style={{ marginBottom: 10 }}>                                                                                                               
-                  <strong>{p.player_name}</strong>                                                                                                                                     
-                  {" – "}                                                                                                                                                              
-                  {spaceLabel}                                                                                                                                                         
-                  {" – "}                                                                                                                                                              
-                  <span style={{ color: "#1982c4" }}>                                                                                                                                  
-                    Cash: <b>${cash}</b>                                                                                                                                               
-                  </span>                                                                                                                                                              
-                  {p.in_jail ? " (In Jail)" : ""}                                                                                                                                      
-                  <br />                                                                                                                                                               
-                  <span style={{ fontSize: "0.95em", color: "#222" }}>                                                                                                                 
-                    {assets.length > 0 ? (                                                                                                                                             
-                      <>                                                                                                                                                               
-                        <span>Props: </span>                                                                                                                                           
-                        {assets.map((a, i) => (                                                                                                                                        
-                          <span key={a.asset_id} style={{ marginRight: 4 }}>                                                                                                           
-                            {a.name}                                                                                                                                                   
-                            {a.improvement_level > 0 ? ` (${a.improvement_level} house${a.improvement_level > 1 ? "s" : ""})` : ""}                                                    
-                            {a.has_hotel ? " (hotel)" : ""}                                                                                                                            
-                            {a.is_mortgaged ? " (mortgaged)" : ""}                                                                                                                     
-                            {i < assets.length - 1 ? ", " : ""}                                                                                                                        
-                          </span>                                                                                                                                                      
-                        ))}                                                                                                                                                            
-                      </>                                                                                                                                                              
-                    ) : (                                                                                                                                                              
-                      <span>Props: —</span>                                                                                                                                            
-                    )}                                                                                                                                                                 
-                  </span>                                                                                                                                                              
-                  {retained.length > 0 && (                                                                                                                                            
-                    <>                                                                                                                                                                 
-                      <br />                                                                                                                                                           
-                      <span style={{ fontSize: "0.9em", color: "#6a4c93" }}>                                                                                                           
-                        🃏 Cards: {retained.map((card, i) => (                                                                                                                         
-                          <span key={i} style={{ marginRight: 4 }}>                                                                                                                    
-                            {card.name || card.title || card.description}                                                                                                              
-                            {i < retained.length - 1 ? ", " : ""}                                                                                                                      
-                          </span>                                                                                                                                                      
-                        ))}                                                                                                                                                            
-                      </span>                                                                                                                                                          
-                    </>                                                                                                                                                                
+          <ul style={{ paddingLeft: "1rem" }}>
+            {game.players?.map((p) => {
+              const idx = p.current_space_id ?? 0;
+              const spaceLabel = SPACE_LABELS[idx];
+              const cash = playerBalances[String(p.game_player_id)] ?? "?";
+              const assets = allPlayerAssets[p.game_player_id] || allPlayerAssets[String(p.game_player_id)] || [];
+              const retained = playerRetainedCards[p.game_player_id] || [];
+              const isCurrent = p.game_player_id === game.current_player_id;
+
+              // Calculate next player based on turn_order
+              const currentPlayer = game.players.find(pl => pl.game_player_id === game.current_player_id);
+              const nextTurnOrder = currentPlayer ? ((currentPlayer.turn_order % game.players.length) + 1) : 1;
+              const isNext = p.turn_order === nextTurnOrder && !isCurrent;
+              return (
+                <li key={p.game_player_id} style={{
+                  marginBottom: 12,
+                  padding: "12px",
+                  borderRadius: "8px",
+                  background: isCurrent ? "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)" : "transparent",
+                  border: isCurrent ? "3px solid #1982c4" : isNext ? "2px dashed #ff924c" : "1px solid #e0e0e0",
+                  position: "relative",
+                  boxShadow: isCurrent ? "0 2px 8px rgba(25, 130, 196, 0.3)" : "none"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.8rem", marginBottom: "6px" }}>
+                    <strong style={{ fontSize: "1.1rem" }}>{p.player_name}</strong>
+                    {isCurrent && (
+                      <span style={{
+                        background: "#1982c4",
+                        color: "#fff",
+                        padding: "6px 14px",
+                        borderRadius: "6px",
+                        fontSize: "0.9rem",
+                        fontWeight: "bold",
+                        letterSpacing: "0.5px",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+                      }}>
+                        ▶ CURRENT PLAYER
+                      </span>
+                    )}
+                    {isNext && !isCurrent && (
+                      <span style={{
+                        background: "#ff924c",
+                        color: "#fff",
+                        padding: "6px 14px",
+                        borderRadius: "6px",
+                        fontSize: "0.9rem",
+                        fontWeight: "bold",
+                        letterSpacing: "0.5px",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+                      }}>
+                        NEXT →
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    {spaceLabel}
+                    {" – "}
+                    <span style={{ color: "#1982c4" }}>
+                      Cash: <b>${cash}</b>
+                    </span>
+                    {p.in_jail ? " (In Jail)" : ""}
+                  </div>
+                  <div style={{ fontSize: "0.95em", color: "#222" }}>
+                    {assets.length > 0 ? (
+                      <>
+                        <span>Props: </span>
+                        {assets.map((a, i) => (
+                          <span key={a.asset_id} style={{ marginRight: 4 }}>
+                            {a.name}
+                            {a.improvement_level > 0 ? ` (${a.improvement_level} house${a.improvement_level > 1 ? "s" : ""})` : ""}
+                            {a.has_hotel ? " (hotel)" : ""}
+                            {a.is_mortgaged ? " (mortgaged)" : ""}
+                            {i < assets.length - 1 ? ", " : ""}
+                          </span>
+                        ))}
+                      </>
+                    ) : (
+                      <span>Props: —</span>
+                    )}
+                  </div>
+                  {retained.length > 0 && (
+                    <div style={{ fontSize: "0.9em", color: "#6a4c93", marginTop: "4px" }}>
+                      🃏 Cards: {retained.map((card, i) => (
+                        <span key={i} style={{ marginRight: 4 }}>
+                          {card.name || card.title || card.description}
+                          {i < retained.length - 1 ? ", " : ""}
+                        </span>
+                      ))}
+                    </div>
                   )}                                                                                                                                                                   
                 </li>                                                                                                                                                                  
               );                                                                                                                                                                       
