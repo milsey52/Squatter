@@ -4,10 +4,11 @@ from typing import Tuple, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
+from app import models
+from app.constants import BOARD_SIZE, JAIL_SPACE_ID, MAX_JAIL_TURNS, JAIL_FINE
 from .space_resolver import SpaceResolver
 from .card_service import CardService
 from .ledger_service import LedgerService
-from app import models
 
 
 class TurnManager:
@@ -103,8 +104,8 @@ class TurnManager:
             player.jail_turns = 0
             return False
 
-        if player.jail_turns >= 3:
-            self.ledger.record_bank_payment(player, 500, "jail_fine", turn.turn_id)
+        if player.jail_turns >= MAX_JAIL_TURNS:
+            self.ledger.record_bank_payment(player, JAIL_FINE, "jail_fine", turn.turn_id)
             player.in_jail = False
             player.jail_turns = 0
             self._move_player(player, d1 + d2)
@@ -116,8 +117,8 @@ class TurnManager:
     # Movement -----------------------------------------------------------
     def _move_player(self, player, steps: int) -> Tuple[models.Space, bool]:
         start_space = player.current_space_id
-        end_space_idx = (start_space + steps) % 40
-        passed_start = (start_space + steps) >= 40
+        end_space_idx = (start_space + steps) % BOARD_SIZE
+        passed_start = (start_space + steps) >= BOARD_SIZE
         player.current_space_id = end_space_idx
 
         movement = models.Movement(
@@ -206,8 +207,7 @@ class TurnManager:
         return players[0]
 
     def _jail_space_id(self) -> int:
-        # hardcode or look up "Police Arrest – Imprisonment"
-        return 31  # adjust if different
+        return JAIL_SPACE_ID
 
     def _player_has_get_out_of_jail_card(self, player) -> bool:
         card = (
@@ -247,28 +247,3 @@ class TurnManager:
             .order_by(models.GamePlayer.turn_order)
             .all()
         )
-    
-    def _last_turn(self):
-        return (
-            self.session.query(models.Turn)
-            .filter(models.Turn.game_id == self.game_id)
-            .order_by(models.Turn.turn_number.desc())
-            .first()
-        )
-    
-    def _set_next_player(self, current_player):
-        players = self._active_players_ordered()
-        if not players:
-            return
-
-        idx = next(
-            (i for i, p in enumerate(players) if p.game_player_id == current_player.game_player_id),
-            None,
-        )
-        if idx is None:
-            return
-
-        next_player = players[(idx + 1) % len(players)]
-        turn = self._last_turn()
-        if turn:
-            turn.active_game_player_id = current_player.game_player_id  # already set

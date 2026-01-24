@@ -11,12 +11,9 @@ if TYPE_CHECKING:
     from .space_resolver import SpaceResolver
 
 from app import models
+from app.constants import BOARD_SIZE, JAIL_SPACE_ID
 from .ledger_service import LedgerService
 from .jackpot_service import JackpotService
-# from .space_resolver import SpaceResolver
-
-BOARD_SIZE = 40
-JAIL_SPACE_ID = 31  # adjust if your jail space differs
 
 
 class CardService:

@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app import models
+from app.constants import JAIL_SPACE_ID
 from app.services.ledger_service import LedgerService
-# from app.services.card_service import CardService
 from app.services.jackpot_service import JackpotService
 
 if TYPE_CHECKING:
@@ -250,8 +250,7 @@ class SpaceResolver:
     def _send_player_to_jail(self, player, turn):
         player.in_jail = True
         player.jail_turns = 0
-        player.current_space_id = 31  # adjust if jail space differs
-        # consider logging a movement entry
+        player.current_space_id = JAIL_SPACE_ID
 
     def resolve_from_card(self, player, space, turn, passed_start, rent_multiplier=None, skip_cards=False):
         prev_multiplier = getattr(self, "_temp_rent_multiplier", None)
