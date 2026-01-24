@@ -1,5 +1,7 @@
-import { useEffect, useState, useCallback } from "react";                                                                                                                              
-import Board from "./Board";                                                                                                                                                           
+import { useEffect, useState, useCallback } from "react";
+import Board from "./Board";
+import PurchaseModal from "./PurchaseModal";
+import AuctionModal from "./AuctionModal";                                                                                                                                                           
                                                                                                                                                                                        
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";                                                                                                             
 const SPACE_LABELS = [                                                                                                                                                                 
@@ -58,16 +60,18 @@ function App() {
   const [playerRetainedCards, setPlayerRetainedCards] = useState({});
   const [lastDrawnCards, setLastDrawnCards] = useState({ CHANCE: null, WELFARE: null });
   const [lastDiceRoll, setLastDiceRoll] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null);
                                                                                                                                                                                        
-  const fetchGameLedgerJackpot = useCallback(async () => {                                                                                                                             
-    const [gameRes, ledgerRes, jackpotRes, balancesRes, assetsRes, cardsRes, lastDrawnCardsRes] = await Promise.all([                                                                                     
-      fetch(`${API_BASE}/games/${gameId}`),                                                                                                                                            
-      fetch(`${API_BASE}/games/${gameId}/ledger`),                                                                                                                                     
-      fetch(`${API_BASE}/games/${gameId}/jackpot`),                                                                                                                                    
-      fetch(`${API_BASE}/games/${gameId}/player_balances`),                                                                                                                            
-      fetch(`${API_BASE}/games/${gameId}/player_assets`),                                                                                                                              
-      fetch(`${API_BASE}/games/${gameId}/player_retained_cards`),                                                                                                                       
-      fetch(`${API_BASE}/games/${gameId}/last_drawn_cards`)
+  const fetchGameLedgerJackpot = useCallback(async () => {
+    const [gameRes, ledgerRes, jackpotRes, balancesRes, assetsRes, cardsRes, lastDrawnCardsRes, pendingRes] = await Promise.all([
+      fetch(`${API_BASE}/games/${gameId}`),
+      fetch(`${API_BASE}/games/${gameId}/ledger`),
+      fetch(`${API_BASE}/games/${gameId}/jackpot`),
+      fetch(`${API_BASE}/games/${gameId}/player_balances`),
+      fetch(`${API_BASE}/games/${gameId}/player_assets`),
+      fetch(`${API_BASE}/games/${gameId}/player_retained_cards`),
+      fetch(`${API_BASE}/games/${gameId}/last_drawn_cards`),
+      fetch(`${API_BASE}/games/${gameId}/pending-action`)
     ]);                                                                                                                                                                                
                                                        
     
@@ -81,35 +85,38 @@ function App() {
       throw new Error(`Failed to load ledger: ${ledgerRes.status}`);                                                                                                                   
     }                                                                                                                                                                                  
                                                                                                                                                                                        
-    const gameData = await gameRes.json();                                                                                                                                             
-    const ledgerData = await ledgerRes.json();                                                                                                                                         
+    const gameData = await gameRes.json();
+    const ledgerData = await ledgerRes.json();
     const jackpotData = jackpotRes.ok ? await jackpotRes.json() : { jackpot: null };
     const balancesData = balancesRes.ok ? await balancesRes.json() : {};
     const assetsData = assetsRes.ok ? await assetsRes.json() : {};
     const cardsData = cardsRes.ok ? await cardsRes.json() : {};
     const lastDrawnCardsData = lastDrawnCardsRes.ok ? await lastDrawnCardsRes.json() : { CHANCE: null, WELFARE: null };
+    const pendingData = pendingRes.ok ? await pendingRes.json() : { pending_action: null };
 
-    setGame(gameData); 
-    setLedger(Array.isArray(ledgerData) ? ledgerData : []);                                                                                                                            
-    setJackpot(jackpotData.jackpot);                                                                                                                                                   
-    setPlayerBalances(balancesData);                                                                                                                                                   
-    setAllPlayerAssets(assetsData);                                                                                                                                                    
+    setGame(gameData);
+    setLedger(Array.isArray(ledgerData) ? ledgerData : []);
+    setJackpot(jackpotData.jackpot);
+    setPlayerBalances(balancesData);
+    setAllPlayerAssets(assetsData);
     setPlayerRetainedCards(cardsData);
     setLastDrawnCards(lastDrawnCardsData);
+    setPendingAction(pendingData.pending_action);
     setError(null);                                                                                                                                                                    
   }, [gameId]);                                                                                                                                                                        
                                                                                                                                                                                        
   useEffect(() => {                                                                                                                                                                    
     setLoading(true);                                                                                                                                                                  
     fetchGameLedgerJackpot()                                                                                                                                                           
-      .catch((err) => {                                                                                                                                                                
-        setError(err.message);                                                                                                                                                         
-        setGame(null);                                                                                                                                                                 
-        setLedger([]);                                                                                                                                                                 
-        setJackpot(null);                                                                                                                                                              
-        setAllPlayerAssets({});                                                                                                                                                        
+      .catch((err) => {
+        setError(err.message);
+        setGame(null);
+        setLedger([]);
+        setJackpot(null);
+        setAllPlayerAssets({});
         setPlayerRetainedCards({});
         setLastDrawnCards({ CHANCE: null, WELFARE: null });
+        setPendingAction(null);
       })                                                                                                                                                                               
       .finally(() => setLoading(false));                                                                                                                                               
   }, [gameId, fetchGameLedgerJackpot]);                                                                                                                                                
@@ -197,21 +204,21 @@ function App() {
             }}                                                                                                                                                                         
           >                                                                                                                                                                            
             <h1 style={{ margin: 0, fontSize: "1.5rem" }}>Game {gameId}</h1>                                                                                                           
-            <button                                                                                                                                                                    
-              onClick={nextTurn}                                                                                                                                                       
-              disabled={isSubmitting}                                                                                                                                                  
-              style={{                                                                                                                                                                 
-                marginTop: "0.6rem",                                                                                                                                                   
-                padding: "0.5rem 1rem",                                                                                                                                                
-                background: isSubmitting ? "#ccc" : "#1982c4",                                                                                                                         
-                color: "#fff",                                                                                                                                                         
-                border: "none",                                                                                                                                                        
-                borderRadius: "6px",                                                                                                                                                   
-                cursor: isSubmitting ? "not-allowed" : "pointer",                                                                                                                      
-                fontSize: "1rem",                                                                                                                                                      
-              }}                                                                                                                                                                       
+            <button
+              onClick={nextTurn}
+              disabled={isSubmitting || pendingAction}
+              style={{
+                marginTop: "0.6rem",
+                padding: "0.5rem 1rem",
+                background: isSubmitting || pendingAction ? "#ccc" : "#1982c4",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                cursor: isSubmitting || pendingAction ? "not-allowed" : "pointer",
+                fontSize: "1rem",
+              }}
             >
-              {isSubmitting ? "Processing..." : "Next Turn"}
+              {isSubmitting ? "Processing..." : pendingAction ? "Resolve Action First" : "Next Turn"}
             </button>
             {lastDiceRoll && (
               <div style={{ marginTop: "0.8rem", fontSize: "0.95rem", color: "#333" }}>
@@ -514,10 +521,31 @@ function App() {
             })}                                                                                                                                                                        
           </ul>                                                                                                                                                                        
                                                                                                                                                                                        
-        </div>                                                                                                                                                                         
-      </div>                                                                                                                                                                           
-    </div>                                                                                                                                                                             
-  );                                                                                                                                                                                   
-}                                                                                                                                                                                      
-                                                                                                                                                                                       
+        </div>
+      </div>
+
+      {/* Purchase/Auction Modals */}
+      {pendingAction && pendingAction.action_type === "purchase_decision" && (
+        <PurchaseModal
+          gameId={gameId}
+          pendingAction={pendingAction}
+          playerBalances={playerBalances}
+          players={game.players}
+          onResolved={fetchGameLedgerJackpot}
+        />
+      )}
+
+      {pendingAction && pendingAction.action_type === "auction" && (
+        <AuctionModal
+          gameId={gameId}
+          pendingAction={pendingAction}
+          playerBalances={playerBalances}
+          players={game.players}
+          onResolved={fetchGameLedgerJackpot}
+        />
+      )}
+    </div>
+  );
+}
+
 export default App;       

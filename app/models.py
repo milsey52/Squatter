@@ -208,3 +208,22 @@ class JackpotLedger(Base):
     game = relationship("Game")
     turn = relationship("Turn")
     transaction = relationship("Transaction")
+
+
+class PendingAction(Base):
+    __tablename__ = "pending_actions"
+
+    pending_action_id = Column(Integer, primary_key=True)
+    game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
+    turn_id = Column(Integer, ForeignKey("turns.turn_id"), nullable=False)
+    action_type = Column(String(50), nullable=False)  # "purchase_decision" or "auction"
+    asset_id = Column(Integer, ForeignKey("assets.asset_id"))
+    active_player_id = Column(Integer, ForeignKey("game_players.game_player_id"))
+    action_data = Column(Text)  # JSON for auction state (bids, current_bidder, etc.)
+    created_at = Column(DateTime, server_default=func.now())
+    resolved_at = Column(DateTime)
+
+    game = relationship("Game")
+    turn = relationship("Turn")
+    asset = relationship("Asset")
+    active_player = relationship("GamePlayer")

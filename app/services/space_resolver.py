@@ -140,19 +140,17 @@ class SpaceResolver:
         return state
 
     def _offer_purchase(self, player, asset, state, turn):
-        price = asset.purchase_price or 0
-        balance = self.ledger.player_balance(player.game_player_id)
-
-        if balance < price:
-            # TODO: trigger auction if desired
-            return
-
-        self.ledger.pay_bank(player, price, "property_purchase", turn.turn_id, asset_id=asset.asset_id)
-        state.owner_game_player_id = player.game_player_id
-        state.is_mortgaged = False
-        state.improvement_level = 0
-        state.has_hotel = False
+        # Create pending purchase decision instead of auto-buying
+        pending = models.PendingAction(
+            game_id=self.game_id,
+            turn_id=turn.turn_id,
+            action_type="purchase_decision",
+            asset_id=asset.asset_id,
+            active_player_id=player.game_player_id,
+        )
+        self.session.add(pending)
         self.session.flush()
+        # Turn pauses here - no auto-purchase
 
     def _collect_rent(self, player, state, asset, turn):
         rent = self._calculate_rent(asset, state)
