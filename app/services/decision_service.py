@@ -129,9 +129,14 @@ class DecisionService:
                     next_idx = 0  # wrap to first player
             bidder_ids = [players[(next_idx + i) % len(players)].game_player_id for i in range(len(players))]
 
+        # Starting bid is 25% of purchase price
+        asset = self.session.query(models.Asset).get(pending.asset_id)
+        starting_bid = int((asset.purchase_price or 0) * 0.25)
+
         auction_data = {
             "current_bid": 0,
             "current_bidder_id": None,
+            "starting_bid": starting_bid,
             "bidder_order": bidder_ids,
             "active_bidders": bidder_ids.copy(),
             "current_bidder_index": 0,
@@ -168,7 +173,8 @@ class DecisionService:
 
         # Validate bid amount
         current_bid = auction["current_bid"]
-        min_bid = current_bid + MIN_BID_INCREMENT if current_bid > 0 else 1
+        starting_bid = auction.get("starting_bid", 1)
+        min_bid = current_bid + MIN_BID_INCREMENT if current_bid > 0 else starting_bid
         if amount < min_bid:
             raise ValueError(f"Bid must be at least ${min_bid}")
 
@@ -301,13 +307,16 @@ class DecisionService:
 
         if pending.action_type == "auction" and pending.action_data:
             auction = json.loads(pending.action_data)
-            result["current_bid"] = auction.get("current_bid", 0)
+            current_bid = auction.get("current_bid", 0)
+            starting_bid = auction.get("starting_bid", int((asset.purchase_price or 0) * 0.25))
+            result["current_bid"] = current_bid
             result["current_bidder_id"] = auction.get("current_bidder_id")
             result["active_bidders"] = auction.get("active_bidders", [])
+            result["starting_bid"] = starting_bid
             current_idx = auction.get("current_bidder_index", 0)
             active_bidders = auction.get("active_bidders", [])
             if active_bidders:
                 result["next_bidder_id"] = active_bidders[current_idx % len(active_bidders)]
-            result["min_bid"] = (auction.get("current_bid", 0) + MIN_BID_INCREMENT) if auction.get("current_bid", 0) > 0 else 1
+            result["min_bid"] = (current_bid + MIN_BID_INCREMENT) if current_bid > 0 else starting_bid
 
         return result

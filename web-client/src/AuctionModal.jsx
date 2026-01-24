@@ -3,7 +3,7 @@ import { useState } from "react";
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
 function AuctionModal({ gameId, pendingAction, playerBalances, players, onResolved }) {
-  const [bidAmount, setBidAmount] = useState(pendingAction.min_bid || 1);
+  const [bidAmount, setBidAmount] = useState(pendingAction.min_bid || pendingAction.starting_bid || 1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -106,6 +106,12 @@ function AuctionModal({ gameId, pendingAction, playerBalances, players, onResolv
           borderRadius: "8px",
           marginBottom: "16px",
         }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+            <span style={{ color: "#666" }}>Starting Bid (25%):</span>
+            <span style={{ fontWeight: "bold", color: "#666" }}>
+              ${pendingAction.starting_bid || Math.floor(pendingAction.purchase_price * 0.25)}
+            </span>
+          </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
             <span style={{ color: "#666" }}>Current Bid:</span>
             <span style={{ fontWeight: "bold", fontSize: "1.2rem", color: "#1982c4" }}>
