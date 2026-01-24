@@ -8,16 +8,22 @@ router = APIRouter()
 
 @router.post("/")
 def play_turn(game_id: int, session: Session = Depends(deps.get_session)):
-    # verify game exists
+    # Verify game exists
+    deps.get_game_or_404(game_id, session)
+
     tm = TurnManager(session, game_id)
-    turn = tm.play_turn()
+    tm.play_turn()
     session.commit()
+
     turn = (
         session.query(models.Turn)
         .filter(models.Turn.game_id == game_id)
         .order_by(models.Turn.turn_number.desc())
         .first()
     )
+
+    if not turn:
+        raise HTTPException(status_code=500, detail="Turn was not recorded")
 
     return {
         "turn_number": turn.turn_number,

@@ -135,12 +135,15 @@ class TurnManager:
         if passed_start:
             self.ledger.record_pass_start_bonus(player)
 
-        return (
+        space = (
             self.session.query(models.Space)
             .filter(models.Space.board_index == end_space_idx)
-            .one(),
-            passed_start,
+            .first()
         )
+        if space is None:
+            raise ValueError(f"No space found for board_index={end_space_idx}")
+
+        return (space, passed_start)
 
     def _current_turn_id(self, player) -> Optional[int]:
         turn = (

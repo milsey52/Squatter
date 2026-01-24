@@ -292,14 +292,20 @@ class CardService:
         return end_idx < start_idx
 
     def _space_by_id(self, space_id: int) -> models.Space:
-        return self.session.query(models.Space).filter_by(space_id=space_id).one()
+        space = self.session.query(models.Space).filter_by(space_id=space_id).first()
+        if space is None:
+            raise ValueError(f"No space found for space_id={space_id}")
+        return space
 
     def _space_by_board_index(self, board_index: int) -> models.Space:
-        return (
+        space = (
             self.session.query(models.Space)
             .filter(models.Space.board_index == board_index)
-            .one()
+            .first()
         )
+        if space is None:
+            raise ValueError(f"No space found for board_index={board_index}")
+        return space
 
     def _to_board_index(self, space_id: int) -> int:
         space = self._space_by_id(space_id)
