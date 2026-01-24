@@ -436,9 +436,11 @@ function App() {
               const isCurrent = p.game_player_id === game.current_player_id;
 
               // Calculate next player based on turn_order
+              // Don't show "next" if current player rolled a double (they get another turn)
               const currentPlayer = game.players.find(pl => pl.game_player_id === game.current_player_id);
               const nextTurnOrder = currentPlayer ? ((currentPlayer.turn_order % game.players.length) + 1) : 1;
-              const isNext = p.turn_order === nextTurnOrder && !isCurrent;
+              const rolledDouble = lastDiceRoll?.is_double && !currentPlayer?.in_jail;
+              const isNext = p.turn_order === nextTurnOrder && !isCurrent && !rolledDouble;
               return (
                 <li key={p.game_player_id} style={{
                   marginBottom: 12,
@@ -463,6 +465,20 @@ function App() {
                         boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
                       }}>
                         ▶ CURRENT PLAYER
+                      </span>
+                    )}
+                    {isCurrent && rolledDouble && (
+                      <span style={{
+                        background: "#ff6b6b",
+                        color: "#fff",
+                        padding: "6px 14px",
+                        borderRadius: "6px",
+                        fontSize: "0.9rem",
+                        fontWeight: "bold",
+                        letterSpacing: "0.5px",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+                      }}>
+                        ROLL AGAIN!
                       </span>
                     )}
                     {isNext && !isCurrent && (
