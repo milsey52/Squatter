@@ -133,8 +133,37 @@ function App() {
     }                                                                                                                                                                                  
   };                                                                                                                                                                                   
                                                                                                                                                                                        
-  if (loading) return <div>Loading…</div>;                                                                                                                                             
-  if (error) return <div style={{ color: "red" }}>Error: {error}</div>;                                                                                                                
+  if (loading) return <div>Loading…</div>;
+  if (error && error.includes("404")) {
+    return (
+      <div style={{
+        padding: "2rem",
+        textAlign: "center",
+        fontFamily: "sans-serif",
+        maxWidth: 500,
+        margin: "4rem auto"
+      }}>
+        <h1 style={{ color: "#1982c4" }}>Monopoly Perth</h1>
+        <p style={{ fontSize: "1.2rem", color: "#333" }}>
+          No game has been started.
+        </p>
+        <p style={{ color: "#666" }}>
+          Please start a new game using the CLI:
+        </p>
+        <code style={{
+          display: "block",
+          background: "#f5f5f5",
+          padding: "1rem",
+          borderRadius: "6px",
+          marginTop: "1rem",
+          fontSize: "0.9rem"
+        }}>
+          python cli.py start-game --players Alice Bob Charlie
+        </code>
+      </div>
+    );
+  }
+  if (error) return <div style={{ color: "red" }}>Error: {error}</div>;
   if (!game) return <div>No game data.</div>;                                                                                                                                          
                                                                                                                                                                                        
   return (                                                                                                                                                                             
