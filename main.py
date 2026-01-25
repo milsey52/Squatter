@@ -1,10 +1,11 @@
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
-from app.api.routes import games, turns, ledger, jackpot, players, cards, decisions
+from app.api.routes import games, turns, ledger, jackpot, players, cards, decisions, lobby
 
 app = FastAPI(title="MonopolyPerth API")
 
+app.include_router(lobby.router, prefix="/games", tags=["lobby"])
 app.include_router(games.router, prefix="/games", tags=["games"])
 app.include_router(turns.router, prefix="/games/{game_id}/turns", tags=["turns"])
 app.include_router(ledger.router, prefix="/games/{game_id}/ledger", tags=["ledger"])

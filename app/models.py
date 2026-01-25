@@ -14,12 +14,26 @@ class User(Base):
 
     games_hosted = relationship("Game", back_populates="host")
     players = relationship("GamePlayer", back_populates="user")
+    sessions = relationship("GameSession", back_populates="user")
+
+class GameSession(Base):
+    __tablename__ = "game_sessions"
+    session_token = Column(String, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User", back_populates="sessions")
+    game = relationship("Game")
 
 class Game(Base):
     __tablename__ = "games"
     game_id = Column(Integer, primary_key=True)
     host_user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
-    status = Column(String, nullable=False, default="in_progress")
+    game_code = Column(String(6), unique=True, nullable=False, index=True)
+    status = Column(String, nullable=False, default="lobby")  # "lobby", "in_progress", "completed"
+    max_players = Column(Integer, nullable=False, default=6)
     current_game_player_id = Column(Integer, ForeignKey("game_players.game_player_id"))
     created_at = Column(DateTime, server_default=func.now())
     last_saved_at = Column(DateTime)
@@ -50,6 +64,7 @@ class GamePlayer(Base):
     player_name = Column(String, nullable=False)
     turn_order = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=True)
+    is_ready = Column(Boolean, nullable=False, default=False)
     current_space_id = Column(Integer, nullable=False, default=1)
     in_jail = Column(Boolean, nullable=False, default=False)
     jail_turns = Column(Integer, nullable=False, default=0)

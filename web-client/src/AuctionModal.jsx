@@ -2,7 +2,7 @@ import { useState } from "react";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
-function AuctionModal({ gameId, pendingAction, playerBalances, players, onResolved }) {
+function AuctionModal({ gameId, sessionToken, pendingAction, playerBalances, players, onResolved }) {
   const [bidAmount, setBidAmount] = useState(pendingAction.min_bid || pendingAction.starting_bid || 1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -21,9 +21,16 @@ function AuctionModal({ gameId, pendingAction, playerBalances, players, onResolv
     setError(null);
 
     try {
+      const headers = {
+        "Content-Type": "application/json"
+      };
+      if (sessionToken) {
+        headers['Authorization'] = `Bearer ${sessionToken}`;
+      }
+
       const res = await fetch(`${API_BASE}/games/${gameId}/auctions/bid`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ amount: bidAmount }),
       });
       if (!res.ok) {
@@ -44,8 +51,13 @@ function AuctionModal({ gameId, pendingAction, playerBalances, players, onResolv
     setError(null);
 
     try {
+      const headers = sessionToken ? {
+        'Authorization': `Bearer ${sessionToken}`
+      } : {};
+
       const res = await fetch(`${API_BASE}/games/${gameId}/auctions/pass`, {
         method: "POST",
+        headers
       });
       if (!res.ok) {
         const data = await res.json();

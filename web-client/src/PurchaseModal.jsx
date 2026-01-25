@@ -2,7 +2,7 @@ import { useState } from "react";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
-function PurchaseModal({ gameId, pendingAction, playerBalances, players, onResolved }) {
+function PurchaseModal({ gameId, sessionToken, pendingAction, playerBalances, players, onResolved }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -16,8 +16,13 @@ function PurchaseModal({ gameId, pendingAction, playerBalances, players, onResol
     setError(null);
 
     try {
+      const headers = sessionToken ? {
+        'Authorization': `Bearer ${sessionToken}`
+      } : {};
+
       const res = await fetch(`${API_BASE}/games/${gameId}/decisions/buy`, {
         method: "POST",
+        headers
       });
       if (!res.ok) {
         const data = await res.json();
@@ -37,8 +42,13 @@ function PurchaseModal({ gameId, pendingAction, playerBalances, players, onResol
     setError(null);
 
     try {
+      const headers = sessionToken ? {
+        'Authorization': `Bearer ${sessionToken}`
+      } : {};
+
       const res = await fetch(`${API_BASE}/games/${gameId}/decisions/pass`, {
         method: "POST",
+        headers
       });
       if (!res.ok) {
         const data = await res.json();
