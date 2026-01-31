@@ -108,8 +108,9 @@ class TurnManager:
             self.ledger.record_bank_payment(player, JAIL_FINE, "jail_fine", turn.turn_id)
             player.in_jail = False
             player.jail_turns = 0
-            self._move_player(player, d1 + d2)
-            return True
+            # Don't call _move_player here - let play_turn handle it so space resolution happens
+            # self._move_player(player, d1 + d2)
+            return False  # Return False so play_turn continues to move and resolve the space
 
         # otherwise player stays in jail, turn ends
         return True

@@ -296,12 +296,18 @@ class SpaceResolver:
         if not space or not space.group_id:
             return False
 
+        # Count total ASSETS (properties) in the group
         total_in_group = (
-            self.session.query(func.count(models.Space.space_id))
-            .filter(models.Space.group_id == space.group_id)
+            self.session.query(func.count(models.Asset.asset_id))
+            .join(models.Space, models.Space.space_id == models.Asset.space_id)
+            .filter(
+                models.Space.group_id == space.group_id,
+                models.Asset.asset_type == 'property'
+            )
             .scalar()
         )
 
+        # Count ASSETS owned by this player (not mortgaged)
         owned_in_group = (
             self.session.query(func.count(models.AssetState.asset_state_id))
             .join(models.Asset, models.Asset.asset_id == models.AssetState.asset_id)
@@ -311,6 +317,7 @@ class SpaceResolver:
                 models.AssetState.owner_game_player_id == owner_id,
                 models.AssetState.is_mortgaged == False,
                 models.Space.group_id == space.group_id,
+                models.Asset.asset_type == 'property'
             )
             .scalar()
         )

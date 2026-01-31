@@ -8,6 +8,7 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
   const [properties, setProperties] = useState({ groups: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [processing, setProcessing] = useState(null);
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
   const improveProperty = async (assetId, improvementType) => {
     setProcessing(assetId);
     setError(null);
+    setSuccess(null);
 
     try {
       const response = await fetch(`${API_BASE}/games/${gameId}/properties/${assetId}/improve`, {
@@ -52,6 +54,13 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
         throw new Error(errorData.detail || 'Failed to improve property');
       }
 
+      const result = await response.json();
+      const improvementName = improvementType === 'house' ? 'House' : 'Hotel';
+      setSuccess(`✓ ${improvementName} purchased successfully! Cost: $${result.cost}`);
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+
       await fetchProperties();
       if (onUpdate) onUpdate();
     } catch (err) {
@@ -64,6 +73,7 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
   const unimproveProperty = async (assetId, improvementType) => {
     setProcessing(assetId);
     setError(null);
+    setSuccess(null);
 
     try {
       const response = await fetch(`${API_BASE}/games/${gameId}/properties/${assetId}/unimprove`, {
@@ -79,6 +89,79 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Failed to sell improvement');
       }
+
+      const result = await response.json();
+      const improvementName = improvementType === 'house' ? 'House' : 'Hotel';
+      setSuccess(`✓ ${improvementName} sold successfully! Refund: $${result.refund}`);
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+
+      await fetchProperties();
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const mortgageProperty = async (assetId) => {
+    setProcessing(assetId);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/games/${gameId}/properties/${assetId}/mortgage`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sessionToken}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to mortgage property');
+      }
+
+      const result = await response.json();
+      setSuccess(`✓ Property mortgaged! Received: $${result.mortgage_value}`);
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+
+      await fetchProperties();
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const unmortgageProperty = async (assetId) => {
+    setProcessing(assetId);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/games/${gameId}/properties/${assetId}/unmortgage`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sessionToken}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to unmortgage property');
+      }
+
+      const result = await response.json();
+      setSuccess(`✓ Property unmortgaged! Cost: $${result.cost}`);
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
 
       await fetchProperties();
       if (onUpdate) onUpdate();
@@ -133,9 +216,26 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
           color: '#c62828',
           padding: '0.8rem',
           margin: '1rem',
-          borderRadius: '6px'
+          borderRadius: '6px',
+          fontWeight: 'bold',
+          border: '2px solid #c62828'
         }}>
-          {error}
+          ❌ {error}
+        </div>
+      )}
+
+      {/* Success Message */}
+      {success && (
+        <div style={{
+          background: '#e8f5e9',
+          color: '#2e7d32',
+          padding: '0.8rem',
+          margin: '1rem',
+          borderRadius: '6px',
+          fontWeight: 'bold',
+          border: '2px solid #4caf50'
+        }}>
+          {success}
         </div>
       )}
 
@@ -306,9 +406,15 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
                             fontSize: '0.9rem',
                             fontWeight: 'bold'
                           }}
-                          title={!group.has_monopoly ? 'Need monopoly' : !canBuyHouse ? 'Insufficient funds or at max' : ''}
+                          title={
+                            !group.has_monopoly ? 'Need to own all properties in color group' :
+                            group.any_mortgaged ? 'Cannot build - a property in this group is mortgaged' :
+                            property.improvement_level >= 4 ? 'Maximum houses (upgrade to hotel)' :
+                            playerBalance < group.house_cost ? `Insufficient funds. Need $${group.house_cost}` :
+                            ''
+                          }
                         >
-                          {processing === property.asset_id ? '...' : `+House ($${group.house_cost})`}
+                          {processing === property.asset_id ? '⏳ Buying...' : `+House ($${group.house_cost})`}
                         </button>
 
                         {/* Buy Hotel */}
@@ -370,6 +476,58 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
                             {processing === property.asset_id ? '...' : `Sell Hotel ($${group.hotel_cost / 2})`}
                           </button>
                         )}
+
+                        {/* Mortgage Property */}
+                        {property.improvement_level === 0 && !property.has_hotel && (
+                          <button
+                            onClick={() => mortgageProperty(property.asset_id)}
+                            disabled={processing === property.asset_id || group.any_improvements}
+                            style={{
+                              padding: '0.5rem 1rem',
+                              background: group.any_improvements ? '#ccc' : '#9c27b0',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: group.any_improvements ? 'not-allowed' : 'pointer',
+                              fontSize: '0.9rem',
+                              fontWeight: 'bold'
+                            }}
+                            title={
+                              group.any_improvements
+                                ? 'Cannot mortgage while any property in group has improvements'
+                                : `Receive $${property.mortgage_value || 0} from the bank`
+                            }
+                          >
+                            {processing === property.asset_id ? '⏳ Processing...' : `Mortgage ($${property.mortgage_value || 0})`}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Unmortgage button for mortgaged properties */}
+                    {property.is_mortgaged && (
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                        <button
+                          onClick={() => unmortgageProperty(property.asset_id)}
+                          disabled={processing === property.asset_id || playerBalance < Math.floor((property.mortgage_value || 0) * 1.10)}
+                          style={{
+                            padding: '0.5rem 1rem',
+                            background: playerBalance < Math.floor((property.mortgage_value || 0) * 1.10) ? '#ccc' : '#2196f3',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: playerBalance < Math.floor((property.mortgage_value || 0) * 1.10) ? 'not-allowed' : 'pointer',
+                            fontSize: '0.9rem',
+                            fontWeight: 'bold'
+                          }}
+                          title={
+                            playerBalance < Math.floor((property.mortgage_value || 0) * 1.10)
+                              ? `Insufficient funds. Need $${Math.floor((property.mortgage_value || 0) * 1.10)}, have $${playerBalance}`
+                              : `Pay $${Math.floor((property.mortgage_value || 0) * 1.10)} (mortgage + 10% interest)`
+                          }
+                        >
+                          {processing === property.asset_id ? '⏳ Processing...' : `Unmortgage ($${Math.floor((property.mortgage_value || 0) * 1.10)})`}
+                        </button>
                       </div>
                     )}
                   </div>

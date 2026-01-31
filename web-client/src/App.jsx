@@ -71,6 +71,7 @@ function App() {
   // Game state
   const [game, setGame] = useState(null);                                                                                                                                              
   const [ledger, setLedger] = useState([]);                                                                                                                                            
+  const [diceRolls, setDiceRolls] = useState([]);
   const [jackpot, setJackpot] = useState(null);                                                                                                                                        
   const [playerBalances, setPlayerBalances] = useState({});                                                                                                                            
   const [allPlayerAssets, setAllPlayerAssets] = useState({});                                                                                                                          
@@ -184,7 +185,7 @@ function App() {
       'Authorization': `Bearer ${sessionToken}`
     } : {};
 
-    const [gameRes, ledgerRes, jackpotRes, balancesRes, assetsRes, cardsRes, lastDrawnCardsRes, pendingRes, tradeRes] = await Promise.all([
+    const [gameRes, ledgerRes, jackpotRes, balancesRes, assetsRes, cardsRes, lastDrawnCardsRes, pendingRes, tradeRes, diceRollsRes] = await Promise.all([
       fetch(`${API_BASE}/games/${gameId}`, { headers }),
       fetch(`${API_BASE}/games/${gameId}/ledger`, { headers }),
       fetch(`${API_BASE}/games/${gameId}/jackpot`, { headers }),
@@ -193,7 +194,8 @@ function App() {
       fetch(`${API_BASE}/games/${gameId}/player_retained_cards`, { headers }),
       fetch(`${API_BASE}/games/${gameId}/last_drawn_cards`, { headers }),
       fetch(`${API_BASE}/games/${gameId}/pending-action`, { headers }),
-      fetch(`${API_BASE}/games/${gameId}/trades/active`, { headers })
+      fetch(`${API_BASE}/games/${gameId}/trades/active`, { headers }),
+      fetch(`${API_BASE}/games/${gameId}/dice_rolls`, { headers })
     ]);                                                                                                                                                                                
                                                        
     
@@ -216,9 +218,11 @@ function App() {
     const lastDrawnCardsData = lastDrawnCardsRes.ok ? await lastDrawnCardsRes.json() : { CHANCE: null, WELFARE: null };
     const pendingData = pendingRes.ok ? await pendingRes.json() : { pending_action: null };
     const tradeData = tradeRes.ok ? await tradeRes.json() : { trade: null };
+    const diceRollsData = diceRollsRes.ok ? await diceRollsRes.json() : { rolls: [] };
 
     setGame(gameData);
     setLedger(Array.isArray(ledgerData) ? ledgerData : []);
+    setDiceRolls(diceRollsData.rolls || []);
     setJackpot(jackpotData.jackpot);
     setPlayerBalances(balancesData);
     setAllPlayerAssets(assetsData);
@@ -256,7 +260,15 @@ function App() {
         .then(res => res.json())
         .then(data => {
           setActiveTrade(prevTrade => {
-            if (data.trade && JSON.stringify(data.trade) !== JSON.stringify(prevTrade)) {
+            // If no active trade, clear the state
+            if (!data.trade) {
+              if (prevTrade !== null) {
+                console.log('[Poll] Trade cleared');
+              }
+              return null;
+            }
+            // If trade exists and is different, update it
+            if (JSON.stringify(data.trade) !== JSON.stringify(prevTrade)) {
               console.log('[Poll] Trade updated:', data.trade);
               return data.trade;
             }
@@ -845,30 +857,16 @@ function App() {
                   position: "relative",
                   boxShadow: isCurrent ? "0 2px 8px rgba(25, 130, 196, 0.3)" : "none"
                 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.8rem", marginBottom: "6px" }}>
-                    <strong style={{ fontSize: "1.1rem", color: "#333" }}>{p.player_name}</strong>
-                    <span style={{ color: "#555" }}>
-                      {spaceLabel}
-                      {" – "}
-                      <span style={{ color: "#1982c4" }}>
-                        Cash: <b>${cash}</b>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
+                      <strong style={{ fontSize: "1.1rem", color: "#333" }}>{p.player_name}</strong>
+                      <span style={{ fontSize: "0.9rem", color: "#555" }}>
+                        📍 {p.in_jail ? "In Jail" : spaceLabel}
                       </span>
-                      {p.in_jail ? " (In Jail)" : ""}
-                    </span>
-                    {isCurrent && (
-                      <span style={{
-                        background: "#1982c4",
-                        color: "#fff",
-                        padding: "6px 14px",
-                        borderRadius: "6px",
-                        fontSize: "0.9rem",
-                        fontWeight: "bold",
-                        letterSpacing: "0.5px",
-                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
-                      }}>
-                        ▶ CURRENT PLAYER
+                      <span style={{ fontSize: "0.9rem", color: "#1982c4" }}>
+                        💰 <b>${cash}</b>
                       </span>
-                    )}
+                    </div>
                     {isCurrent && rolledDouble && (
                       <span style={{
                         background: "#ff6b6b",
@@ -883,42 +881,10 @@ function App() {
                         ROLL AGAIN!
                       </span>
                     )}
-                    {isNext && !isCurrent && (
-                      <span style={{
-                        background: "#ff924c",
-                        color: "#fff",
-                        padding: "6px 14px",
-                        borderRadius: "6px",
-                        fontSize: "0.9rem",
-                        fontWeight: "bold",
-                        letterSpacing: "0.5px",
-                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
-                      }}>
-                        NEXT →
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: "0.95em", color: "#222" }}>
-                    {assets.length > 0 ? (
-                      <>
-                        <span>Props: </span>
-                        {assets.map((a, i) => (
-                          <span key={a.asset_id} style={{ marginRight: 4 }}>
-                            {a.name}
-                            {a.improvement_level > 0 ? ` (${a.improvement_level} house${a.improvement_level > 1 ? "s" : ""})` : ""}
-                            {a.has_hotel ? " (hotel)" : ""}
-                            {a.is_mortgaged ? " (mortgaged)" : ""}
-                            {i < assets.length - 1 ? ", " : ""}
-                          </span>
-                        ))}
-                      </>
-                    ) : (
-                      <span>Props: —</span>
-                    )}
                   </div>
                   {retained.length > 0 && (
                     <div style={{ fontSize: "0.9em", color: "#6a4c93", marginTop: "4px" }}>
-                      🃏 Cards: {retained.map((card, i) => (
+                      🃏 {retained.map((card, i) => (
                         <span key={i}>
                           <button
                             onClick={() => setSelectedCard(card)}
@@ -975,6 +941,43 @@ function App() {
                     <td style={{ fontSize: "0.8rem", color: "#666", padding: "6px 4px" }}>{txn.asset_name || "-"}</td>
                     <td style={{ color: "#555", padding: "6px 4px" }}>{txn.from ?? "BANK"}</td>
                     <td style={{ color: "#555", padding: "6px 4px" }}>{txn.to ?? "BANK"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Dice Rolls Register */}
+          <div style={{
+            marginTop: "2rem",
+            background: "rgba(255,255,255,0.95)",
+            padding: "12px 16px",
+            borderRadius: 8,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            maxHeight: 400,
+            overflowY: "auto"
+          }}>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "1.1rem", color: "#333" }}>Dice Roll Register</h3>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #ccc" }}>
+                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>Roll #</th>
+                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>Who</th>
+                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>Dice</th>
+                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>From</th>
+                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>To</th>
+                </tr>
+              </thead>
+              <tbody>
+                {diceRolls.map((roll) => (
+                  <tr key={roll.roll_number} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ color: "#555", padding: "6px 4px" }}>{roll.roll_number}</td>
+                    <td style={{ color: "#555", padding: "6px 4px" }}>{roll.player}</td>
+                    <td style={{ color: "#555", padding: "6px 4px" }}>
+                      {roll.dice1} + {roll.dice2} = {roll.total}
+                    </td>
+                    <td style={{ fontSize: "0.8rem", color: "#666", padding: "6px 4px" }}>{roll.from_location || "—"}</td>
+                    <td style={{ fontSize: "0.8rem", color: "#666", padding: "6px 4px" }}>{roll.to_location || "—"}</td>
                   </tr>
                 ))}
               </tbody>
