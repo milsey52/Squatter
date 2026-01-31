@@ -3,7 +3,8 @@
 
 # Board layout constants
 BOARD_SIZE = 40
-JAIL_SPACE_ID = 31  # "Police Arrest – Imprisonment" space
+JAIL_SPACE_ID = 10  # "Visit Jail" space where players are held (0-based indexing)
+GO_TO_JAIL_SPACE_ID = 30  # "Police Arrest – Imprisonment" trigger space (0-based indexing)
 START_SPACE_ID = 0  # "Start" space (Go)
 
 # Jail-related constants

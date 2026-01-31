@@ -106,11 +106,29 @@ class CardService:
         elif code == "GO_TO_JAIL":
             self._effect_go_to_jail(player, turn)
 
+        elif code == "ADVANCE_TO":
+            space_name = params.get("space_name")
+            if space_name:
+                # Find the space by name
+                space = self.session.query(models.Space).filter(
+                    models.Space.name.ilike(f"%{space_name}%")
+                ).first()
+                if space:
+                    collect_bonus = params.get("collect_pass_bonus", False)
+                    self._move_player_to_space(player, space.space_id, turn, allow_pass_bonus=collect_bonus)
+                    # Check if we need to resolve landing on the space
+                    passed_start = self._passed_start(player.current_space_id, space.board_index)
+                    self.space_resolver.resolve(player, space, turn, passed_start)
+
         elif code == "MOVE_TO":
             self._effect_move_to(player, params, turn)
 
         elif code == "MOVE_BACK":
             self._effect_move_back(player, params, turn)
+
+        elif code == "ADVANCE_NEAREST":
+            space_type = params.get("space_type", "transport")
+            self._effect_advance_nearest(player, space_type, params, turn)
 
         elif code == "ADVANCE_NEAREST_TRANSPORT":
             self._effect_advance_nearest(player, "transport", params, turn)
@@ -209,6 +227,7 @@ class CardService:
     def _effect_move_back(self, player, params, turn):
         steps = params.get("steps", -3)
         current_idx = player.current_space_id
+        # Simple modulo arithmetic with 0-based indexing (board uses indices 0-39)
         new_idx = (current_idx + steps) % BOARD_SIZE
         passed_start = steps > 0 and (current_idx + steps) >= BOARD_SIZE
 
@@ -250,6 +269,7 @@ class CardService:
 
     def _move_player_relative(self, player, steps: int, turn):
         current_idx = player.current_space_id
+        # Simple modulo arithmetic with 0-based indexing (board uses indices 0-39)
         new_idx = (current_idx + steps) % BOARD_SIZE
         passed_start = steps > 0 and (current_idx + steps) >= BOARD_SIZE
 

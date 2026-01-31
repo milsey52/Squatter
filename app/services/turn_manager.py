@@ -117,6 +117,7 @@ class TurnManager:
     # Movement -----------------------------------------------------------
     def _move_player(self, player, steps: int) -> Tuple[models.Space, bool]:
         start_space = player.current_space_id
+        # Simple modulo arithmetic with 0-based indexing (board uses indices 0-39)
         end_space_idx = (start_space + steps) % BOARD_SIZE
         passed_start = (start_space + steps) >= BOARD_SIZE
         player.current_space_id = end_space_idx

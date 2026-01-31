@@ -32,29 +32,13 @@ def get_game(game_id: int, session: Session = Depends(deps.get_session)):
         .all()
     )
 
-    # Get the current player from the most recent turn
-    latest_turn = (
-        session.query(models.Turn)
-        .filter_by(game_id=game_id)
-        .order_by(models.Turn.turn_number.desc())
-        .first()
-    )
+    # Use the current_game_player_id stored in the game
+    # This is set by TurnManager and is the source of truth
+    current_player_id = game.current_game_player_id
 
-    # Determine next player based on turn order
-    current_player_id = None
-    if latest_turn:
-        current_player = session.query(models.GamePlayer).filter_by(
-            game_player_id=latest_turn.active_game_player_id
-        ).first()
-        if current_player:
-            # Find next player in turn order
-            next_turn_order = (current_player.turn_order % len(players)) + 1
-            next_player = next(p for p in players if p.turn_order == next_turn_order)
-            current_player_id = next_player.game_player_id
-    else:
-        # No turns yet, current player is the first one
-        if players:
-            current_player_id = players[0].game_player_id
+    # If not set yet (brand new game), default to first player
+    if not current_player_id and players:
+        current_player_id = players[0].game_player_id
 
     return {
         "game_id": game.game_id,
@@ -68,6 +52,7 @@ def get_game(game_id: int, session: Session = Depends(deps.get_session)):
         "players": [
             {
                 "game_player_id": p.game_player_id,
+                "user_id": p.user_id,
                 "player_name": p.player_name,
                 "current_space_id": p.current_space_id,
                 "in_jail": p.in_jail,

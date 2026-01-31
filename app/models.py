@@ -65,7 +65,7 @@ class GamePlayer(Base):
     turn_order = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=True)
     is_ready = Column(Boolean, nullable=False, default=False)
-    current_space_id = Column(Integer, nullable=False, default=1)
+    current_space_id = Column(Integer, nullable=False, default=0)
     in_jail = Column(Boolean, nullable=False, default=False)
     jail_turns = Column(Integer, nullable=False, default=0)
     double_streak = Column(Integer, nullable=False, default=0)
@@ -242,3 +242,24 @@ class PendingAction(Base):
     turn = relationship("Turn")
     asset = relationship("Asset")
     active_player = relationship("GamePlayer")
+
+
+class TradeSession(Base):
+    __tablename__ = "trade_sessions"
+
+    trade_session_id = Column(Integer, primary_key=True)
+    game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
+    initiator_player_id = Column(Integer, ForeignKey("game_players.game_player_id"), nullable=False)
+    counterparty_player_id = Column(Integer, ForeignKey("game_players.game_player_id"))  # NULL means Bank
+    status = Column(String(50), nullable=False, default="pending_invite")  # pending_invite, active, completed, cancelled
+    initiator_offer = Column(Text)  # JSON: {cash: 1000, properties: [1,2], cards: [3]}
+    counterparty_offer = Column(Text)  # JSON: {cash: 500, properties: [4,5]}
+    initiator_accepted = Column(Boolean, nullable=False, default=False)
+    counterparty_accepted = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
+    completed_at = Column(DateTime)
+
+    game = relationship("Game")
+    initiator = relationship("GamePlayer", foreign_keys=[initiator_player_id])
+    counterparty = relationship("GamePlayer", foreign_keys=[counterparty_player_id])

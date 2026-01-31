@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.api import deps, auth
 from app.utils.game_code import generate_game_code
+from app.api.routes import events
 
 
 router = APIRouter()
@@ -104,13 +105,13 @@ def create_game(
     session.add(game_player)
     session.flush()
 
-    # Create session token (24 hour expiry)
+    # Create session token (7 day expiry)
     session_token = str(uuid.uuid4())
     game_session = models.GameSession(
         session_token=session_token,
         user_id=user.user_id,
         game_id=game.game_id,
-        expires_at=datetime.now() + timedelta(hours=24)
+        expires_at=datetime.now() + timedelta(days=7)
     )
     session.add(game_session)
 
@@ -125,7 +126,7 @@ def create_game(
 
 
 @router.post("/join/{game_code}", response_model=GameJoinedResponse)
-def join_game(
+async def join_game(
     game_code: str,
     request: JoinGameRequest,
     session: Session = Depends(deps.get_session)
@@ -185,7 +186,7 @@ def join_game(
             session_token=session_token,
             user_id=user.user_id,
             game_id=game.game_id,
-            expires_at=datetime.now() + timedelta(hours=24)
+            expires_at=datetime.now() + timedelta(days=7)
         )
         session.add(game_session)
         session.commit()
@@ -226,11 +227,23 @@ def join_game(
         session_token=session_token,
         user_id=user.user_id,
         game_id=game.game_id,
-        expires_at=datetime.now() + timedelta(hours=24)
+        expires_at=datetime.now() + timedelta(days=7)
     )
     session.add(game_session)
 
     session.commit()
+
+    # Broadcast player_joined event
+    import asyncio
+    await events.broadcast_game_event(
+        game.game_id,
+        "player_joined",
+        {
+            "user_id": user.user_id,
+            "player_name": request.player_name,
+            "turn_order": next_turn_order
+        }
+    )
 
     # Get current players
     players = session.query(models.GamePlayer).filter_by(
@@ -293,7 +306,7 @@ def get_lobby_status(
 
 
 @router.post("/{game_id}/lobby/ready")
-def set_ready_status(
+async def set_ready_status(
     game_id: int,
     request: SetReadyRequest,
     auth_data: tuple[int, int] = Depends(auth.verify_session_token),
@@ -335,11 +348,23 @@ def set_ready_status(
     player.is_ready = request.ready
     session.commit()
 
+    # Broadcast player_ready event
+    import asyncio
+    await events.broadcast_game_event(
+        game_id,
+        "player_ready",
+        {
+            "user_id": user_id,
+            "player_name": player.player_name,
+            "is_ready": player.is_ready
+        }
+    )
+
     return {"success": True, "is_ready": player.is_ready}
 
 
 @router.post("/{game_id}/lobby/start")
-def start_game(
+async def start_game(
     game_id: int,
     auth_data: tuple[int, int] = Depends(auth.verify_session_token),
     session: Session = Depends(deps.get_session)
@@ -422,6 +447,17 @@ def start_game(
         game.current_game_player_id = first_player.game_player_id
 
     session.commit()
+
+    # Broadcast game_started event
+    import asyncio
+    await events.broadcast_game_event(
+        game_id,
+        "game_started",
+        {
+            "status": "in_progress",
+            "current_player_id": first_player.game_player_id if first_player else None
+        }
+    )
 
     return {
         "success": True,

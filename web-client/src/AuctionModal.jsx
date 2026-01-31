@@ -1,11 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env.VITE_API_BASE !== '')
+  ? import.meta.env.VITE_API_BASE
+  : window.location.origin;
 
-function AuctionModal({ gameId, sessionToken, pendingAction, playerBalances, players, onResolved }) {
+function AuctionModal({ gameId, sessionToken, userId, pendingAction, playerBalances, players, onResolved }) {
   const [bidAmount, setBidAmount] = useState(pendingAction.min_bid || pendingAction.starting_bid || 1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  // Update bid amount when min_bid changes (after other players bid)
+  useEffect(() => {
+    const newMinBid = pendingAction.min_bid || pendingAction.starting_bid || 1;
+    setBidAmount(newMinBid);
+  }, [pendingAction.min_bid, pendingAction.starting_bid]);
 
   const currentBidder = players?.find(p => p.game_player_id === pendingAction.next_bidder_id);
   const bidderBalance = playerBalances[String(pendingAction.next_bidder_id)] ?? 0;
@@ -14,6 +22,9 @@ function AuctionModal({ gameId, sessionToken, pendingAction, playerBalances, pla
   ) || [];
 
   const highBidder = players?.find(p => p.game_player_id === pendingAction.current_bidder_id);
+
+  // Check if the logged-in user is the current bidder
+  const isCurrentBidder = currentBidder?.user_id === userId;
 
   const handleBid = async () => {
     if (isSubmitting) return;
@@ -140,14 +151,14 @@ function AuctionModal({ gameId, sessionToken, pendingAction, playerBalances, pla
 
         {/* Current bidder's turn */}
         <div style={{
-          background: "#e3f2fd",
-          border: "2px solid #1982c4",
+          background: isCurrentBidder ? "#e3f2fd" : "#fff3cd",
+          border: isCurrentBidder ? "2px solid #1982c4" : "2px solid #ffc107",
           padding: "12px 16px",
           borderRadius: "8px",
           marginBottom: "16px",
         }}>
           <div style={{ fontWeight: "bold", marginBottom: "8px" }}>
-            {currentBidder?.player_name || "Unknown"}'s Turn to Bid
+            {isCurrentBidder ? "⭐ Your Turn to Bid" : `⏳ Waiting for ${currentBidder?.player_name || "Unknown"} to bid...`}
           </div>
           <div style={{ fontSize: "0.9rem", color: "#666" }}>
             Balance: ${bidderBalance} | Min bid: ${pendingAction.min_bid || 1}
@@ -167,16 +178,19 @@ function AuctionModal({ gameId, sessionToken, pendingAction, playerBalances, pla
               onChange={(e) => setBidAmount(Math.max(pendingAction.min_bid || 1, parseInt(e.target.value) || 0))}
               min={pendingAction.min_bid || 1}
               max={bidderBalance}
+              disabled={!isCurrentBidder}
               style={{
                 flex: 1,
                 padding: "10px",
                 fontSize: "1.1rem",
                 border: "2px solid #ddd",
                 borderRadius: "6px",
+                background: !isCurrentBidder ? "#f5f5f5" : "#fff",
+                cursor: !isCurrentBidder ? "not-allowed" : "text",
               }}
             />
           </div>
-          {!canAffordCurrentBid && (
+          {isCurrentBidder && !canAffordCurrentBid && (
             <div style={{ color: "#e63946", fontSize: "0.85rem", marginTop: "4px" }}>
               Bid exceeds your balance
             </div>
@@ -222,14 +236,14 @@ function AuctionModal({ gameId, sessionToken, pendingAction, playerBalances, pla
         <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
           <button
             onClick={handlePass}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isCurrentBidder}
             style={{
               padding: "10px 24px",
-              background: isSubmitting ? "#ccc" : "#6c757d",
+              background: isSubmitting || !isCurrentBidder ? "#ccc" : "#6c757d",
               color: "#fff",
               border: "none",
               borderRadius: "6px",
-              cursor: isSubmitting ? "not-allowed" : "pointer",
+              cursor: isSubmitting || !isCurrentBidder ? "not-allowed" : "pointer",
               fontSize: "1rem",
             }}
           >
@@ -237,14 +251,14 @@ function AuctionModal({ gameId, sessionToken, pendingAction, playerBalances, pla
           </button>
           <button
             onClick={handleBid}
-            disabled={isSubmitting || !canAffordMinBid || !canAffordCurrentBid}
+            disabled={isSubmitting || !canAffordMinBid || !canAffordCurrentBid || !isCurrentBidder}
             style={{
               padding: "10px 24px",
-              background: isSubmitting || !canAffordMinBid || !canAffordCurrentBid ? "#ccc" : "#ff924c",
+              background: isSubmitting || !canAffordMinBid || !canAffordCurrentBid || !isCurrentBidder ? "#ccc" : "#ff924c",
               color: "#fff",
               border: "none",
               borderRadius: "6px",
-              cursor: isSubmitting || !canAffordMinBid || !canAffordCurrentBid ? "not-allowed" : "pointer",
+              cursor: isSubmitting || !canAffordMinBid || !canAffordCurrentBid || !isCurrentBidder ? "not-allowed" : "pointer",
               fontSize: "1rem",
               fontWeight: "bold",
             }}

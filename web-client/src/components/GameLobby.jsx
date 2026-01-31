@@ -1,6 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useGameEvents } from '../hooks/useGameEvents';
+import { QRCodeSVG } from 'qrcode.react';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env.VITE_API_BASE !== '')
+  ? import.meta.env.VITE_API_BASE
+  : window.location.origin;
 
 export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHost, onGameStarted }) {
   const [lobbyData, setLobbyData] = useState(null);
@@ -8,15 +12,10 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
-  useEffect(() => {
-    fetchLobbyStatus();
-    // Poll for lobby updates every 2 seconds
-    const interval = setInterval(fetchLobbyStatus, 2000);
-    return () => clearInterval(interval);
-  }, [gameId, sessionToken]);
-
-  const fetchLobbyStatus = async () => {
+  const fetchLobbyStatus = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE}/games/${gameId}/lobby`, {
         headers: {
@@ -47,7 +46,34 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
       setError(err.message);
       setLoading(false);
     }
-  };
+  }, [gameId, sessionToken, userId, onGameStarted]);
+
+  // Initial fetch on mount
+  useEffect(() => {
+    fetchLobbyStatus();
+  }, [fetchLobbyStatus]);
+
+  // Handle real-time events
+  const handleGameEvent = useCallback((eventType, data) => {
+    console.log('[GameLobby] Event received:', eventType, data);
+
+    switch (eventType) {
+      case 'player_joined':
+      case 'player_ready':
+        // Refresh lobby status when players join or ready status changes
+        fetchLobbyStatus();
+        break;
+      case 'game_started':
+        // Game has started, transition to game screen
+        onGameStarted();
+        break;
+      default:
+        break;
+    }
+  }, [fetchLobbyStatus, onGameStarted]);
+
+  // Connect to SSE for real-time updates
+  useGameEvents(gameId, sessionToken, handleGameEvent);
 
   const toggleReady = async () => {
     try {
@@ -99,12 +125,40 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
 
   const copyGameCode = () => {
     navigator.clipboard.writeText(gameCode);
-    // Could add a toast notification here
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
   };
 
   const copyLink = () => {
     const url = `${window.location.origin}${window.location.pathname}?code=${gameCode}`;
     navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const shareGame = async () => {
+    const url = `${window.location.origin}${window.location.pathname}?code=${gameCode}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join my Monopoly Perth game!',
+          text: `Game code: ${gameCode}`,
+          url: url
+        });
+        console.log('Game shared successfully');
+      } catch (err) {
+        // User cancelled or share failed
+        if (err.name !== 'AbortError') {
+          console.error('Share failed:', err);
+          // Fallback to copy
+          copyLink();
+        }
+      }
+    } else {
+      // Web Share API not supported, fallback to copy
+      copyLink();
+    }
   };
 
   if (loading) {
@@ -186,35 +240,79 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
               onClick={copyGameCode}
               style={{
                 padding: '0.5rem 1.25rem',
-                background: 'rgba(255,255,255,0.2)',
+                background: copiedCode ? 'rgba(76, 175, 80, 0.3)' : 'rgba(255,255,255,0.2)',
                 color: '#fff',
-                border: '1px solid rgba(255,255,255,0.3)',
+                border: copiedCode ? '1px solid rgba(76, 175, 80, 0.5)' : '1px solid rgba(255,255,255,0.3)',
                 borderRadius: '6px',
                 cursor: 'pointer',
                 fontSize: '0.9rem',
-                fontWeight: '500'
+                fontWeight: '500',
+                transition: 'all 0.2s ease'
               }}
             >
-              📋 Copy Code
+              {copiedCode ? '✓ Copied!' : '📋 Copy Code'}
             </button>
             <button
               onClick={copyLink}
               style={{
                 padding: '0.5rem 1.25rem',
-                background: 'rgba(255,255,255,0.2)',
+                background: copiedLink ? 'rgba(76, 175, 80, 0.3)' : 'rgba(255,255,255,0.2)',
                 color: '#fff',
-                border: '1px solid rgba(255,255,255,0.3)',
+                border: copiedLink ? '1px solid rgba(76, 175, 80, 0.5)' : '1px solid rgba(255,255,255,0.3)',
                 borderRadius: '6px',
                 cursor: 'pointer',
                 fontSize: '0.9rem',
-                fontWeight: '500'
+                fontWeight: '500',
+                transition: 'all 0.2s ease'
               }}
             >
-              🔗 Copy Link
+              {copiedLink ? '✓ Copied!' : '🔗 Copy Link'}
             </button>
+            {navigator.share && (
+              <button
+                onClick={shareGame}
+                style={{
+                  padding: '0.5rem 1.25rem',
+                  background: 'rgba(76, 175, 80, 0.3)',
+                  color: '#fff',
+                  border: '1px solid rgba(76, 175, 80, 0.5)',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                📤 Share
+              </button>
+            )}
           </div>
           <div style={{ color: 'rgba(255,255,255,0.8)', marginTop: '0.75rem', fontSize: '0.85rem' }}>
-            Share this code with friends to invite them!
+            {navigator.share ? 'Tap Share to invite friends!' : 'Share this code with friends to invite them!'}
+          </div>
+
+          {/* QR Code */}
+          <div style={{
+            marginTop: '1.5rem',
+            padding: '1rem',
+            background: '#fff',
+            borderRadius: '8px',
+            display: 'inline-block'
+          }}>
+            <QRCodeSVG
+              value={`${window.location.origin}${window.location.pathname}?code=${gameCode}`}
+              size={150}
+              level="M"
+              includeMargin={true}
+            />
+            <div style={{
+              color: '#666',
+              fontSize: '0.75rem',
+              marginTop: '0.5rem',
+              textAlign: 'center'
+            }}>
+              Scan to join
+            </div>
           </div>
         </div>
 
@@ -239,7 +337,7 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
                 }}
               >
                 <div>
-                  <strong style={{ fontSize: '1.05rem' }}>
+                  <strong style={{ fontSize: '1.05rem', color: '#333' }}>
                     {player.player_name}
                     {player.user_id === lobbyData.host_user_id && (
                       <span style={{

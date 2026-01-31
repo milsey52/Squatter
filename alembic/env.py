@@ -18,11 +18,13 @@ from app import models
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-fileConfig(config.config_file_name)
-target_metadata = Base.metadata
 
+# Set database URL from environment variable
+config.set_main_option(
+    "sqlalchemy.url",
+    os.environ.get("DATABASE_URL", "sqlite:///./MonopolyPerth.db")
+)
 
-config = context.config
 fileConfig(config.config_file_name)
 target_metadata = Base.metadata
 

@@ -1,14 +1,19 @@
 import { useState } from "react";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env.VITE_API_BASE !== '')
+  ? import.meta.env.VITE_API_BASE
+  : window.location.origin;
 
-function PurchaseModal({ gameId, sessionToken, pendingAction, playerBalances, players, onResolved }) {
+function PurchaseModal({ gameId, sessionToken, userId, pendingAction, playerBalances, players, onResolved }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
   const activePlayer = players?.find(p => p.game_player_id === pendingAction.active_player_id);
   const playerBalance = playerBalances[String(pendingAction.active_player_id)] ?? 0;
   const canAfford = playerBalance >= pendingAction.purchase_price;
+
+  // Check if the logged-in user is the active player
+  const isActivePlayer = activePlayer?.user_id === userId;
 
   const handleBuy = async () => {
     if (isSubmitting) return;
@@ -121,7 +126,21 @@ function PurchaseModal({ gameId, sessionToken, pendingAction, playerBalances, pl
           </div>
         </div>
 
-        {!canAfford && (
+        {!isActivePlayer && (
+          <div style={{
+            background: "#fff3cd",
+            color: "#856404",
+            padding: "8px 12px",
+            borderRadius: "6px",
+            marginBottom: "16px",
+            fontSize: "0.9rem",
+            fontWeight: "bold",
+          }}>
+            ⏳ Waiting for {activePlayer?.player_name || "player"} to decide...
+          </div>
+        )}
+
+        {isActivePlayer && !canAfford && (
           <div style={{
             background: "#ffebee",
             color: "#c62828",
@@ -150,14 +169,14 @@ function PurchaseModal({ gameId, sessionToken, pendingAction, playerBalances, pl
         <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
           <button
             onClick={handlePass}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isActivePlayer}
             style={{
               padding: "10px 24px",
-              background: isSubmitting ? "#ccc" : "#6c757d",
+              background: isSubmitting || !isActivePlayer ? "#ccc" : "#6c757d",
               color: "#fff",
               border: "none",
               borderRadius: "6px",
-              cursor: isSubmitting ? "not-allowed" : "pointer",
+              cursor: isSubmitting || !isActivePlayer ? "not-allowed" : "pointer",
               fontSize: "1rem",
             }}
           >
@@ -165,14 +184,14 @@ function PurchaseModal({ gameId, sessionToken, pendingAction, playerBalances, pl
           </button>
           <button
             onClick={handleBuy}
-            disabled={isSubmitting || !canAfford}
+            disabled={isSubmitting || !canAfford || !isActivePlayer}
             style={{
               padding: "10px 24px",
-              background: isSubmitting || !canAfford ? "#ccc" : "#1982c4",
+              background: isSubmitting || !canAfford || !isActivePlayer ? "#ccc" : "#1982c4",
               color: "#fff",
               border: "none",
               borderRadius: "6px",
-              cursor: isSubmitting || !canAfford ? "not-allowed" : "pointer",
+              cursor: isSubmitting || !canAfford || !isActivePlayer ? "not-allowed" : "pointer",
               fontSize: "1rem",
               fontWeight: "bold",
             }}

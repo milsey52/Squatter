@@ -32,7 +32,7 @@ class SpaceResolver:
         if state.owner_game_player_id is None:
             self._offer_purchase(player, asset, state, turn)
         elif state.owner_game_player_id != player.game_player_id:
-            self._collect_rent(player, state, asset, turn)
+            self._create_rent_pending_action(player, state, asset, turn, "rent")
 
     def _handle_transport(self, player, space, turn, passed_start):
         asset = self._get_asset(space.space_id)
@@ -41,18 +41,7 @@ class SpaceResolver:
         if state.owner_game_player_id is None:
             self._offer_purchase(player, asset, state, turn)
         elif state.owner_game_player_id != player.game_player_id:
-            rent = self._transport_rent(asset, state.owner_game_player_id)
-            card_multiplier = getattr(self, "_temp_rent_multiplier", None)
-            if card_multiplier:
-                rent = int(rent * card_multiplier)
-            self.ledger.transfer(
-                payer=player,
-                payee_id=state.owner_game_player_id,
-                amount=rent,
-                txn_type="transport_rent",
-                turn_id=turn.turn_id,
-                asset_id=asset.asset_id,
-            )
+            self._create_rent_pending_action(player, state, asset, turn, "transport_rent")
 
     def _handle_utility(self, player, space, turn, passed_start):
         asset = self._get_asset(space.space_id)
@@ -61,31 +50,61 @@ class SpaceResolver:
         if state.owner_game_player_id is None:
             self._offer_purchase(player, asset, state, turn)
         elif state.owner_game_player_id != player.game_player_id:
-            dice_total = (turn.dice_roll_1 or 0) + (turn.dice_roll_2 or 0)
-            owned = self._count_assets_owned(state.owner_game_player_id, "utility")
-            multiplier = asset.utility_mult_single if owned == 1 else asset.utility_mult_double
-            rent = dice_total * (multiplier or 0)
-            card_multiplier = getattr(self, "_temp_rent_multiplier", None)
-            if card_multiplier:
-                rent = int(rent * card_multiplier)
-            self.ledger.transfer(
-                payer=player,
-                payee_id=state.owner_game_player_id,
-                amount=rent,
-                txn_type="utility_rent",
-                turn_id=turn.turn_id,
-                asset_id=asset.asset_id,
-            )
+            self._create_rent_pending_action(player, state, asset, turn, "utility_rent")
 
     def _handle_chance(self, player, space, turn, passed_start):
         if getattr(self, "_skip_card_spaces", False):
             return
-        self.card_service.draw_and_apply(player, "chance", turn)
+        if not self.card_service:
+            raise RuntimeError("CardService not initialized on SpaceResolver")
+        # Draw card but don't apply yet - create pending action
+        card_draw = self.card_service._draw_card("chance", turn.turn_id)
+        card = self.session.query(models.Card).get(card_draw.card_id)
+
+        import json
+        pending = models.PendingAction(
+            game_id=self.game_id,
+            turn_id=turn.turn_id,
+            action_type="card_drawn",
+            active_player_id=player.game_player_id,
+            action_data=json.dumps({
+                "deck_type": "chance",
+                "card_id": card.card_id,
+                "card_draw_id": card_draw.card_draw_id,
+                "card_name": card.title,
+                "card_description": card.body_text,
+                "is_retainable": card.is_retainable
+            })
+        )
+        self.session.add(pending)
+        self.session.flush()
 
     def _handle_welfare(self, player, space, turn, passed_start):
         if getattr(self, "_skip_card_spaces", False):
             return
-        self.card_service.draw_and_apply(player, "welfare", turn)
+        if not self.card_service:
+            raise RuntimeError("CardService not initialized on SpaceResolver")
+        # Draw card but don't apply yet - create pending action
+        card_draw = self.card_service._draw_card("welfare", turn.turn_id)
+        card = self.session.query(models.Card).get(card_draw.card_id)
+
+        import json
+        pending = models.PendingAction(
+            game_id=self.game_id,
+            turn_id=turn.turn_id,
+            action_type="card_drawn",
+            active_player_id=player.game_player_id,
+            action_data=json.dumps({
+                "deck_type": "welfare",
+                "card_id": card.card_id,
+                "card_draw_id": card_draw.card_draw_id,
+                "card_name": card.title,
+                "card_description": card.body_text,
+                "is_retainable": card.is_retainable
+            })
+        )
+        self.session.add(pending)
+        self.session.flush()
 
     def _handle_penalty(self, player, space, turn, passed_start):
         name = space.name.lower()
@@ -93,7 +112,7 @@ class SpaceResolver:
             self.ledger.pay_bank(player, 2000, "income_tax", turn.turn_id)
         elif "mortgage payment" in name:
             self.ledger.pay_bank(player, 1000, "mortgage_payment", turn.turn_id)
-        elif "go to jail" in name:
+        elif "go to jail" in name or "police arrest" in name or "imprisonment" in name:
             self._send_player_to_jail(player, turn)
         else:
             pass  # add other penalty spaces here
@@ -151,6 +170,59 @@ class SpaceResolver:
         self.session.add(pending)
         self.session.flush()
         # Turn pauses here - no auto-purchase
+
+    def _create_rent_pending_action(self, player, state, asset, turn, txn_type):
+        """Create a pending action for rent payment - gives player a chance to see the amount"""
+        import json
+
+        # Calculate rent based on type
+        if txn_type == "rent":
+            rent = self._calculate_rent(asset, state)
+        elif txn_type == "transport_rent":
+            rent = self._transport_rent(asset, state.owner_game_player_id)
+            card_multiplier = getattr(self, "_temp_rent_multiplier", None)
+            if card_multiplier:
+                rent = int(rent * card_multiplier)
+        elif txn_type == "utility_rent":
+            dice_total = (turn.dice_roll_1 or 0) + (turn.dice_roll_2 or 0)
+            owned = self._count_assets_owned(state.owner_game_player_id, "utility")
+            multiplier = asset.utility_mult_single if owned == 1 else asset.utility_mult_double
+            rent = dice_total * (multiplier or 0)
+            card_multiplier = getattr(self, "_temp_rent_multiplier", None)
+            if card_multiplier:
+                rent = int(rent * card_multiplier)
+        else:
+            rent = 0
+
+        if rent <= 0:
+            return
+
+        # Get property name
+        space = self.session.query(models.Space).filter_by(space_id=asset.space_id).first()
+        property_name = space.name if space else "Property"
+
+        # Get landlord name
+        landlord = self.session.query(models.GamePlayer).filter_by(
+            game_player_id=state.owner_game_player_id
+        ).first()
+        landlord_name = landlord.player_name if landlord else "Another Player"
+
+        pending = models.PendingAction(
+            game_id=self.game_id,
+            turn_id=turn.turn_id,
+            action_type="rent_payment",
+            asset_id=asset.asset_id,
+            active_player_id=player.game_player_id,
+            action_data=json.dumps({
+                "rent_amount": rent,
+                "landlord_id": state.owner_game_player_id,
+                "landlord_name": landlord_name,
+                "property_name": property_name,
+                "txn_type": txn_type
+            })
+        )
+        self.session.add(pending)
+        self.session.flush()
 
     def _collect_rent(self, player, state, asset, turn):
         rent = self._calculate_rent(asset, state)
@@ -246,9 +318,32 @@ class SpaceResolver:
         return owned_in_group == total_in_group
 
     def _send_player_to_jail(self, player, turn):
-        player.in_jail = True
-        player.jail_turns = 0
-        player.current_space_id = JAIL_SPACE_ID
+        # Create a pending action for the jail modal
+        from app.services.decision_service import DecisionService
+        decision_service = DecisionService(self.session, turn.game_id)
+
+        # Check jail options
+        has_jail_card = self._player_has_get_out_of_jail_card(player)
+
+        decision_service.create_jail_notification(
+            turn=turn,
+            player=player,
+            has_get_out_card=has_jail_card
+        )
+
+    def _player_has_get_out_of_jail_card(self, player):
+        card = (
+            self.session.query(models.CardDraw)
+            .join(models.Card)
+            .filter(
+                models.CardDraw.game_id == player.game_id,
+                models.CardDraw.kept_by_player_id == player.game_player_id,
+                models.Card.effect_code == "GET_OUT_OF_JAIL",
+                models.CardDraw.discarded_at.is_(None),
+            )
+            .first()
+        )
+        return card is not None
 
     def resolve_from_card(self, player, space, turn, passed_start, rent_multiplier=None, skip_cards=False):
         prev_multiplier = getattr(self, "_temp_rent_multiplier", None)

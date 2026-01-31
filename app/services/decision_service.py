@@ -288,22 +288,47 @@ class DecisionService:
             }
 
     def get_auction_state(self) -> Optional[dict]:
-        """Get current auction state for frontend display."""
+        """Get current pending action state for frontend display."""
         pending = self.get_pending_action()
         if not pending:
             return None
 
-        asset = self.session.query(models.Asset).get(pending.asset_id)
-        space = self.session.query(models.Space).filter_by(space_id=asset.space_id).first()
-        property_name = space.name if space else f"Asset {asset.asset_id}"
-
         result = {
             "action_type": pending.action_type,
-            "asset_id": pending.asset_id,
-            "property_name": property_name,
-            "purchase_price": asset.purchase_price,
             "active_player_id": pending.active_player_id,
         }
+
+        # Handle jail notification
+        if pending.action_type == "jail_notification":
+            jail_data = json.loads(pending.action_data) if pending.action_data else {}
+            result["has_get_out_card"] = jail_data.get("has_get_out_card", False)
+            result["jail_space_id"] = jail_data.get("jail_space_id", 10)
+            result["from_space_id"] = jail_data.get("from_space_id", 30)
+            return result
+
+        # Handle card drawn
+        if pending.action_type == "card_drawn":
+            if pending.action_data:
+                card_data = json.loads(pending.action_data)
+                result["action_data"] = pending.action_data
+                result.update(card_data)
+            return result
+
+        # Handle rent_payment
+        if pending.action_type == "rent_payment":
+            if pending.action_data:
+                result["action_data"] = pending.action_data
+            return result
+
+        # Handle asset-based actions (purchase_decision, auction)
+        if pending.asset_id:
+            asset = self.session.query(models.Asset).get(pending.asset_id)
+            space = self.session.query(models.Space).filter_by(space_id=asset.space_id).first()
+            property_name = space.name if space else f"Asset {asset.asset_id}"
+
+            result["asset_id"] = pending.asset_id
+            result["property_name"] = property_name
+            result["purchase_price"] = asset.purchase_price
 
         if pending.action_type == "auction" and pending.action_data:
             auction = json.loads(pending.action_data)
@@ -320,3 +345,63 @@ class DecisionService:
             result["min_bid"] = (current_bid + MIN_BID_INCREMENT) if current_bid > 0 else starting_bid
 
         return result
+
+    def create_jail_notification(self, turn, player, has_get_out_card: bool):
+        """Create a pending action for jail notification."""
+        from app.constants import JAIL_SPACE_ID
+
+        pending = models.PendingAction(
+            game_id=self.game_id,
+            turn_id=turn.turn_id,
+            action_type="jail_notification",
+            active_player_id=player.game_player_id,
+            action_data=json.dumps({
+                "has_get_out_card": has_get_out_card,
+                "jail_space_id": JAIL_SPACE_ID,
+                "from_space_id": player.current_space_id
+            })
+        )
+        self.session.add(pending)
+        self.session.flush()
+
+    def acknowledge_jail(self, player_id: int) -> dict:
+        """Player acknowledges jail and is moved to jail space."""
+        from app.constants import JAIL_SPACE_ID
+
+        pending = self.get_pending_action()
+        if not pending:
+            raise ValueError("No pending action")
+        if pending.action_type != "jail_notification":
+            raise ValueError("Pending action is not a jail notification")
+        if pending.active_player_id != player_id:
+            raise ValueError("Not this player's decision")
+
+        player = self.session.query(models.GamePlayer).get(player_id)
+
+        # Move player to jail (no start bonus collected)
+        player.current_space_id = JAIL_SPACE_ID
+        player.in_jail = True
+        player.jail_turns = 0
+
+        # Create a movement record
+        jail_data = json.loads(pending.action_data)
+        movement = models.Movement(
+            turn_id=pending.turn_id,
+            game_player_id=player.game_player_id,
+            start_space_id=jail_data["from_space_id"],
+            end_space_id=JAIL_SPACE_ID,
+            movement_type="jail",
+            distance=0,  # Not a normal move
+            passed_start=False,  # No start bonus
+        )
+        self.session.add(movement)
+
+        # Resolve pending action
+        pending.resolved_at = func.now()
+        self.session.flush()
+
+        return {
+            "status": "jailed",
+            "jail_space_id": JAIL_SPACE_ID,
+            "has_get_out_card": jail_data.get("has_get_out_card", False)
+        }

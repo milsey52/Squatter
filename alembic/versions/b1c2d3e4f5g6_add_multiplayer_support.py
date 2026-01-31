@@ -7,7 +7,10 @@ Create Date: 2026-01-25
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.sql import text
 from datetime import datetime, timedelta
+import secrets
+import string
 
 revision = "b1c2d3e4f5g6"
 down_revision = "a1b2c3d4e5f6"
@@ -23,7 +26,7 @@ def upgrade():
     op.add_column("games", sa.Column("max_players", sa.Integer(), nullable=False, server_default="6"))
 
     # Add is_ready column to game_players table
-    op.add_column("game_players", sa.Column("is_ready", sa.Boolean(), nullable=False, server_default=sa.text("0")))
+    op.add_column("game_players", sa.Column("is_ready", sa.Boolean(), nullable=False, server_default=sa.text("false")))
 
     # Create game_sessions table
     op.create_table(
@@ -35,15 +38,15 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(), server_default=sa.func.now())
     )
 
-    # Backfill game codes for existing games
-    # Generate simple codes for existing games (they can be regenerated if needed)
+    # Backfill game codes for existing games using database-agnostic approach
     conn = op.get_bind()
-    # For SQLite, we'll use a simple pattern to backfill codes
-    conn.execute(sa.text("""
-        UPDATE games
-        SET game_code = UPPER(SUBSTR(HEX(RANDOMBLOB(4)), 1, 6))
-        WHERE game_code IS NULL
-    """))
+    games = conn.execute(text("SELECT game_id FROM games WHERE game_code IS NULL"))
+    for game in games:
+        code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+        conn.execute(
+            text("UPDATE games SET game_code = :code WHERE game_id = :id"),
+            {"code": code, "id": game.game_id}
+        )
 
     # Now make game_code NOT NULL
     # Note: SQLite doesn't support ALTER COLUMN, so we need to be careful

@@ -73,8 +73,8 @@ class LedgerService:
     def record_bank_payment(self, player, amount, txn_type, turn_id=None):
         return self.pay_bank(player, amount, txn_type, turn_id)
 
-    def record_bank_reward(self, player, amount, txn_type, turn_id=None):
-        return self.receive_from_bank(player, amount, txn_type, turn_id)
+    def record_bank_reward(self, player, amount, txn_type, turn_id=None, **kwargs):
+        return self.receive_from_bank(player, amount, txn_type, turn_id, **kwargs)
 
     def player_balance(self, player_id: int) -> int:
         incoming = (

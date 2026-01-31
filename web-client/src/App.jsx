@@ -1,11 +1,21 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Board from "./Board";
 import PurchaseModal from "./PurchaseModal";
 import AuctionModal from "./AuctionModal";
+import CardModal from "./components/CardModal";
+import RentPaymentModal from "./components/RentPaymentModal";
+import JailModal from "./components/JailModal";
+import RetainedCardPopup from "./components/RetainedCardPopup";
 import GameSelector from "./components/GameSelector";
 import GameLobby from "./components/GameLobby";
+import TradingBoard from "./components/TradingBoard";
+import PropertyManagement from "./components/PropertyManagement";
+import PropertyLedger from "./components/PropertyLedger";
+import { useGameEvents } from "./hooks/useGameEvents";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";                                                                                                             
+const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env.VITE_API_BASE !== '')
+  ? import.meta.env.VITE_API_BASE
+  : window.location.origin;                                                                                                             
 const SPACE_LABELS = [                                                                                                                                                                 
   "Start/Payday",                                                                                                                                                                      
   "Belvue House",                                                                                                                                                                      
@@ -73,8 +83,32 @@ function App() {
   const [pendingAction, setPendingAction] = useState(null);
   const [showTradingBoard, setShowTradingBoard] = useState(false);
   const [tradingBoardPos, setTradingBoardPos] = useState({ x: 200, y: 200 });
+  const [selectedCard, setSelectedCard] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [activeTrade, setActiveTrade] = useState(null);
+  const [showPropertyManagement, setShowPropertyManagement] = useState(false);
+
+  // Create a map of space_id -> {improvement_level, has_hotel} for board display
+  const propertyImprovements = useMemo(() => {
+    const improvements = {};
+
+    // Flatten allPlayerAssets into a map keyed by space_id
+    Object.values(allPlayerAssets).forEach(playerAssets => {
+      if (Array.isArray(playerAssets)) {
+        playerAssets.forEach(asset => {
+          if (asset.asset_type === 'property' && asset.space_id) {
+            improvements[asset.space_id] = {
+              improvement_level: asset.improvement_level || 0,
+              has_hotel: asset.has_hotel || false
+            };
+          }
+        });
+      }
+    });
+
+    return improvements;
+  }, [allPlayerAssets]);
 
   // Handle game joined from selector
   const handleGameJoined = (data) => {
@@ -150,7 +184,7 @@ function App() {
       'Authorization': `Bearer ${sessionToken}`
     } : {};
 
-    const [gameRes, ledgerRes, jackpotRes, balancesRes, assetsRes, cardsRes, lastDrawnCardsRes, pendingRes] = await Promise.all([
+    const [gameRes, ledgerRes, jackpotRes, balancesRes, assetsRes, cardsRes, lastDrawnCardsRes, pendingRes, tradeRes] = await Promise.all([
       fetch(`${API_BASE}/games/${gameId}`, { headers }),
       fetch(`${API_BASE}/games/${gameId}/ledger`, { headers }),
       fetch(`${API_BASE}/games/${gameId}/jackpot`, { headers }),
@@ -158,7 +192,8 @@ function App() {
       fetch(`${API_BASE}/games/${gameId}/player_assets`, { headers }),
       fetch(`${API_BASE}/games/${gameId}/player_retained_cards`, { headers }),
       fetch(`${API_BASE}/games/${gameId}/last_drawn_cards`, { headers }),
-      fetch(`${API_BASE}/games/${gameId}/pending-action`, { headers })
+      fetch(`${API_BASE}/games/${gameId}/pending-action`, { headers }),
+      fetch(`${API_BASE}/games/${gameId}/trades/active`, { headers })
     ]);                                                                                                                                                                                
                                                        
     
@@ -180,6 +215,7 @@ function App() {
     const cardsData = cardsRes.ok ? await cardsRes.json() : {};
     const lastDrawnCardsData = lastDrawnCardsRes.ok ? await lastDrawnCardsRes.json() : { CHANCE: null, WELFARE: null };
     const pendingData = pendingRes.ok ? await pendingRes.json() : { pending_action: null };
+    const tradeData = tradeRes.ok ? await tradeRes.json() : { trade: null };
 
     setGame(gameData);
     setLedger(Array.isArray(ledgerData) ? ledgerData : []);
@@ -189,6 +225,7 @@ function App() {
     setPlayerRetainedCards(cardsData);
     setLastDrawnCards(lastDrawnCardsData);
     setPendingAction(pendingData.pending_action);
+    setActiveTrade(tradeData.trade);
     setError(null);
   }, [gameId, sessionToken]);
 
@@ -207,9 +244,94 @@ function App() {
         setPlayerRetainedCards({});
         setLastDrawnCards({ CHANCE: null, WELFARE: null });
         setPendingAction(null);
+        setActiveTrade(null);
       })
       .finally(() => setLoading(false));
-  }, [screen, gameId, fetchGameLedgerJackpot]);
+
+    // Poll for trade updates every 3 seconds as backup to SSE
+    const pollInterval = setInterval(() => {
+      fetch(`${API_BASE}/games/${gameId}/trades/active`, {
+        headers: sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {}
+      })
+        .then(res => res.json())
+        .then(data => {
+          setActiveTrade(prevTrade => {
+            if (data.trade && JSON.stringify(data.trade) !== JSON.stringify(prevTrade)) {
+              console.log('[Poll] Trade updated:', data.trade);
+              return data.trade;
+            }
+            return prevTrade;
+          });
+        })
+        .catch(err => console.error('[Poll] Error fetching trade:', err));
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [screen, gameId, sessionToken, fetchGameLedgerJackpot]);
+
+  // Handle real-time game events
+  const handleGameEvent = useCallback((eventType, data) => {
+    console.log('[App] Game event received:', eventType, data);
+
+    switch (eventType) {
+      case 'turn_played':
+        // Update dice roll display for all players
+        if (data.dice_roll && data.dice_roll.length === 2) {
+          setLastDiceRoll({
+            dice_roll_1: data.dice_roll[0],
+            dice_roll_2: data.dice_roll[1],
+            total_roll: data.dice_roll[0] + data.dice_roll[1],
+            is_double: data.is_double
+          });
+        }
+        // Refresh game state
+        fetchGameLedgerJackpot();
+        break;
+      case 'game_state_changed':
+      case 'auction_started':
+      case 'auction_bid':
+      case 'auction_pass':
+      case 'auction_resolved':
+      case 'trade_initiated':
+      case 'trade_status_changed':
+      case 'trade_offer_updated':
+      case 'trade_cancelled':
+      case 'trade_executed':
+        // Refresh game state when any of these events occur
+        fetchGameLedgerJackpot();
+        break;
+      default:
+        break;
+    }
+  }, [fetchGameLedgerJackpot]);
+
+  // Connect to SSE for real-time updates when in game screen
+  useGameEvents(
+    screen === 'game' ? gameId : null,
+    screen === 'game' ? sessionToken : null,
+    handleGameEvent
+  );
+
+  // Auto-show trading board when user receives a trade invitation
+  useEffect(() => {
+    if (screen !== 'game' || !game || !activeTrade) return;
+
+    const currentUserPlayer = game.players?.find(p => p.user_id === userId);
+    if (!currentUserPlayer) return;
+
+    // Check if this user is the counterparty and the trade is pending invite
+    const isCounterparty = activeTrade.counterparty_player_id === currentUserPlayer.game_player_id;
+    const isPendingInvite = activeTrade.status === 'pending_invite';
+
+    console.log('[Auto-show trade] isCounterparty:', isCounterparty, 'isPendingInvite:', isPendingInvite, 'showTradingBoard:', showTradingBoard);
+    console.log('[Auto-show trade] activeTrade:', activeTrade);
+    console.log('[Auto-show trade] currentUserPlayer:', currentUserPlayer);
+
+    if (isCounterparty && isPendingInvite && !showTradingBoard) {
+      console.log('[Auto-show trade] OPENING TRADING BOARD');
+      setShowTradingBoard(true);
+    }
+  }, [activeTrade, game, userId, screen, showTradingBoard]);
 
   // Keyboard shortcut for trading board (Ctrl+T or Cmd+T)
   useEffect(() => {
@@ -312,26 +434,92 @@ function App() {
   if (error) return <div style={{ color: "red" }}>Error: {error}</div>;
   if (!game) return <div>No game data.</div>;
 
-  return (                                                                                                                                                                             
-    <div style={{ padding: "0.5rem 1rem", fontFamily: "sans-serif" }}>                                                                                                                 
-      <div                                                                                                                                                                             
-        style={{                                                                                                                                                                       
-          display: "flex",                                                                                                                                                             
-          gap: "5rem",                                                                                                                                                                 
-          justifyContent: "center",                                                                                                                                                    
-          alignItems: "flex-start",                                                                                                                                                    
-          maxWidth: 1800,                                                                                                                                                              
-          margin: "0 auto",                                                                                                                                                            
+  // Find the current user's game_player_id
+  const currentUserPlayer = game.players?.find(p => p.user_id === userId);
+  const isCurrentPlayer = currentUserPlayer && currentUserPlayer.game_player_id === game.current_player_id;
+
+  // Check if current user is part of active trade
+  const isPartOfActiveTrade = activeTrade && currentUserPlayer && (
+    activeTrade.initiator_player_id === currentUserPlayer.game_player_id ||
+    activeTrade.counterparty_player_id === currentUserPlayer.game_player_id
+  );
+
+  // Check if current user has a pending invitation
+  const hasPendingInvitation = activeTrade && currentUserPlayer &&
+    activeTrade.counterparty_player_id === currentUserPlayer.game_player_id &&
+    activeTrade.status === 'pending_invite';
+
+  // Disable Trade button if there's an active trade and user is not part of it
+  const canStartTrade = !activeTrade || isPartOfActiveTrade;
+
+  return (
+    <div style={{ padding: "0.5rem 1rem", fontFamily: "sans-serif" }}>
+      {/* Trade Invitation Banner */}
+      {hasPendingInvitation && !showTradingBoard && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          background: "linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)",
+          color: "#fff",
+          padding: "1rem",
+          textAlign: "center",
+          zIndex: 1000,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+          fontSize: "1.1rem",
+          fontWeight: "bold"
+        }}>
+          🔔 {game.players?.find(p => p.game_player_id === activeTrade.initiator_player_id)?.player_name} has invited you to trade!
+          <button
+            onClick={() => setShowTradingBoard(true)}
+            style={{
+              marginLeft: "1rem",
+              padding: "0.5rem 1.5rem",
+              background: "#fff",
+              color: "#ff6b6b",
+              border: "none",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontWeight: "bold",
+              fontSize: "1rem"
+            }}
+          >
+            View Invitation
+          </button>
+        </div>
+      )}
+      <div
+        style={{
+          display: "flex",
+          gap: "2rem",
+          justifyContent: "center",
+          alignItems: "flex-start",
+          maxWidth: 2200,
+          margin: "0 auto",
+          marginTop: hasPendingInvitation && !showTradingBoard ? "4rem" : "0"
         }}                                                                                                                                                                             
       >
         {/* Left column: board + cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          flexShrink: 0,
+          width: 1100
+        }}>
         {/* Game heading - centered above board */}
-        <h1 style={{ margin: "0 0 -4.5rem 0", fontSize: "1.5rem", textAlign: "center" }}>Game {gameId}</h1>
+        <h1 style={{ margin: "0 0 -4.5rem 0", fontSize: "1.5rem", textAlign: "center" }}>
+          Game {gameId} - {currentUserPlayer?.player_name || 'Unknown Player'}
+        </h1>
 
         {/* Board + floating controls */}
         <div style={{ position: "relative", width: 1100, height: 1100 }}>
-          <Board players={game.players} currentPlayerId={game.current_player_id} />
+          <Board
+            players={game.players || []}
+            currentPlayerId={game.current_player_id}
+            propertyImprovements={propertyImprovements}
+          />
 
           {/* Jackpot positioned at square 20 (Salvo Rest Home - top-left corner) */}
           {jackpot !== null && (
@@ -382,56 +570,43 @@ function App() {
               >
                 <h2 style={{ margin: 0, color: "#fff", textAlign: "center", fontSize: "1.3rem" }}>Trading Board</h2>
               </div>
-              <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", flex: 1 }}>
+              <TradingBoard
+                gameId={gameId}
+                sessionToken={sessionToken}
+                userId={userId}
+                game={game}
+                playerBalances={playerBalances}
+                allPlayerAssets={allPlayerAssets}
+                playerRetainedCards={playerRetainedCards}
+                activeTradeFromParent={activeTrade}
+                onClose={() => setShowTradingBoard(false)}
+              />
+            </div>
+          )}
 
-              {/* Main content area - will be filled later */}
-              <div style={{
-                flex: 1,
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-                padding: "1rem",
-                marginBottom: "1rem",
-                background: "#f9f9f9"
-              }}>
-                <p style={{ color: "#666", textAlign: "center", marginTop: "2rem" }}>
-                  Trading interface coming soon...
-                </p>
-              </div>
-
-              {/* Bottom buttons */}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem" }}>
-                <button
-                  onClick={() => setShowTradingBoard(false)}
-                  style={{
-                    padding: "0.6rem 1.5rem",
-                    background: "#dc3545",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    fontSize: "1rem",
-                    fontWeight: "bold"
-                  }}
-                >
-                  Exit
-                </button>
-                <button
-                  style={{
-                    padding: "0.6rem 1.5rem",
-                    background: "#ccc",
-                    color: "#888",
-                    border: "none",
-                    borderRadius: "6px",
-                    cursor: "not-allowed",
-                    fontSize: "1rem",
-                    fontWeight: "bold"
-                  }}
-                  disabled
-                >
-                  Save (Not Working Yet)
-                </button>
-              </div>
-              </div>
+          {/* Property Management Overlay */}
+          {showPropertyManagement && (
+            <div style={{
+              position: "absolute",
+              top: "150px",
+              left: "100px",
+              width: "800px",
+              height: "700px",
+              background: "#fff",
+              border: "3px solid #4caf50",
+              borderRadius: "12px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+              zIndex: 100,
+              display: "flex",
+              flexDirection: "column"
+            }}>
+              <PropertyManagement
+                gameId={gameId}
+                sessionToken={sessionToken}
+                playerBalance={currentUserPlayer ? (playerBalances[String(currentUserPlayer.game_player_id)] ?? 0) : 0}
+                onClose={() => setShowPropertyManagement(false)}
+                onUpdate={fetchGameLedgerJackpot}
+              />
             </div>
           )}
         </div>
@@ -534,8 +709,9 @@ function App() {
         <div
           style={{
             flex: 1,
-            minWidth: 360,
-            paddingLeft: "120px",
+            minWidth: 450,
+            maxWidth: 550,
+            marginLeft: "10rem",
             position: "sticky",
             top: 20,
           }}
@@ -544,33 +720,58 @@ function App() {
             <h2 style={{ margin: 0 }}>Players</h2>
             <div style={{ display: "flex", gap: "0.5rem" }}>
               <button
-                onClick={() => setShowTradingBoard(true)}
+                onClick={() => setShowPropertyManagement(true)}
                 style={{
                   padding: "0.5rem 1rem",
-                  background: "#6a4c93",
+                  background: "#4caf50",
                   color: "#fff",
                   border: "none",
                   borderRadius: "6px",
                   cursor: "pointer",
                   fontSize: "1rem",
                 }}
+                title="Manage your properties - buy/sell houses and hotels"
               >
-                Trade
+                🏠 Properties
               </button>
               <button
-                onClick={nextTurn}
-                disabled={isSubmitting || pendingAction}
+                onClick={() => setShowTradingBoard(true)}
+                disabled={!canStartTrade}
                 style={{
                   padding: "0.5rem 1rem",
-                  background: isSubmitting || pendingAction ? "#ccc" : "#1982c4",
+                  background: !canStartTrade ? "#ccc" : hasPendingInvitation ? "#ff6b6b" : "#6a4c93",
                   color: "#fff",
                   border: "none",
                   borderRadius: "6px",
-                  cursor: isSubmitting || pendingAction ? "not-allowed" : "pointer",
+                  cursor: !canStartTrade ? "not-allowed" : "pointer",
+                  fontSize: "1rem",
+                  position: "relative",
+                  animation: hasPendingInvitation ? "pulse 2s infinite" : "none"
+                }}
+                title={!canStartTrade ? "Another trade is in progress" : hasPendingInvitation ? "You have a trade invitation!" : ""}
+              >
+                {hasPendingInvitation ? "Trade Invite! 🔔" : "Trade"}
+              </button>
+              <button
+                onClick={nextTurn}
+                disabled={isSubmitting || pendingAction || !isCurrentPlayer}
+                style={{
+                  padding: "0.5rem 1rem",
+                  background: isSubmitting || pendingAction || !isCurrentPlayer ? "#ccc" : "#1982c4",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: isSubmitting || pendingAction || !isCurrentPlayer ? "not-allowed" : "pointer",
                   fontSize: "1rem",
                 }}
               >
-                {isSubmitting ? "Processing..." : pendingAction ? "Resolve Action First" : "Next Turn"}
+                {isSubmitting
+                  ? "Processing..."
+                  : pendingAction
+                  ? "Resolve Action First"
+                  : !isCurrentPlayer
+                  ? `${game.players?.find(p => p.game_player_id === game.current_player_id)?.player_name || 'Player'}'s Turn`
+                  : `${currentUserPlayer?.player_name || 'Your'} Turn - Roll Dice`}
               </button>
             </div>
           </div>
@@ -620,8 +821,8 @@ function App() {
 
           <ul style={{ paddingLeft: "1rem" }}>
             {game.players?.map((p) => {
-              // Convert from 1-based space_id to 0-based array index
-              const idx = (p.current_space_id ?? 1) - 1;
+              // With 0-based indexing, current_space_id is already the array index
+              const idx = p.current_space_id ?? 0;
               const spaceLabel = SPACE_LABELS[idx];
               const cash = playerBalances[String(p.game_player_id)] ?? "?";
               const assets = allPlayerAssets[p.game_player_id] || allPlayerAssets[String(p.game_player_id)] || [];
@@ -645,8 +846,8 @@ function App() {
                   boxShadow: isCurrent ? "0 2px 8px rgba(25, 130, 196, 0.3)" : "none"
                 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.8rem", marginBottom: "6px" }}>
-                    <strong style={{ fontSize: "1.1rem" }}>{p.player_name}</strong>
-                    <span>
+                    <strong style={{ fontSize: "1.1rem", color: "#333" }}>{p.player_name}</strong>
+                    <span style={{ color: "#555" }}>
                       {spaceLabel}
                       {" – "}
                       <span style={{ color: "#1982c4" }}>
@@ -718,8 +919,23 @@ function App() {
                   {retained.length > 0 && (
                     <div style={{ fontSize: "0.9em", color: "#6a4c93", marginTop: "4px" }}>
                       🃏 Cards: {retained.map((card, i) => (
-                        <span key={i} style={{ marginRight: 4 }}>
-                          {card.name || card.title || card.description}
+                        <span key={i}>
+                          <button
+                            onClick={() => setSelectedCard(card)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#6a4c93',
+                              textDecoration: 'underline',
+                              cursor: 'pointer',
+                              padding: 0,
+                              font: 'inherit',
+                              marginRight: 4
+                            }}
+                            title="Click to view full card details"
+                          >
+                            {card.title || card.name || 'Card'}
+                          </button>
                           {i < retained.length - 1 ? ", " : ""}
                         </span>
                       ))}
@@ -740,29 +956,46 @@ function App() {
             maxHeight: 400,
             overflowY: "auto"
           }}>
-            <h3 style={{ margin: "0 0 8px 0", fontSize: "1.1rem" }}>Ledger (latest)</h3>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "1.1rem", color: "#333" }}>Ledger (latest)</h3>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid #ccc" }}>
-                  <th align="left">Type</th>
-                  <th align="left">Amount</th>
-                  <th align="left">From</th>
-                  <th align="left">To</th>
+                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>Type</th>
+                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>Amount</th>
+                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>Asset</th>
+                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>From</th>
+                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>To</th>
                 </tr>
               </thead>
               <tbody>
                 {ledger.slice(0, 7).map((txn) => (
                   <tr key={txn.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td>{txn.type}</td>
-                    <td>${txn.amount}</td>
-                    <td>{txn.from ?? "BANK"}</td>
-                    <td>{txn.to ?? "BANK"}</td>
+                    <td style={{ color: "#555", padding: "6px 4px" }}>{txn.type}</td>
+                    <td style={{ color: "#555", padding: "6px 4px" }}>${txn.amount}</td>
+                    <td style={{ fontSize: "0.8rem", color: "#666", padding: "6px 4px" }}>{txn.asset_name || "-"}</td>
+                    <td style={{ color: "#555", padding: "6px 4px" }}>{txn.from ?? "BANK"}</td>
+                    <td style={{ color: "#555", padding: "6px 4px" }}>{txn.to ?? "BANK"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
+        </div>
+
+        {/* Third column: Property Ledger */}
+        <div style={{
+          minWidth: 400,
+          maxWidth: 480,
+          marginLeft: "2rem",
+          flexShrink: 0,
+          position: "sticky",
+          top: 20,
+        }}>
+          <PropertyLedger
+            gameId={gameId}
+            sessionToken={sessionToken}
+          />
         </div>
       </div>
 
@@ -771,6 +1004,7 @@ function App() {
         <PurchaseModal
           gameId={gameId}
           sessionToken={sessionToken}
+          userId={userId}
           pendingAction={pendingAction}
           playerBalances={playerBalances}
           players={game.players}
@@ -782,10 +1016,54 @@ function App() {
         <AuctionModal
           gameId={gameId}
           sessionToken={sessionToken}
+          userId={userId}
           pendingAction={pendingAction}
           playerBalances={playerBalances}
           players={game.players}
           onResolved={fetchGameLedgerJackpot}
+        />
+      )}
+
+      {/* Card Modal for Chance/Welfare */}
+      {pendingAction && pendingAction.action_type === "card_drawn" && (
+        <CardModal
+          gameId={gameId}
+          sessionToken={sessionToken}
+          userId={userId}
+          pendingAction={pendingAction}
+          players={game?.players || []}
+          onResolved={fetchGameLedgerJackpot}
+        />
+      )}
+
+      {/* Rent Payment Modal */}
+      {pendingAction && pendingAction.action_type === "rent_payment" && (
+        <RentPaymentModal
+          gameId={gameId}
+          sessionToken={sessionToken}
+          pendingAction={pendingAction}
+          playerBalances={playerBalances}
+          onResolved={fetchGameLedgerJackpot}
+        />
+      )}
+
+      {/* Jail Notification Modal */}
+      {pendingAction && pendingAction.action_type === "jail_notification" && (
+        <JailModal
+          gameId={gameId}
+          sessionToken={sessionToken}
+          userId={userId}
+          pendingAction={pendingAction}
+          players={game?.players || []}
+          onResolved={fetchGameLedgerJackpot}
+        />
+      )}
+
+      {/* Retained Card Details Popup */}
+      {selectedCard && (
+        <RetainedCardPopup
+          card={selectedCard}
+          onClose={() => setSelectedCard(null)}
         />
       )}
     </div>
