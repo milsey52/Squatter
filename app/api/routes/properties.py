@@ -29,11 +29,10 @@ def get_all_properties(
     # Verify game exists
     deps.get_game_or_404(game_id, session)
 
-    # Get all assets (properties, transport, utilities) with their ownership
+    # Get all assets (properties, transport, utilities) with their ownership and asset details
     properties = (
         session.query(
-            models.Asset.asset_id,
-            models.Asset.purchase_price,
+            models.Asset,
             models.Space.name,
             models.Space.space_type,
             models.Space.group_id,
@@ -63,23 +62,109 @@ def get_all_properties(
         .all()
     )
 
-    return {
-        "properties": [
-            {
-                "asset_id": p.asset_id,
-                "name": p.name,
-                "purchase_price": p.purchase_price,
-                "space_type": p.space_type,
-                "group_id": p.group_id,
-                "owner_name": p.owner_name,
-                "is_mortgaged": p.is_mortgaged or False,
-                "improvement_level": p.improvement_level or 0,
-                "has_hotel": p.has_hotel or False,
-                "board_index": p.board_index
-            }
-            for p in properties
-        ]
-    }
+    # Helper function to check if owner has monopoly
+    def has_monopoly(owner_id, group_id, asset_type):
+        if not owner_id or not group_id or asset_type != 'property':
+            return False
+
+        # Get all properties in the same group
+        group_asset_ids = (
+            session.query(models.Asset.asset_id)
+            .join(models.Space, models.Asset.space_id == models.Space.space_id)
+            .filter(
+                models.Space.group_id == group_id,
+                models.Asset.asset_type == 'property'
+            )
+            .all()
+        )
+        group_ids = [aid[0] for aid in group_asset_ids]
+
+        # Count how many are owned by this player (not mortgaged)
+        owned_count = (
+            session.query(models.AssetState)
+            .filter(
+                models.AssetState.game_id == game_id,
+                models.AssetState.asset_id.in_(group_ids),
+                models.AssetState.owner_game_player_id == owner_id,
+                models.AssetState.is_mortgaged == False
+            )
+            .count()
+        )
+
+        return owned_count == len(group_ids)
+
+    # Helper function to count owned assets of a type
+    def count_owned(owner_id, asset_type):
+        if not owner_id:
+            return 0
+        return (
+            session.query(models.AssetState)
+            .join(models.Asset, models.Asset.asset_id == models.AssetState.asset_id)
+            .filter(
+                models.AssetState.game_id == game_id,
+                models.AssetState.owner_game_player_id == owner_id,
+                models.AssetState.is_mortgaged == False,
+                models.Asset.asset_type == asset_type
+            )
+            .count()
+        )
+
+    result_properties = []
+    for asset, name, space_type, group_id, owner_id, owner_name, is_mortgaged, improvement_level, has_hotel, board_index in properties:
+        # Calculate current rent
+        current_rent = 0
+
+        if is_mortgaged:
+            current_rent = 0
+        elif space_type == 'property':
+            if has_hotel:
+                current_rent = asset.rent_hotel or 0
+            elif improvement_level and improvement_level > 0:
+                rent_map = {
+                    1: asset.rent_house_1,
+                    2: asset.rent_house_2,
+                    3: asset.rent_house_3,
+                    4: asset.rent_house_4
+                }
+                current_rent = rent_map.get(improvement_level, asset.rent_base) or 0
+            elif has_monopoly(owner_id, group_id, space_type):
+                current_rent = asset.rent_group or (asset.rent_base * 2 if asset.rent_base else 0)
+            else:
+                current_rent = asset.rent_base or 0
+        elif space_type == 'transport':
+            owned = count_owned(owner_id, 'transport')
+            if owned == 1:
+                current_rent = asset.rent_base or 0
+            elif owned == 2:
+                current_rent = asset.rent_tier_2 or asset.rent_base or 0
+            elif owned == 3:
+                current_rent = asset.rent_tier_3 or asset.rent_tier_2 or asset.rent_base or 0
+            elif owned >= 4:
+                current_rent = asset.rent_tier_4 or asset.rent_tier_3 or asset.rent_tier_2 or asset.rent_base or 0
+        elif space_type == 'utility':
+            # For utilities, we can't calculate exact rent without dice roll
+            # Show the multiplier instead
+            owned = count_owned(owner_id, 'utility')
+            if owned == 1:
+                current_rent = asset.utility_mult_single or 0  # This is a multiplier, not actual rent
+            elif owned >= 2:
+                current_rent = asset.utility_mult_double or 0  # This is a multiplier, not actual rent
+
+        result_properties.append({
+            "asset_id": asset.asset_id,
+            "name": name,
+            "purchase_price": asset.purchase_price,
+            "space_type": space_type,
+            "group_id": group_id,
+            "owner_name": owner_name,
+            "is_mortgaged": is_mortgaged or False,
+            "improvement_level": improvement_level or 0,
+            "has_hotel": has_hotel or False,
+            "board_index": board_index,
+            "current_rent": current_rent
+        })
+
+    return {"properties": result_properties}
 
 
 class ImprovePropertyRequest(BaseModel):
@@ -93,23 +178,24 @@ class UnimprovePropertyRequest(BaseModel):
 def get_property_group(session: Session, asset_id: int) -> List[dict]:
     """
     Get all assets in the same property group.
-    Group is determined by matching purchase_price, rent structure, and asset_type='property'
+    Group is determined by the group_id in the spaces table.
     """
-    # Get the asset info
-    asset = session.query(models.Asset).filter_by(asset_id=asset_id).first()
-    if not asset or asset.asset_type != 'property':
+    # Get the property's space and group_id
+    property_asset = session.query(models.Asset).filter_by(asset_id=asset_id).first()
+    if not property_asset or property_asset.asset_type != 'property':
         return []
 
-    # Find all properties with the same purchase price and rent structure
-    # This identifies properties in the same color group
+    property_space = session.query(models.Space).filter_by(space_id=property_asset.space_id).first()
+    if not property_space or not property_space.group_id:
+        return []
+
+    # Get all properties in the same group
     group_assets = (
         session.query(models.Asset, models.Space.name)
         .join(models.Space, models.Asset.space_id == models.Space.space_id)
         .filter(
-            models.Asset.asset_type == 'property',
-            models.Asset.purchase_price == asset.purchase_price,
-            models.Asset.rent_house_1 == asset.rent_house_1,
-            models.Asset.rent_hotel == asset.rent_hotel
+            models.Space.group_id == property_space.group_id,
+            models.Asset.asset_type == 'property'
         )
         .all()
     )
@@ -163,9 +249,9 @@ def get_player_properties_detailed(
     if not player:
         raise HTTPException(status_code=404, detail="Player not found")
 
-    # Get all properties owned by player
+    # Get all properties owned by player with group information
     owned_assets = (
-        session.query(models.Asset, models.AssetState, models.Space.name)
+        session.query(models.Asset, models.AssetState, models.Space.name, models.Space.group_id)
         .join(models.AssetState, models.Asset.asset_id == models.AssetState.asset_id)
         .join(models.Space, models.Asset.space_id == models.Space.space_id)
         .filter(
@@ -176,34 +262,48 @@ def get_player_properties_detailed(
         .all()
     )
 
-    # Group properties by purchase_price/rent structure
+    # Group properties by group_id
     property_groups = {}
 
-    for asset, state, name in owned_assets:
-        group_key = f"{asset.purchase_price}_{asset.rent_house_1}"
+    for asset, state, name, group_id in owned_assets:
+        if not group_id:
+            continue  # Skip properties without a group
+
+        group_key = f"group_{group_id}"
 
         if group_key not in property_groups:
             # Get all properties in this group
             group_assets = get_property_group(session, asset.asset_id)
+            group_asset_ids = [a["asset_id"] for a in group_assets]
 
             # Check if player owns all in group (monopoly)
-            owned_in_group = [a.asset_id for a in [ast for ast, st, n in owned_assets
-                             if f"{ast.purchase_price}_{ast.rent_house_1}" == group_key]]
-            has_monopoly = len(owned_in_group) == len(group_assets)
+            owned_in_group = session.query(models.AssetState).filter(
+                models.AssetState.game_id == game_id,
+                models.AssetState.asset_id.in_(group_asset_ids),
+                models.AssetState.owner_game_player_id == player.game_player_id
+            ).count()
+            has_monopoly = owned_in_group == len(group_assets)
 
             # Check if any in group are mortgaged
-            any_mortgaged = any(st.is_mortgaged for ast, st, n in owned_assets
-                               if f"{ast.purchase_price}_{ast.rent_house_1}" == group_key)
+            any_mortgaged = session.query(models.AssetState).filter(
+                models.AssetState.game_id == game_id,
+                models.AssetState.asset_id.in_(group_asset_ids),
+                models.AssetState.is_mortgaged == True
+            ).first() is not None
 
             # Check if any in group have improvements
-            any_improvements = any(
-                (st.improvement_level > 0 or st.has_hotel)
-                for ast, st, n in owned_assets
-                if f"{ast.purchase_price}_{ast.rent_house_1}" == group_key
-            )
+            any_improvements = session.query(models.AssetState).filter(
+                models.AssetState.game_id == game_id,
+                models.AssetState.asset_id.in_(group_asset_ids),
+                (models.AssetState.improvement_level > 0) | (models.AssetState.has_hotel == True)
+            ).first() is not None
+
+            # Get group name from property_groups table
+            property_group = session.query(models.PropertyGroup).filter_by(group_id=group_id).first()
+            group_name = property_group.group_name if property_group else f"Group {group_id}"
 
             property_groups[group_key] = {
-                "group_name": f"${asset.purchase_price} Group",
+                "group_name": group_name,
                 "properties": [],
                 "has_monopoly": has_monopoly,
                 "any_mortgaged": any_mortgaged,
@@ -234,6 +334,7 @@ def get_player_properties_detailed(
             "improvement_level": state.improvement_level,
             "has_hotel": state.has_hotel,
             "is_mortgaged": state.is_mortgaged,
+            "mortgage_value": asset.mortgage_value,
             "current_rent": current_rent,
             "can_improve": (
                 property_groups[group_key]["has_monopoly"] and
@@ -535,3 +636,180 @@ async def unimprove_property(
 
     else:
         raise HTTPException(status_code=400, detail="Invalid improvement type")
+
+
+@router.post("/properties/{asset_id}/mortgage")
+async def mortgage_property(
+    game_id: int,
+    asset_id: int,
+    auth_data: tuple[int, int] = Depends(auth.verify_session_token),
+    session: Session = Depends(deps.get_session)
+):
+    """Mortgage a property to receive cash from the bank"""
+    user_id, token_game_id = auth_data
+
+    if token_game_id != game_id:
+        raise HTTPException(status_code=403, detail="Session token is for a different game")
+
+    # Get player
+    player = session.query(models.GamePlayer).filter_by(
+        game_id=game_id,
+        user_id=user_id
+    ).first()
+
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    # Get asset and state
+    asset = session.query(models.Asset).filter_by(asset_id=asset_id).first()
+    asset_state = session.query(models.AssetState).filter_by(
+        game_id=game_id,
+        asset_id=asset_id
+    ).first()
+
+    if not asset or not asset_state:
+        raise HTTPException(status_code=404, detail="Property not found")
+
+    # Verify ownership
+    if asset_state.owner_game_player_id != player.game_player_id:
+        raise HTTPException(status_code=403, detail="You don't own this property")
+
+    # Check if already mortgaged
+    if asset_state.is_mortgaged:
+        raise HTTPException(status_code=400, detail="Property is already mortgaged")
+
+    # Check if property has improvements
+    if asset_state.improvement_level > 0 or asset_state.has_hotel:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot mortgage property with improvements. Sell all houses and hotels first."
+        )
+
+    # If property is part of a monopoly, check that no other properties in the group have improvements
+    if asset.asset_type == 'property':
+        group_assets = get_property_group(session, asset_id)
+        group_asset_ids = [a["asset_id"] for a in group_assets]
+
+        # Check if any property in group has improvements
+        any_improvements = session.query(models.AssetState).filter(
+            models.AssetState.game_id == game_id,
+            models.AssetState.asset_id.in_(group_asset_ids),
+            (models.AssetState.improvement_level > 0) | (models.AssetState.has_hotel == True)
+        ).first()
+
+        if any_improvements:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot mortgage while any property in color group has improvements"
+            )
+
+    # Mortgage the property
+    asset_state.is_mortgaged = True
+    mortgage_value = asset.mortgage_value
+
+    # Get current turn
+    current_turn = session.query(models.Turn).filter_by(
+        game_id=game_id
+    ).order_by(models.Turn.turn_id.desc()).first()
+    turn_id = current_turn.turn_id if current_turn else None
+
+    # Give player mortgage value
+    ledger = LedgerService(session, game_id)
+    ledger.receive_from_bank(
+        player=player,
+        amount=mortgage_value,
+        txn_type="mortgage",
+        turn_id=turn_id,
+        asset_id=asset_id,
+        notes=f"Mortgaged property"
+    )
+
+    session.commit()
+
+    return {
+        "status": "success",
+        "is_mortgaged": True,
+        "mortgage_value": mortgage_value
+    }
+
+
+@router.post("/properties/{asset_id}/unmortgage")
+async def unmortgage_property(
+    game_id: int,
+    asset_id: int,
+    auth_data: tuple[int, int] = Depends(auth.verify_session_token),
+    session: Session = Depends(deps.get_session)
+):
+    """Unmortgage a property by paying mortgage value plus 10% interest"""
+    user_id, token_game_id = auth_data
+
+    if token_game_id != game_id:
+        raise HTTPException(status_code=403, detail="Session token is for a different game")
+
+    # Get player
+    player = session.query(models.GamePlayer).filter_by(
+        game_id=game_id,
+        user_id=user_id
+    ).first()
+
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    # Get asset and state
+    asset = session.query(models.Asset).filter_by(asset_id=asset_id).first()
+    asset_state = session.query(models.AssetState).filter_by(
+        game_id=game_id,
+        asset_id=asset_id
+    ).first()
+
+    if not asset or not asset_state:
+        raise HTTPException(status_code=404, detail="Property not found")
+
+    # Verify ownership
+    if asset_state.owner_game_player_id != player.game_player_id:
+        raise HTTPException(status_code=403, detail="You don't own this property")
+
+    # Check if property is mortgaged
+    if not asset_state.is_mortgaged:
+        raise HTTPException(status_code=400, detail="Property is not mortgaged")
+
+    # Calculate unmortgage cost (mortgage value + 10%)
+    mortgage_value = asset.mortgage_value
+    unmortgage_cost = int(mortgage_value * 1.10)
+
+    # Check player has sufficient funds
+    ledger = LedgerService(session, game_id)
+    balance = ledger.player_balance(player.game_player_id)
+
+    if balance < unmortgage_cost:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient funds. Need ${unmortgage_cost}, have ${balance}"
+        )
+
+    # Unmortgage the property
+    asset_state.is_mortgaged = False
+
+    # Get current turn
+    current_turn = session.query(models.Turn).filter_by(
+        game_id=game_id
+    ).order_by(models.Turn.turn_id.desc()).first()
+    turn_id = current_turn.turn_id if current_turn else None
+
+    # Charge player unmortgage cost
+    ledger.pay_bank(
+        player=player,
+        amount=unmortgage_cost,
+        txn_type="unmortgage",
+        turn_id=turn_id,
+        asset_id=asset_id,
+        notes=f"Unmortgaged property (mortgage + 10% interest)"
+    )
+
+    session.commit()
+
+    return {
+        "status": "success",
+        "is_mortgaged": False,
+        "cost": unmortgage_cost
+    }

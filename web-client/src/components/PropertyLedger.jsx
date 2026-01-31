@@ -25,6 +25,7 @@ export default function PropertyLedger({ gameId, sessionToken }) {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedOwner, setSelectedOwner] = useState('All');
 
   // Check if an owner has a monopoly (owns all properties in a color group)
   const getMonopolies = (props) => {
@@ -122,6 +123,22 @@ export default function PropertyLedger({ gameId, sessionToken }) {
     );
   }
 
+  // Get unique owners from properties (including Bank)
+  const playerOwners = [...new Set(
+    properties
+      .map(p => p.owner_name)
+      .filter(owner => owner && owner !== 'Bank')
+  )].sort();
+
+  const owners = ['All', 'Bank', ...playerOwners];
+
+  // Filter properties based on selected owner
+  const filteredProperties = selectedOwner === 'All'
+    ? properties
+    : selectedOwner === 'Bank'
+    ? properties.filter(p => !p.owner_name || p.owner_name === 'Bank')
+    : properties.filter(p => p.owner_name === selectedOwner);
+
   return (
     <div style={{
       background: 'rgba(255,255,255,0.95)',
@@ -141,6 +158,58 @@ export default function PropertyLedger({ gameId, sessionToken }) {
         📋 Property Ledger
       </div>
 
+      {/* Owner filter buttons */}
+      <div style={{
+        padding: '0.75rem 1rem',
+        background: '#f0f8ff',
+        borderBottom: '2px solid #1982c4',
+        display: 'flex',
+        gap: '0.4rem',
+        flexWrap: 'wrap',
+        alignItems: 'center'
+      }}>
+        <span style={{
+          fontSize: '0.85rem',
+          fontWeight: 'bold',
+          color: '#1569a0',
+          marginRight: '0.3rem',
+          flexShrink: 0
+        }}>
+          Filter:
+        </span>
+        {owners.map(owner => (
+          <button
+            key={owner}
+            onClick={() => setSelectedOwner(owner)}
+            style={{
+              padding: '0.35rem 0.75rem',
+              background: selectedOwner === owner ? '#1982c4' : '#fff',
+              color: selectedOwner === owner ? '#fff' : '#1982c4',
+              border: '2px solid #1982c4',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              fontSize: '0.8rem',
+              fontWeight: selectedOwner === owner ? 'bold' : 'normal',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap',
+              minWidth: 'fit-content'
+            }}
+            onMouseEnter={(e) => {
+              if (selectedOwner !== owner) {
+                e.target.style.background = '#e3f2fd';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (selectedOwner !== owner) {
+                e.target.style.background = '#fff';
+              }
+            }}
+          >
+            {owner}
+          </button>
+        ))}
+      </div>
+
       <div style={{
         maxHeight: '1100px',
         overflowY: 'auto',
@@ -154,9 +223,11 @@ export default function PropertyLedger({ gameId, sessionToken }) {
         }}>
           <colgroup>
             <col style={{ width: '8px' }} />
-            <col style={{ width: '52%' }} />
-            <col style={{ width: '20%' }} />
-            <col style={{ width: '25%' }} />
+            <col style={{ width: '32%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '23%' }} />
           </colgroup>
           <thead>
             <tr style={{
@@ -179,6 +250,24 @@ export default function PropertyLedger({ gameId, sessionToken }) {
                 fontSize: '0.85rem'
               }}>Name</th>
               <th style={{
+                padding: '0.5rem 1rem',
+                textAlign: 'center',
+                borderBottom: '2px solid #1982c4',
+                fontWeight: 'bold',
+                color: '#1569a0',
+                fontSize: '0.85rem',
+                whiteSpace: 'nowrap'
+              }}>Buildings</th>
+              <th style={{
+                padding: '0.5rem 1rem',
+                textAlign: 'right',
+                borderBottom: '2px solid #1982c4',
+                fontWeight: 'bold',
+                color: '#1569a0',
+                fontSize: '0.85rem',
+                whiteSpace: 'nowrap'
+              }}>Rental</th>
+              <th style={{
                 padding: '0.5rem 0.4rem',
                 textAlign: 'right',
                 borderBottom: '2px solid #1982c4',
@@ -200,7 +289,7 @@ export default function PropertyLedger({ gameId, sessionToken }) {
             {(() => {
               const monopolies = getMonopolies(properties);
 
-              return properties.map((property, index) => {
+              return filteredProperties.map((property, index) => {
                 const isOwned = property.owner_name && property.owner_name !== 'Bank';
                 const hasMonopoly = monopolies.has(property.asset_id);
                 const rowColor = index % 2 === 0 ? '#fff' : '#f8f9fa';
@@ -220,13 +309,44 @@ export default function PropertyLedger({ gameId, sessionToken }) {
                   }}></td>
                   <td style={{
                     padding: '0.35rem 0.4rem',
-                    color: '#333',
+                    color: property.is_mortgaged ? '#d32f2f' : '#333',
                     fontWeight: isOwned ? 'bold' : 'normal',
                     fontSize: '0.85rem',
                     whiteSpace: 'normal',
-                    wordBreak: 'break-word'
+                    wordBreak: 'break-word',
+                    fontStyle: property.is_mortgaged ? 'italic' : 'normal'
                   }}>
-                    {property.name}
+                    {property.name}{property.is_mortgaged ? ' (M)' : ''}
+                  </td>
+                  <td style={{
+                    padding: '0.35rem 0.4rem',
+                    textAlign: 'center',
+                    fontSize: '1.1rem',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {property.has_hotel ? (
+                      <span title="Hotel">🏨</span>
+                    ) : property.improvement_level > 0 ? (
+                      <span title={`${property.improvement_level} House${property.improvement_level > 1 ? 's' : ''}`}>
+                        {Array.from({ length: property.improvement_level }).map((_, i) => (
+                          <span key={i}>🏠</span>
+                        ))}
+                      </span>
+                    ) : null}
+                  </td>
+                  <td style={{
+                    padding: '0.35rem 0.4rem',
+                    textAlign: 'right',
+                    color: property.is_mortgaged ? '#999' : '#d32f2f',
+                    fontWeight: '500',
+                    fontSize: '0.85rem',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {property.is_mortgaged ? '—' :
+                      property.space_type === 'utility' ?
+                        `${property.current_rent || 0}× dice` :
+                        `$${(property.current_rent || 0).toLocaleString()}`
+                    }
                   </td>
                   <td style={{
                     padding: '0.35rem 0.4rem',
@@ -257,14 +377,14 @@ export default function PropertyLedger({ gameId, sessionToken }) {
           </tbody>
         </table>
 
-        {properties.length === 0 && (
+        {filteredProperties.length === 0 && (
           <div style={{
             padding: '2rem',
             textAlign: 'center',
             color: '#999',
             fontStyle: 'italic'
           }}>
-            No properties found
+            {selectedOwner === 'All' ? 'No properties found' : `${selectedOwner} owns no properties`}
           </div>
         )}
       </div>

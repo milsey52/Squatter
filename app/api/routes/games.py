@@ -71,3 +71,54 @@ def player_balances(game_id: int, session: Session = Depends(get_session)):
         balance = LedgerService(session, game_id).player_balance(p.game_player_id)
         balances[p.game_player_id] = balance
     return balances
+
+@router.get("/{game_id}/dice_rolls")
+def get_dice_rolls(game_id: int, session: Session = Depends(get_session)):
+    """Get history of dice rolls for a game"""
+    from sqlalchemy import alias
+
+    game = session.query(models.Game).filter_by(game_id=game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    # Create aliases for the two space joins (from and to locations)
+    space_from = alias(models.Space, name='space_from')
+    space_to = alias(models.Space, name='space_to')
+
+    # Query turns with movements to get from/to locations in a single query
+    rolls = (
+        session.query(
+            models.Turn.turn_number,
+            models.GamePlayer.player_name,
+            models.Turn.dice_roll_1,
+            models.Turn.dice_roll_2,
+            space_from.c.space_id.label('from_location'),
+            space_to.c.space_id.label('to_location')
+        )
+        .join(models.GamePlayer, models.Turn.active_game_player_id == models.GamePlayer.game_player_id)
+        .outerjoin(
+            models.Movement,
+            (models.Turn.turn_id == models.Movement.turn_id) &
+            (models.Movement.movement_type == 'roll')
+        )
+        .outerjoin(space_from, models.Movement.start_space_id == space_from.c.space_id)
+        .outerjoin(space_to, models.Movement.end_space_id == space_to.c.space_id)
+        .filter(models.Turn.game_id == game_id)
+        .order_by(models.Turn.turn_number.desc())
+        .limit(20)
+        .all()
+    )
+
+    result = []
+    for turn_number, player_name, dice1, dice2, from_location, to_location in rolls:
+        result.append({
+            "roll_number": turn_number,
+            "player": player_name,
+            "dice1": dice1,
+            "dice2": dice2,
+            "total": (dice1 or 0) + (dice2 or 0),
+            "from_location": from_location,
+            "to_location": to_location
+        })
+
+    return {"rolls": result}
