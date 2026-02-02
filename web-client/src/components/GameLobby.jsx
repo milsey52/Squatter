@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useGameEvents } from '../hooks/useGameEvents';
 import { QRCodeSVG } from 'qrcode.react';
+import TurnOrderRoll from './TurnOrderRoll';
 
 const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env.VITE_API_BASE !== '')
   ? import.meta.env.VITE_API_BASE
@@ -14,8 +15,14 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
   const [starting, setStarting] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showTurnOrderRoll, setShowTurnOrderRoll] = useState(false);
 
   const fetchLobbyStatus = useCallback(async () => {
+    if (!gameId || !sessionToken) {
+      console.log('[GameLobby] Skipping fetch - missing gameId or sessionToken', { gameId, sessionToken });
+      return;
+    }
+
     try {
       const response = await fetch(`${API_BASE}/games/${gameId}/lobby`, {
         headers: {
@@ -41,6 +48,11 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
         onGameStarted();
       }
 
+      // If rolling for turn order, show the turn order modal
+      if (data.status === 'rolling_for_order') {
+        setShowTurnOrderRoll(true);
+      }
+
       setLoading(false);
     } catch (err) {
       setError(err.message);
@@ -62,6 +74,10 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
       case 'player_ready':
         // Refresh lobby status when players join or ready status changes
         fetchLobbyStatus();
+        break;
+      case 'turn_order_rolling_started':
+        // Show turn order roll modal
+        setShowTurnOrderRoll(true);
         break;
       case 'game_started':
         // Game has started, transition to game screen
@@ -344,7 +360,7 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
                         marginLeft: '0.5rem',
                         padding: '2px 8px',
                         background: '#ff924c',
-                        color: '#fff',
+                        color: '#000',
                         borderRadius: '4px',
                         fontSize: '0.75rem',
                         fontWeight: 'bold'
@@ -438,6 +454,19 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
           </div>
         )}
       </div>
+
+      {/* Turn Order Roll Modal */}
+      {showTurnOrderRoll && (
+        <TurnOrderRoll
+          gameId={gameId}
+          sessionToken={sessionToken}
+          isHost={isHost}
+          onComplete={() => {
+            setShowTurnOrderRoll(false);
+            onGameStarted();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -126,6 +126,9 @@ class CardService:
         elif code == "MOVE_BACK":
             self._effect_move_back(player, params, turn)
 
+        elif code == "MOVE_RELATIVE":
+            self._effect_move_back(player, params, turn)
+
         elif code == "ADVANCE_NEAREST":
             space_type = params.get("space_type", "transport")
             self._effect_advance_nearest(player, space_type, params, turn)

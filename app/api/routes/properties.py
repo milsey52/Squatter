@@ -249,84 +249,121 @@ def get_player_properties_detailed(
     if not player:
         raise HTTPException(status_code=404, detail="Player not found")
 
-    # Get all properties owned by player with group information
+    # Get all assets owned by player (properties, transport, utilities)
     owned_assets = (
-        session.query(models.Asset, models.AssetState, models.Space.name, models.Space.group_id)
+        session.query(models.Asset, models.AssetState, models.Space.name, models.Space.group_id, models.Space.space_type)
         .join(models.AssetState, models.Asset.asset_id == models.AssetState.asset_id)
         .join(models.Space, models.Asset.space_id == models.Space.space_id)
         .filter(
             models.AssetState.game_id == game_id,
-            models.AssetState.owner_game_player_id == player.game_player_id,
-            models.Asset.asset_type == 'property'
+            models.AssetState.owner_game_player_id == player.game_player_id
         )
         .all()
     )
 
-    # Group properties by group_id
+    # Group properties by group_id, and create separate groups for transport and utilities
     property_groups = {}
 
-    for asset, state, name, group_id in owned_assets:
-        if not group_id:
+    for asset, state, name, group_id, space_type in owned_assets:
+        # Handle transport and utilities separately
+        if space_type == 'transport':
+            group_key = "transport"
+        elif space_type == 'utility':
+            group_key = "utility"
+        elif group_id:
+            group_key = f"group_{group_id}"
+        else:
             continue  # Skip properties without a group
 
-        group_key = f"group_{group_id}"
-
         if group_key not in property_groups:
-            # Get all properties in this group
-            group_assets = get_property_group(session, asset.asset_id)
-            group_asset_ids = [a["asset_id"] for a in group_assets]
+            # Handle transport and utilities differently from properties
+            if space_type == 'transport':
+                property_groups[group_key] = {
+                    "group_name": "Transport Stations",
+                    "properties": [],
+                    "has_monopoly": False,  # Transport doesn't have monopolies
+                    "any_mortgaged": False,
+                    "any_improvements": False,
+                    "total_in_group": 4,  # There are 4 transport stations
+                    "house_cost": 0,
+                    "hotel_cost": 0
+                }
+            elif space_type == 'utility':
+                property_groups[group_key] = {
+                    "group_name": "Utilities",
+                    "properties": [],
+                    "has_monopoly": False,  # Utilities don't have monopolies
+                    "any_mortgaged": False,
+                    "any_improvements": False,
+                    "total_in_group": 2,  # There are 2 utilities
+                    "house_cost": 0,
+                    "hotel_cost": 0
+                }
+            else:
+                # Get all properties in this color group
+                group_assets = get_property_group(session, asset.asset_id)
+                group_asset_ids = [a["asset_id"] for a in group_assets]
 
-            # Check if player owns all in group (monopoly)
-            owned_in_group = session.query(models.AssetState).filter(
-                models.AssetState.game_id == game_id,
-                models.AssetState.asset_id.in_(group_asset_ids),
-                models.AssetState.owner_game_player_id == player.game_player_id
-            ).count()
-            has_monopoly = owned_in_group == len(group_assets)
+                # Check if player owns all in group (monopoly)
+                owned_in_group = session.query(models.AssetState).filter(
+                    models.AssetState.game_id == game_id,
+                    models.AssetState.asset_id.in_(group_asset_ids),
+                    models.AssetState.owner_game_player_id == player.game_player_id
+                ).count()
+                has_monopoly = owned_in_group == len(group_assets)
 
-            # Check if any in group are mortgaged
-            any_mortgaged = session.query(models.AssetState).filter(
-                models.AssetState.game_id == game_id,
-                models.AssetState.asset_id.in_(group_asset_ids),
-                models.AssetState.is_mortgaged == True
-            ).first() is not None
+                # Check if any in group are mortgaged
+                any_mortgaged = session.query(models.AssetState).filter(
+                    models.AssetState.game_id == game_id,
+                    models.AssetState.asset_id.in_(group_asset_ids),
+                    models.AssetState.is_mortgaged == True
+                ).first() is not None
 
-            # Check if any in group have improvements
-            any_improvements = session.query(models.AssetState).filter(
-                models.AssetState.game_id == game_id,
-                models.AssetState.asset_id.in_(group_asset_ids),
-                (models.AssetState.improvement_level > 0) | (models.AssetState.has_hotel == True)
-            ).first() is not None
+                # Check if any in group have improvements
+                any_improvements = session.query(models.AssetState).filter(
+                    models.AssetState.game_id == game_id,
+                    models.AssetState.asset_id.in_(group_asset_ids),
+                    (models.AssetState.improvement_level > 0) | (models.AssetState.has_hotel == True)
+                ).first() is not None
 
-            # Get group name from property_groups table
-            property_group = session.query(models.PropertyGroup).filter_by(group_id=group_id).first()
-            group_name = property_group.group_name if property_group else f"Group {group_id}"
+                # Get group name from property_groups table
+                property_group = session.query(models.PropertyGroup).filter_by(group_id=group_id).first()
+                group_name = property_group.group_name if property_group else f"Group {group_id}"
 
-            property_groups[group_key] = {
-                "group_name": group_name,
-                "properties": [],
-                "has_monopoly": has_monopoly,
-                "any_mortgaged": any_mortgaged,
-                "any_improvements": any_improvements,
-                "total_in_group": len(group_assets),
-                "house_cost": get_house_cost(asset),
-                "hotel_cost": get_hotel_cost(asset)
-            }
+                property_groups[group_key] = {
+                    "group_name": group_name,
+                    "properties": [],
+                    "has_monopoly": has_monopoly,
+                    "any_mortgaged": any_mortgaged,
+                    "any_improvements": any_improvements,
+                    "total_in_group": len(group_assets),
+                    "house_cost": get_house_cost(asset),
+                    "hotel_cost": get_hotel_cost(asset)
+                }
 
-        current_rent = asset.rent_base
-        if state.has_hotel:
-            current_rent = asset.rent_hotel
-        elif state.improvement_level > 0:
-            rent_map = {
-                1: asset.rent_house_1,
-                2: asset.rent_house_2,
-                3: asset.rent_house_3,
-                4: asset.rent_house_4
-            }
-            current_rent = rent_map.get(state.improvement_level, asset.rent_base)
-        elif property_groups[group_key]["has_monopoly"] and not state.is_mortgaged:
-            # Monopoly with no improvements gets double rent
-            current_rent = asset.rent_group or (asset.rent_base * 2)
+        # Calculate current rent based on asset type
+        if space_type == 'transport':
+            # Transport rent is based on how many owned (already calculated)
+            current_rent = asset.rent_base or 0
+        elif space_type == 'utility':
+            # Utility rent is a multiplier (show base multiplier)
+            current_rent = asset.utility_mult_single or 0
+        else:
+            # Property rent calculation
+            current_rent = asset.rent_base
+            if state.has_hotel:
+                current_rent = asset.rent_hotel
+            elif state.improvement_level > 0:
+                rent_map = {
+                    1: asset.rent_house_1,
+                    2: asset.rent_house_2,
+                    3: asset.rent_house_3,
+                    4: asset.rent_house_4
+                }
+                current_rent = rent_map.get(state.improvement_level, asset.rent_base)
+            elif property_groups[group_key]["has_monopoly"] and not state.is_mortgaged:
+                # Monopoly with no improvements gets double rent
+                current_rent = asset.rent_group or (asset.rent_base * 2)
 
         property_groups[group_key]["properties"].append({
             "asset_id": asset.asset_id,
@@ -337,6 +374,7 @@ def get_player_properties_detailed(
             "mortgage_value": asset.mortgage_value,
             "current_rent": current_rent,
             "can_improve": (
+                space_type == 'property' and  # Only properties can be improved
                 property_groups[group_key]["has_monopoly"] and
                 not property_groups[group_key]["any_mortgaged"] and
                 not state.is_mortgaged
