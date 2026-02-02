@@ -363,15 +363,8 @@ function App() {
 
     setIsAnimating(false);
 
-    // Clear animated position after animation completes
-    // The database position will take over
-    setTimeout(() => {
-      setAnimatedPositions(prev => {
-        const newPositions = { ...prev };
-        delete newPositions[playerId];
-        return newPositions;
-      });
-    }, 100);
+    // Don't clear animated position here - let it persist until database updates
+    // This prevents the token from jumping back to the old position
   }, []);
 
   // Handle real-time game events
@@ -403,7 +396,15 @@ function App() {
             animateTokenMovement(movingPlayerId, startPosition, diceTotal).then(() => {
               // Delay before showing any modals (rent, cards, etc.)
               setTimeout(() => {
-                fetchGameLedgerJackpot();
+                fetchGameLedgerJackpot().then(() => {
+                  // Clear animated position after database is updated
+                  // This prevents token from jumping back to old position
+                  setAnimatedPositions(prev => {
+                    const newPositions = { ...prev };
+                    delete newPositions[movingPlayerId];
+                    return newPositions;
+                  });
+                });
               }, 500);
             });
           } else {
