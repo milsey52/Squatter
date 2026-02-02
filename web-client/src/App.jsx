@@ -399,9 +399,12 @@ function App() {
           if (movingPlayer && diceTotal > 0) {
             const startPosition = movingPlayer.current_space_id;
 
-            // Animate, then refresh
+            // Animate, wait 500ms after landing, then refresh game state
             animateTokenMovement(movingPlayerId, startPosition, diceTotal).then(() => {
-              fetchGameLedgerJackpot();
+              // Delay before showing any modals (rent, cards, etc.)
+              setTimeout(() => {
+                fetchGameLedgerJackpot();
+              }, 500);
             });
           } else {
             // No animation needed, just refresh
