@@ -98,6 +98,8 @@ function App() {
   const [showBankruptcyModal, setShowBankruptcyModal] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [winner, setWinner] = useState(null);
+  const [animatedPositions, setAnimatedPositions] = useState({});
+  const [isAnimating, setIsAnimating] = useState(false);
 
   // Create a map of space_id -> {improvement_level, has_hotel} for board display
   const propertyImprovements = useMemo(() => {
@@ -341,6 +343,37 @@ function App() {
     return () => clearInterval(pollInterval);
   }, [screen, gameId, sessionToken, fetchGameLedgerJackpot]);
 
+  // Animate token movement step-by-step
+  const animateTokenMovement = useCallback(async (playerId, startPosition, diceTotal) => {
+    const BOARD_SIZE = 40;
+    const STEP_DELAY = 200; // milliseconds between each space
+
+    setIsAnimating(true);
+
+    // Animate through each space
+    for (let step = 1; step <= diceTotal; step++) {
+      await new Promise(resolve => setTimeout(resolve, STEP_DELAY));
+      const newPosition = (startPosition + step) % BOARD_SIZE;
+
+      setAnimatedPositions(prev => ({
+        ...prev,
+        [playerId]: newPosition
+      }));
+    }
+
+    setIsAnimating(false);
+
+    // Clear animated position after animation completes
+    // The database position will take over
+    setTimeout(() => {
+      setAnimatedPositions(prev => {
+        const newPositions = { ...prev };
+        delete newPositions[playerId];
+        return newPositions;
+      });
+    }, 100);
+  }, []);
+
   // Handle real-time game events
   const handleGameEvent = useCallback((eventType, data) => {
     console.log('[App] Game event received:', eventType, data);
@@ -356,9 +389,28 @@ function App() {
             is_double: data.is_double,
             player_id: data.player_id  // Track who rolled
           });
+
+          // Animate token movement before refreshing game state
+          const diceTotal = data.dice_roll[0] + data.dice_roll[1];
+          const movingPlayerId = data.player_id;
+
+          // Get the starting position from current game state
+          const movingPlayer = game?.players?.find(p => p.game_player_id === movingPlayerId);
+          if (movingPlayer && diceTotal > 0) {
+            const startPosition = movingPlayer.current_space_id;
+
+            // Animate, then refresh
+            animateTokenMovement(movingPlayerId, startPosition, diceTotal).then(() => {
+              fetchGameLedgerJackpot();
+            });
+          } else {
+            // No animation needed, just refresh
+            fetchGameLedgerJackpot();
+          }
+        } else {
+          // No dice roll data, just refresh
+          fetchGameLedgerJackpot();
         }
-        // Refresh game state
-        fetchGameLedgerJackpot();
         break;
       case 'bankruptcy_triggered':
         console.log('[App] Bankruptcy triggered:', data);
@@ -396,7 +448,7 @@ function App() {
       default:
         break;
     }
-  }, [fetchGameLedgerJackpot]);
+  }, [fetchGameLedgerJackpot, game, animateTokenMovement]);
 
   // Connect to SSE for real-time updates when in game screen
   useGameEvents(
@@ -670,6 +722,7 @@ function App() {
             players={game.players || []}
             currentPlayerId={game.current_player_id}
             propertyImprovements={propertyImprovements}
+            animatedPositions={animatedPositions}
           />
 
           {/* Jackpot positioned at square 20 (Salvo Rest Home - top-left corner) */}

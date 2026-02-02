@@ -5,6 +5,8 @@ import { boardIndexToPixel, GRID_POSITIONS } from "./boardLayout";
 const CELL = 100;
 const TOKEN_SIZE = 28;
 const TOKEN_COLORS = ["#ff595e", "#8ac926", "#1982c4", "#ffca3a", "#ff924c", "#7d5ba6"];
+// Text colors chosen for readability on each background
+const TOKEN_TEXT_COLORS = ["#fff", "#000", "#fff", "#000", "#fff", "#fff"];
 
 // Convert space_id to board index for GRID_POSITIONS array
 function toBoardIndex(spaceId) {
@@ -13,7 +15,7 @@ function toBoardIndex(spaceId) {
   return spaceId % GRID_POSITIONS.length;
 }
 
-export default function Board({ players = [], currentPlayerId, propertyImprovements = {} }) {
+export default function Board({ players = [], currentPlayerId, propertyImprovements = {}, animatedPositions = {} }) {
   // Prepare per-space stacks so overlapping tokens get offset
   const stackMap = players.reduce((acc, player) => {
     const idx = toBoardIndex(player.current_space_id);
@@ -27,7 +29,12 @@ export default function Board({ players = [], currentPlayerId, propertyImproveme
       <img src={boardSVG} alt="Board" style={{ width: "100%", height: "100%" }} />
 
       {players.map((player, idx) => {
-        const boardIdx = toBoardIndex(player.current_space_id);
+        // Use animated position if available, otherwise use database position
+        const displayPosition = animatedPositions[player.game_player_id] !== undefined
+          ? animatedPositions[player.game_player_id]
+          : player.current_space_id;
+
+        const boardIdx = toBoardIndex(displayPosition);
         const { left, top } = boardIndexToPixel(boardIdx);
         const stack = stackMap[boardIdx] || [];
         const offsetIndex = stack.indexOf(player.game_player_id);
@@ -46,7 +53,7 @@ export default function Board({ players = [], currentPlayerId, propertyImproveme
               height: TOKEN_SIZE,
               borderRadius: "50%",
               background: TOKEN_COLORS[idx % TOKEN_COLORS.length],
-              color: "#fff",
+              color: TOKEN_TEXT_COLORS[idx % TOKEN_TEXT_COLORS.length],
               fontWeight: 600,
               fontSize: "0.9rem",
               display: "flex",
@@ -61,7 +68,8 @@ export default function Board({ players = [], currentPlayerId, propertyImproveme
               border: isActive
                 ? "2px solid #ffd700"
                 : "2px solid rgba(0,0,0,0.2)",
-              transition: "box-shadow 0.2s ease",
+              // Add smooth transitions for position and box-shadow
+              transition: "left 0.15s ease-out, top 0.15s ease-out, box-shadow 0.2s ease",
             }}
           >
             {player.player_name?.[0] ?? "?"}
