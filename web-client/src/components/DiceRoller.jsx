@@ -12,27 +12,25 @@ const DiceRoller = forwardRef(({ onRollComplete }, ref) => {
 
     console.log('[DiceRoller] Starting initialization...');
 
-    // Initialize dice box with canvas in the container
-    const diceBox = new DiceBox(
-      '#dice-canvas',
-      {
-        assetPath: '/assets/',
-        theme: 'default',
-        scale: 6,
-        gravity: 2,
-        mass: 1,
-        friction: 0.8,
-        restitution: 0.5,
-        linearDamping: 0.5,
-        angularDamping: 0.4,
-        spinForce: 6,
-        throwForce: 5,
-        startingHeight: 10,
-        settleTimeout: 2500,
-        offscreen: false,
-        delay: 10,
-      }
-    );
+    // Initialize dice box with new v1.1.0 API (single config object)
+    const diceBox = new DiceBox({
+      id: 'dice-canvas',
+      assetPath: '/assets/',
+      theme: 'default',
+      scale: 6,
+      gravity: 2,
+      mass: 1,
+      friction: 0.8,
+      restitution: 0.5,
+      linearDamping: 0.5,
+      angularDamping: 0.4,
+      spinForce: 6,
+      throwForce: 5,
+      startingHeight: 10,
+      settleTimeout: 2500,
+      offscreen: false,
+      delay: 10,
+    });
 
     diceBox.init().then(() => {
       diceBoxRef.current = diceBox;
