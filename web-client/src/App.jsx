@@ -346,7 +346,7 @@ function App() {
   // Animate token movement step-by-step
   const animateTokenMovement = useCallback(async (playerId, startPosition, diceTotal) => {
     const BOARD_SIZE = 40;
-    const STEP_DELAY = 200; // milliseconds between each space
+    const STEP_DELAY = 300; // milliseconds between each space
 
     setIsAnimating(true);
 
