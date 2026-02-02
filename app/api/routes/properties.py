@@ -273,7 +273,8 @@ def get_player_properties_detailed(
         elif group_id:
             group_key = f"group_{group_id}"
         else:
-            continue  # Skip properties without a group
+            # Handle properties without a group_id - group them separately
+            group_key = f"ungrouped_{asset.asset_id}"
 
         if group_key not in property_groups:
             # Handle transport and utilities differently from properties
@@ -299,7 +300,7 @@ def get_player_properties_detailed(
                     "house_cost": 0,
                     "hotel_cost": 0
                 }
-            else:
+            elif group_id:
                 # Get all properties in this color group
                 group_assets = get_property_group(session, asset.asset_id)
                 group_asset_ids = [a["asset_id"] for a in group_assets]
@@ -337,6 +338,18 @@ def get_player_properties_detailed(
                     "any_mortgaged": any_mortgaged,
                     "any_improvements": any_improvements,
                     "total_in_group": len(group_assets),
+                    "house_cost": get_house_cost(asset),
+                    "hotel_cost": get_hotel_cost(asset)
+                }
+            else:
+                # Handle properties without a group_id (ungrouped properties)
+                property_groups[group_key] = {
+                    "group_name": name,  # Use property name as group name
+                    "properties": [],
+                    "has_monopoly": False,  # Ungrouped properties can't have monopoly
+                    "any_mortgaged": False,
+                    "any_improvements": False,
+                    "total_in_group": 1,  # Single property group
                     "house_cost": get_house_cost(asset),
                     "hotel_cost": get_hotel_cost(asset)
                 }
