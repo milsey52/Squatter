@@ -323,7 +323,13 @@ function App() {
       fetch(`${API_BASE}/games/${gameId}/trades/active`, {
         headers: sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {}
       })
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) {
+            // Silently ignore 404 or other errors - no active trade
+            return { trade: null };
+          }
+          return res.json();
+        })
         .then(data => {
           setActiveTrade(prevTrade => {
             // If no active trade, clear the state
