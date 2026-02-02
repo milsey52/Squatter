@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Board from "./Board";
 import PurchaseModal from "./PurchaseModal";
 import AuctionModal from "./AuctionModal";
@@ -15,7 +15,6 @@ import PropertyManagement from "./components/PropertyManagement";
 import PropertyLedger from "./components/PropertyLedger";
 import WorthModal from "./components/WorthModal";
 import BankruptcyModal from "./components/BankruptcyModal";
-import DiceRoller from "./components/DiceRoller";
 import { useGameEvents } from "./hooks/useGameEvents";
 
 const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env.VITE_API_BASE !== '')
@@ -101,9 +100,6 @@ function App() {
   const [winner, setWinner] = useState(null);
   const [animatedPositions, setAnimatedPositions] = useState({});
   const [isAnimating, setIsAnimating] = useState(false);
-
-  // Ref for 3D dice roller
-  const diceRollerRef = useRef(null);
 
   // Create a map of space_id -> {improvement_level, has_hotel} for board display
   const propertyImprovements = useMemo(() => {
@@ -400,40 +396,20 @@ function App() {
           if (movingPlayer && diceTotal > 0) {
             const startPosition = movingPlayer.current_space_id;
 
-            // Roll 3D dice animation first
-            if (diceRollerRef.current?.isInitialized) {
-              diceRollerRef.current.roll(data.dice_roll[0], data.dice_roll[1]);
-
-              // Wait for dice to settle (2.5s + 1.5s display = 4s), then animate token
+            // Animate token movement, then show modals after delay
+            animateTokenMovement(movingPlayerId, startPosition, diceTotal).then(() => {
+              // Delay before showing any modals (rent, cards, etc.)
               setTimeout(() => {
-                animateTokenMovement(movingPlayerId, startPosition, diceTotal).then(() => {
-                  // Delay before showing any modals (rent, cards, etc.)
-                  setTimeout(() => {
-                    fetchGameLedgerJackpot().then(() => {
-                      // Clear animated position after database is updated
-                      setAnimatedPositions(prev => {
-                        const newPositions = { ...prev };
-                        delete newPositions[movingPlayerId];
-                        return newPositions;
-                      });
-                    });
-                  }, 500);
-                });
-              }, 4000);
-            } else {
-              // Fallback if dice roller not ready - just animate token
-              animateTokenMovement(movingPlayerId, startPosition, diceTotal).then(() => {
-                setTimeout(() => {
-                  fetchGameLedgerJackpot().then(() => {
-                    setAnimatedPositions(prev => {
-                      const newPositions = { ...prev };
-                      delete newPositions[movingPlayerId];
-                      return newPositions;
-                    });
+                fetchGameLedgerJackpot().then(() => {
+                  // Clear animated position after database is updated
+                  setAnimatedPositions(prev => {
+                    const newPositions = { ...prev };
+                    delete newPositions[movingPlayerId];
+                    return newPositions;
                   });
-                }, 500);
-              });
-            }
+                });
+              }, 500);
+            });
           } else {
             // No animation needed, just refresh
             fetchGameLedgerJackpot();
@@ -755,9 +731,6 @@ function App() {
             propertyImprovements={propertyImprovements}
             animatedPositions={animatedPositions}
           />
-
-          {/* 3D Dice Roller Overlay */}
-          <DiceRoller ref={diceRollerRef} />
 
           {/* Jackpot positioned at square 20 (Salvo Rest Home - top-left corner) */}
           {jackpot !== null && (
