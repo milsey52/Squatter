@@ -571,13 +571,13 @@ function App() {
         throw new Error(`Failed to execute turn: ${response.status}`);
       }
       const turnData = await response.json();
-      setLastDiceRoll(turnData);
-      await fetchGameLedgerJackpot();                                                                                                                                                  
-    } catch (err) {                                                                                                                                                                    
-      setError(err.message);                                                                                                                                                           
-    } finally {                                                                                                                                                                        
-      setIsSubmitting(false);                                                                                                                                                          
-    }                                                                                                                                                                                  
+      // Don't fetch game state here - let SSE handler do it with animation
+      // The turn_played event will trigger animation and delayed state update
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };                                                                                                                                                                                   
                                                                                                                                                                                        
   // Screen routing
