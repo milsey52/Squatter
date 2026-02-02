@@ -10,22 +10,24 @@ const DiceRoller = forwardRef(({ onRollComplete }, ref) => {
   useEffect(() => {
     if (isInitialized || !containerRef.current) return;
 
+    console.log('[DiceRoller] Starting initialization...');
+
     // Initialize dice box with canvas in the container
     const diceBox = new DiceBox(
       '#dice-canvas',
       {
-        assetPath: 'https://unpkg.com/@3d-dice/dice-box@1.1.1/dist/assets/',
+        assetPath: '/assets/',
         theme: 'default',
-        scale: 5,
-        gravity: 1.5,
+        scale: 6,
+        gravity: 2,
         mass: 1,
         friction: 0.8,
-        restitution: 0.3,
+        restitution: 0.5,
         linearDamping: 0.5,
         angularDamping: 0.4,
-        spinForce: 5,
-        throwForce: 4,
-        startingHeight: 8,
+        spinForce: 6,
+        throwForce: 5,
+        startingHeight: 10,
         settleTimeout: 2500,
         offscreen: false,
         delay: 10,
@@ -35,9 +37,10 @@ const DiceRoller = forwardRef(({ onRollComplete }, ref) => {
     diceBox.init().then(() => {
       diceBoxRef.current = diceBox;
       setIsInitialized(true);
-      console.log('DiceBox initialized successfully');
+      console.log('[DiceRoller] ✓ Initialized successfully');
     }).catch(err => {
-      console.error('Failed to initialize DiceBox:', err);
+      console.error('[DiceRoller] ✗ Failed to initialize:', err);
+      setIsInitialized(false);
     });
 
     // Cleanup on unmount
@@ -50,8 +53,11 @@ const DiceRoller = forwardRef(({ onRollComplete }, ref) => {
 
   // Method to roll dice with specific values
   const roll = async (die1, die2) => {
+    console.log(`[DiceRoller] roll() called with values: ${die1}, ${die2}`);
+    console.log(`[DiceRoller] isInitialized: ${isInitialized}, diceBoxRef.current:`, diceBoxRef.current);
+
     if (!diceBoxRef.current || !isInitialized) {
-      console.warn('DiceBox not initialized yet');
+      console.warn('[DiceRoller] ⚠ DiceBox not initialized, skipping animation');
       if (onRollComplete) {
         onRollComplete(die1, die2);
       }
@@ -59,19 +65,23 @@ const DiceRoller = forwardRef(({ onRollComplete }, ref) => {
     }
 
     setIsRolling(true);
+    console.log('[DiceRoller] Starting dice roll animation...');
 
     try {
       // Clear any previous dice
       diceBoxRef.current.clear();
 
       // Roll two dice with specific values
-      await diceBoxRef.current.roll([
+      const result = await diceBoxRef.current.roll([
         { qty: 1, sides: 6, value: die1 },
         { qty: 1, sides: 6, value: die2 }
       ]);
 
+      console.log('[DiceRoller] Dice roll initiated, result:', result);
+
       // Wait for dice to settle before notifying completion
       setTimeout(() => {
+        console.log('[DiceRoller] Dice settled');
         setIsRolling(false);
         if (onRollComplete) {
           onRollComplete(die1, die2);
@@ -79,12 +89,13 @@ const DiceRoller = forwardRef(({ onRollComplete }, ref) => {
         // Clear dice after a brief display
         setTimeout(() => {
           if (diceBoxRef.current) {
+            console.log('[DiceRoller] Clearing dice');
             diceBoxRef.current.clear();
           }
         }, 1500);
       }, 2500);
     } catch (error) {
-      console.error('Error rolling dice:', error);
+      console.error('[DiceRoller] ✗ Error rolling dice:', error);
       setIsRolling(false);
       // Fallback if animation fails
       if (onRollComplete) {
