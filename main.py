@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from app.api.routes import games, turns, ledger, jackpot, players, cards, decisions, lobby, events, trades, properties
+from app.api.routes import games, turns, ledger, jackpot, players, cards, decisions, lobby, events, trades, properties, bankruptcy
 
 app = FastAPI(title="MonopolyPerth API")
 
@@ -16,6 +16,7 @@ app.include_router(jackpot.router, prefix="/games/{game_id}/jackpot", tags=["jac
 app.include_router(decisions.router, prefix="/games/{game_id}", tags=["decisions"])
 app.include_router(trades.router, prefix="/games/{game_id}/trades", tags=["trades"])
 app.include_router(properties.router, prefix="/games/{game_id}", tags=["properties"])
+app.include_router(bankruptcy.router)
 app.include_router(players.router)
 app.include_router(cards.router)
 

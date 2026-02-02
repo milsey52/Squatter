@@ -65,6 +65,7 @@ class GamePlayer(Base):
     turn_order = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=True)
     is_ready = Column(Boolean, nullable=False, default=False)
+    logged_in = Column(Boolean, nullable=False, default=True)
     current_space_id = Column(Integer, nullable=False, default=0)
     in_jail = Column(Boolean, nullable=False, default=False)
     jail_turns = Column(Integer, nullable=False, default=0)
@@ -263,3 +264,43 @@ class TradeSession(Base):
     game = relationship("Game")
     initiator = relationship("GamePlayer", foreign_keys=[initiator_player_id])
     counterparty = relationship("GamePlayer", foreign_keys=[counterparty_player_id])
+
+class TurnOrderRoll(Base):
+    __tablename__ = "turn_order_rolls"
+
+    roll_id = Column(Integer, primary_key=True)
+    game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
+    game_player_id = Column(Integer, ForeignKey("game_players.game_player_id"), nullable=False)
+    round_number = Column(Integer, nullable=False, default=1)
+    dice_roll_1 = Column(Integer, nullable=False)
+    dice_roll_2 = Column(Integer, nullable=False)
+    total = Column(Integer, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    game = relationship("Game")
+    player = relationship("GamePlayer")
+
+    __table_args__ = (
+        UniqueConstraint("game_id", "game_player_id", "round_number", name="uq_turn_order_roll"),
+    )
+
+class DebtState(Base):
+    __tablename__ = "debt_states"
+
+    debt_state_id = Column(Integer, primary_key=True)
+    game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
+    debtor_player_id = Column(Integer, ForeignKey("game_players.game_player_id"), nullable=False)
+    creditor_player_id = Column(Integer, ForeignKey("game_players.game_player_id"), nullable=True)
+    debt_amount = Column(Integer, nullable=False)
+    debt_reason = Column(String(50), nullable=False)
+    status = Column(String(50), nullable=False, default="pending")
+    asset_id = Column(Integer, ForeignKey("assets.asset_id"), nullable=True)
+    turn_id = Column(Integer, ForeignKey("turns.turn_id"), nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    resolved_at = Column(DateTime, nullable=True)
+
+    game = relationship("Game")
+    debtor = relationship("GamePlayer", foreign_keys=[debtor_player_id])
+    creditor = relationship("GamePlayer", foreign_keys=[creditor_player_id])
+    asset = relationship("Asset")
+    turn = relationship("Turn")

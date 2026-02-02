@@ -4,12 +4,13 @@ const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env
   ? import.meta.env.VITE_API_BASE
   : window.location.origin;
 
-export default function PropertyManagement({ gameId, sessionToken, playerBalance, onClose, onUpdate }) {
+export default function PropertyManagement({ gameId, sessionToken, playerBalance, onClose, onUpdate, liquidationMode = false }) {
   const [properties, setProperties] = useState({ groups: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [processing, setProcessing] = useState(null);
+  const [totalRaised, setTotalRaised] = useState(0);
 
   useEffect(() => {
     fetchProperties();
@@ -94,6 +95,11 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
       const improvementName = improvementType === 'house' ? 'House' : 'Hotel';
       setSuccess(`✓ ${improvementName} sold successfully! Refund: $${result.refund}`);
 
+      // Track raised funds in liquidation mode
+      if (liquidationMode) {
+        setTotalRaised(prev => prev + result.refund);
+      }
+
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
 
@@ -126,6 +132,11 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
 
       const result = await response.json();
       setSuccess(`✓ Property mortgaged! Received: $${result.mortgage_value}`);
+
+      // Track raised funds in liquidation mode
+      if (liquidationMode) {
+        setTotalRaised(prev => prev + result.mortgage_value);
+      }
 
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
@@ -185,13 +196,15 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
       {/* Header */}
       <div style={{
         padding: '1rem 1.5rem',
-        background: 'linear-gradient(135deg, #6a4c93 0%, #8b6fb0 100%)',
+        background: liquidationMode ? 'linear-gradient(135deg, #d32f2f 0%, #f44336 100%)' : 'linear-gradient(135deg, #6a4c93 0%, #8b6fb0 100%)',
         borderRadius: '9px 9px 0 0',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <h2 style={{ margin: 0, color: '#fff', fontSize: '1.3rem' }}>Manage Properties</h2>
+        <h2 style={{ margin: 0, color: '#fff', fontSize: '1.3rem' }}>
+          {liquidationMode ? '⚠️ Liquidate Assets' : 'Manage Properties'}
+        </h2>
         <button
           onClick={onClose}
           style={{
@@ -208,6 +221,20 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
           ✕
         </button>
       </div>
+
+      {/* Liquidation Mode Banner */}
+      {liquidationMode && (
+        <div style={{
+          background: '#fff3cd',
+          color: '#856404',
+          padding: '1rem',
+          borderBottom: '2px solid #ffc107',
+          fontWeight: 'bold',
+          textAlign: 'center'
+        }}>
+          💰 Total Raised: ${totalRaised} | Sell improvements and mortgage properties to raise funds
+        </div>
+      )}
 
       {/* Error Message */}
       {error && (

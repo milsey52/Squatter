@@ -4,7 +4,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env
   ? import.meta.env.VITE_API_BASE
   : window.location.origin;
 
-export default function RentPaymentModal({ gameId, sessionToken, pendingAction, playerBalances, onResolved }) {
+export default function RentPaymentModal({ gameId, sessionToken, pendingAction, playerBalances, onResolved, onBankruptcy }) {
   const [paying, setPaying] = useState(false);
 
   if (!pendingAction || pendingAction.action_type !== 'rent_payment') {
@@ -29,6 +29,15 @@ export default function RentPaymentModal({ gameId, sessionToken, pendingAction, 
           'Authorization': `Bearer ${sessionToken}`
         }
       });
+
+      if (response.status === 402) {
+        // Payment required - player is bankrupt
+        const debtData = await response.json();
+        if (onBankruptcy) {
+          onBankruptcy(debtData.detail);
+        }
+        return;
+      }
 
       if (!response.ok) {
         throw new Error('Failed to pay rent');

@@ -98,11 +98,8 @@ class TurnManager:
             player.jail_turns = 0
             return False
 
-        if self._player_has_get_out_of_jail_card(player):
-            self._consume_get_out_card(player, turn)
-            player.in_jail = False
-            player.jail_turns = 0
-            return False
+        # Note: No longer automatically using "Get Out of Jail Free" card
+        # Player must explicitly choose to use it via the jail options UI
 
         if player.jail_turns >= MAX_JAIL_TURNS:
             self.ledger.record_bank_payment(player, JAIL_FINE, "jail_fine", turn.turn_id)
@@ -173,6 +170,15 @@ class TurnManager:
         next_player = self._next_player(player)
         self._set_current_player(next_player)
         self.session.flush()
+
+        # Check if game is over after turn advancement
+        self._check_game_over()
+
+    def _check_game_over(self):
+        """Check if only one active player remains and set game status to completed."""
+        from app.services.bankruptcy_service import BankruptcyService
+        bankruptcy_service = BankruptcyService(self.session, self.game_id)
+        bankruptcy_service.check_game_over()
 
     def _next_player(self, current_player):
         players = (

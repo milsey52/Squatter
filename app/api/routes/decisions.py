@@ -355,6 +355,7 @@ async def pay_rent(
     """Confirm rent payment."""
     import json
     from app.services.ledger_service import LedgerService
+    from app.services.bankruptcy_service import BankruptcyService
     from datetime import datetime
 
     user_id, token_game_id = auth_data
@@ -385,6 +386,68 @@ async def pay_rent(
     rent_amount = rent_data["rent_amount"]
     landlord_id = rent_data["landlord_id"]
     txn_type = rent_data.get("txn_type", "rent")
+
+    # Check if player can afford the rent
+    bankruptcy_service = BankruptcyService(session, game_id)
+    if not bankruptcy_service.check_can_afford(active_player.game_player_id, rent_amount):
+        # Player cannot afford - create debt state
+        debt = bankruptcy_service.create_debt_state(
+            debtor_id=active_player.game_player_id,
+            creditor_id=landlord_id,
+            amount=rent_amount,
+            reason=txn_type,
+            turn_id=pending.turn_id,
+            asset_id=pending.asset_id
+        )
+        session.commit()
+
+        # Broadcast bankruptcy event
+        await events.broadcast_game_event(
+            game_id,
+            "bankruptcy_triggered",
+            {
+                "debtor_id": active_player.game_player_id,
+                "creditor_id": landlord_id,
+                "amount": rent_amount,
+                "reason": txn_type
+            }
+        )
+
+        # Get creditor name
+        creditor_name = "The Bank"
+        if landlord_id:
+            landlord = session.query(models.GamePlayer).filter_by(
+                game_player_id=landlord_id
+            ).first()
+            if landlord:
+                creditor_name = landlord.player_name
+
+        # Get property name
+        property_name = None
+        if pending.asset_id:
+            asset = session.query(models.Asset).join(models.Space).filter(
+                models.Asset.asset_id == pending.asset_id
+            ).first()
+            if asset:
+                space = session.query(models.Space).filter(
+                    models.Space.space_id == asset.space_id
+                ).first()
+                property_name = space.name if space else None
+
+        # Return 402 Payment Required with debt details
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "insufficient_funds",
+                "debt_state_id": debt.debt_state_id,
+                "amount_owed": rent_amount,
+                "current_balance": bankruptcy_service.ledger.player_balance(active_player.game_player_id),
+                "creditor_name": creditor_name,
+                "creditor_id": landlord_id,
+                "property_name": property_name,
+                "reason": txn_type
+            }
+        )
 
     # Process rent payment
     ledger = LedgerService(session, game_id)

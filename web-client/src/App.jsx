@@ -8,9 +8,13 @@ import JailModal from "./components/JailModal";
 import RetainedCardPopup from "./components/RetainedCardPopup";
 import GameSelector from "./components/GameSelector";
 import GameLobby from "./components/GameLobby";
+import SuspendedGameNotice from "./components/SuspendedGameNotice";
+import JailTurnOptions from "./components/JailTurnOptions";
 import TradingBoard from "./components/TradingBoard";
 import PropertyManagement from "./components/PropertyManagement";
 import PropertyLedger from "./components/PropertyLedger";
+import WorthModal from "./components/WorthModal";
+import BankruptcyModal from "./components/BankruptcyModal";
 import { useGameEvents } from "./hooks/useGameEvents";
 
 const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env.VITE_API_BASE !== '')
@@ -89,6 +93,11 @@ function App() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [activeTrade, setActiveTrade] = useState(null);
   const [showPropertyManagement, setShowPropertyManagement] = useState(false);
+  const [showWorthModal, setShowWorthModal] = useState(false);
+  const [bankruptcyInfo, setBankruptcyInfo] = useState(null);
+  const [showBankruptcyModal, setShowBankruptcyModal] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+  const [winner, setWinner] = useState(null);
 
   // Create a map of space_id -> {improvement_level, has_hotel} for board display
   const propertyImprovements = useMemo(() => {
@@ -113,6 +122,7 @@ function App() {
 
   // Handle game joined from selector
   const handleGameJoined = (data) => {
+    console.log('[App] handleGameJoined called with data:', data);
     setGameId(data.gameId);
     setGameCode(data.gameCode);
     setSessionToken(data.sessionToken);
@@ -121,11 +131,13 @@ function App() {
 
     // Save session token to localStorage
     localStorage.setItem('monopoly_session_token', data.sessionToken);
+    console.log('[App] Session token saved. Navigating to lobby...');
 
-    // If game already in progress, go straight to game
-    if (data.gameStatus === 'in_progress') {
+    // Navigate based on game status
+    if (data.gameStatus === 'in_progress' || data.gameStatus === 'suspended') {
       setScreen('game');
     } else {
+      // lobby or rolling_for_order - stay in lobby
       setScreen('lobby');
     }
   };
@@ -133,6 +145,38 @@ function App() {
   // Handle game started from lobby
   const handleGameStarted = () => {
     setScreen('game');
+  };
+
+  const handleLogout = async () => {
+    if (!gameId || !sessionToken) return;
+
+    const confirmLogout = window.confirm(
+      'Are you sure you want to logout? This will suspend the game for all players until you log back in.'
+    );
+
+    if (!confirmLogout) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/games/${gameId}/logout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sessionToken}`
+        }
+      });
+
+      if (response.ok) {
+        // Don't clear session token - keep it so player can log back in
+        // Just navigate to selector screen
+        setScreen('selector');
+        alert('You have been logged out. Visit the game link or enter the game code to log back in.');
+      } else {
+        const error = await response.json();
+        alert(error.detail || 'Failed to logout');
+      }
+    } catch (error) {
+      console.error('Error logging out:', error);
+      alert('Failed to logout');
+    }
   };
 
   // Check for existing session on mount
@@ -149,7 +193,7 @@ function App() {
           if (!res.ok) throw new Error('Invalid session');
           return res.json();
         })
-        .then(data => {
+        .then(async data => {
           // Restore session state
           setSessionToken(token);
           setGameId(data.game_id);
@@ -157,10 +201,26 @@ function App() {
           setUserId(data.user_id);
           setIsHost(data.is_host);
 
+          // If game is suspended, automatically log player back in
+          if (data.game_status === 'suspended') {
+            try {
+              await fetch(`${API_BASE}/games/${data.game_id}/login`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              console.log('[App] Auto-logged in after returning to suspended game');
+            } catch (err) {
+              console.error('[App] Auto-login failed:', err);
+            }
+          }
+
           // Navigate to appropriate screen
-          if (data.game_status === 'lobby') {
+          if (data.game_status === 'lobby' || data.game_status === 'rolling_for_order') {
+            // Keep players in lobby during turn order rolling
             setScreen('lobby');
-          } else if (data.game_status === 'in_progress') {
+          } else if (data.game_status === 'in_progress' || data.game_status === 'suspended') {
             setScreen('game');
           } else {
             // Game ended or invalid status
@@ -293,10 +353,31 @@ function App() {
             dice_roll_1: data.dice_roll[0],
             dice_roll_2: data.dice_roll[1],
             total_roll: data.dice_roll[0] + data.dice_roll[1],
-            is_double: data.is_double
+            is_double: data.is_double,
+            player_id: data.player_id  // Track who rolled
           });
         }
         // Refresh game state
+        fetchGameLedgerJackpot();
+        break;
+      case 'bankruptcy_triggered':
+        console.log('[App] Bankruptcy triggered:', data);
+        // Refresh to show updated state
+        fetchGameLedgerJackpot();
+        break;
+      case 'debt_resolved':
+        console.log('[App] Debt resolved:', data);
+        fetchGameLedgerJackpot();
+        break;
+      case 'player_resigned':
+        console.log('[App] Player resigned:', data);
+        alert(`${data.player_name} has resigned from the game.`);
+        fetchGameLedgerJackpot();
+        break;
+      case 'game_over':
+        console.log('[App] Game over:', data);
+        setGameOver(true);
+        setWinner(data.winner_name);
         fetchGameLedgerJackpot();
         break;
       case 'game_state_changed':
@@ -344,6 +425,27 @@ function App() {
       setShowTradingBoard(true);
     }
   }, [activeTrade, game, userId, screen, showTradingBoard]);
+
+  // Handle bankruptcy
+  const handleBankruptcy = useCallback((debtData) => {
+    console.log('[App] Bankruptcy triggered with debt data:', debtData);
+    setBankruptcyInfo(debtData);
+    setShowBankruptcyModal(true);
+  }, []);
+
+  const handleBankruptcyLiquidate = useCallback(() => {
+    setShowBankruptcyModal(false);
+    setShowPropertyManagement(true);
+  }, []);
+
+  const handleBankruptcyTrade = useCallback(() => {
+    setShowBankruptcyModal(false);
+    setShowTradingBoard(true);
+  }, []);
+
+  const handleBankruptcyResign = useCallback(() => {
+    fetchGameLedgerJackpot();
+  }, [fetchGameLedgerJackpot]);
 
   // Keyboard shortcut for trading board (Ctrl+T or Cmd+T)
   useEffect(() => {
@@ -429,6 +531,11 @@ function App() {
   }
 
   if (screen === 'lobby') {
+    // Ensure we have session data before rendering lobby
+    if (!gameId || !sessionToken || !userId) {
+      return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading lobby...</div>;
+    }
+
     return (
       <GameLobby
         gameId={gameId}
@@ -465,7 +572,39 @@ function App() {
   const canStartTrade = !activeTrade || isPartOfActiveTrade;
 
   return (
-    <div style={{ padding: "0.5rem 1rem", fontFamily: "sans-serif" }}>
+    <div style={{ padding: "0.5rem 1rem", fontFamily: "sans-serif", position: "relative" }}>
+      {/* Logout Button */}
+      <button
+        onClick={handleLogout}
+        style={{
+          position: "fixed",
+          top: "1rem",
+          right: "1rem",
+          padding: "0.75rem 1.5rem",
+          background: "#dc3545",
+          color: "white",
+          border: "none",
+          borderRadius: "8px",
+          fontSize: "1rem",
+          fontWeight: "bold",
+          cursor: "pointer",
+          zIndex: 1001,
+          boxShadow: "0 4px 8px rgba(0,0,0,0.2)"
+        }}
+        onMouseEnter={(e) => e.target.style.background = "#c82333"}
+        onMouseLeave={(e) => e.target.style.background = "#dc3545"}
+      >
+        🚪 Logout
+      </button>
+
+      {/* Suspended Game Notice */}
+      {game && game.status === 'suspended' && (
+        <SuspendedGameNotice
+          gameId={gameId}
+          sessionToken={sessionToken}
+        />
+      )}
+
       {/* Trade Invitation Banner */}
       {hasPendingInvitation && !showTradingBoard && (
         <div style={{
@@ -618,8 +757,18 @@ function App() {
                 playerBalance={currentUserPlayer ? (playerBalances[String(currentUserPlayer.game_player_id)] ?? 0) : 0}
                 onClose={() => setShowPropertyManagement(false)}
                 onUpdate={fetchGameLedgerJackpot}
+                liquidationMode={showBankruptcyModal || bankruptcyInfo !== null}
               />
             </div>
+          )}
+
+          {/* Worth Modal */}
+          {showWorthModal && (
+            <WorthModal
+              gameId={gameId}
+              sessionToken={sessionToken}
+              onClose={() => setShowWorthModal(false)}
+            />
           )}
         </div>
 
@@ -747,6 +896,21 @@ function App() {
                 🏠 Properties
               </button>
               <button
+                onClick={() => setShowWorthModal(true)}
+                style={{
+                  padding: "0.5rem 1rem",
+                  background: "#667eea",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "1rem",
+                }}
+                title="View your total net worth"
+              >
+                💰 Worth
+              </button>
+              <button
                 onClick={() => setShowTradingBoard(true)}
                 disabled={!canStartTrade}
                 style={{
@@ -766,14 +930,17 @@ function App() {
               </button>
               <button
                 onClick={nextTurn}
-                disabled={isSubmitting || pendingAction || !isCurrentPlayer}
+                disabled={isSubmitting || pendingAction || !isCurrentPlayer ||
+                         (currentUserPlayer?.in_jail && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id))}
                 style={{
                   padding: "0.5rem 1rem",
-                  background: isSubmitting || pendingAction || !isCurrentPlayer ? "#ccc" : "#1982c4",
+                  background: isSubmitting || pendingAction || !isCurrentPlayer ||
+                             (currentUserPlayer?.in_jail && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id)) ? "#ccc" : "#1982c4",
                   color: "#fff",
                   border: "none",
                   borderRadius: "6px",
-                  cursor: isSubmitting || pendingAction || !isCurrentPlayer ? "not-allowed" : "pointer",
+                  cursor: isSubmitting || pendingAction || !isCurrentPlayer ||
+                         (currentUserPlayer?.in_jail && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id)) ? "not-allowed" : "pointer",
                   fontSize: "1rem",
                 }}
               >
@@ -781,6 +948,8 @@ function App() {
                   ? "Processing..."
                   : pendingAction
                   ? "Resolve Action First"
+                  : (currentUserPlayer?.in_jail && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id))
+                  ? "Choose Jail Action First"
                   : !isCurrentPlayer
                   ? `${game.players?.find(p => p.game_player_id === game.current_player_id)?.player_name || 'Player'}'s Turn`
                   : `${currentUserPlayer?.player_name || 'Your'} Turn - Roll Dice`}
@@ -1047,6 +1216,18 @@ function App() {
           pendingAction={pendingAction}
           playerBalances={playerBalances}
           onResolved={fetchGameLedgerJackpot}
+          onBankruptcy={handleBankruptcy}
+        />
+      )}
+
+      {/* Jail Turn Options - Show when it's jailed player's turn */}
+      {isCurrentPlayer && currentUserPlayer && currentUserPlayer.in_jail &&
+       (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id) &&
+       !pendingAction && (
+        <JailTurnOptions
+          gameId={gameId}
+          sessionToken={sessionToken}
+          onAction={fetchGameLedgerJackpot}
         />
       )}
 
@@ -1068,6 +1249,85 @@ function App() {
           card={selectedCard}
           onClose={() => setSelectedCard(null)}
         />
+      )}
+
+      {/* Bankruptcy Modal */}
+      {showBankruptcyModal && bankruptcyInfo && (
+        <BankruptcyModal
+          gameId={gameId}
+          debtInfo={bankruptcyInfo}
+          onClose={() => setShowBankruptcyModal(false)}
+          onLiquidate={handleBankruptcyLiquidate}
+          onTrade={handleBankruptcyTrade}
+          onResign={handleBankruptcyResign}
+          sessionToken={sessionToken}
+        />
+      )}
+
+      {/* Game Over Screen */}
+      {gameOver && winner && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.9)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',
+            borderRadius: '20px',
+            padding: '3rem',
+            textAlign: 'center',
+            maxWidth: '600px',
+            boxShadow: '0 10px 50px rgba(255, 215, 0, 0.5)'
+          }}>
+            <h1 style={{
+              fontSize: '3rem',
+              margin: '0 0 1rem 0',
+              color: '#333'
+            }}>
+              🏆 GAME OVER 🏆
+            </h1>
+            <h2 style={{
+              fontSize: '2rem',
+              margin: '0 0 2rem 0',
+              color: '#555'
+            }}>
+              {winner} Wins!
+            </h2>
+            <p style={{
+              fontSize: '1.2rem',
+              color: '#666',
+              marginBottom: '2rem'
+            }}>
+              Congratulations on monopolizing Perth!
+            </p>
+            <button
+              onClick={() => {
+                setGameOver(false);
+                setWinner(null);
+                setScreen('selector');
+              }}
+              style={{
+                padding: '1rem 2rem',
+                background: '#4caf50',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '1.2rem',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              Return to Lobby
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
