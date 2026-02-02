@@ -17,21 +17,22 @@ const DiceRoller = forwardRef(({ onRollComplete }, ref) => {
     console.log('[DiceRoller] Canvas found:', canvas);
 
     // Initialize dice box with new v1.1.0 API (single config object)
+    // Use CDN assets which are known to work
     const diceBox = new DiceBox({
       container: '#dice-canvas',
-      assetPath: '/assets/',
+      assetPath: 'https://unpkg.com/@3d-dice/dice-box@1.1.4/dist/assets/',
       theme: 'default',
-      scale: 6,
-      gravity: 2,
+      scale: 8,
+      gravity: 2.5,
       mass: 1,
       friction: 0.8,
-      restitution: 0.5,
+      restitution: 0.4,
       linearDamping: 0.5,
       angularDamping: 0.4,
       spinForce: 6,
-      throwForce: 5,
-      startingHeight: 10,
-      settleTimeout: 2500,
+      throwForce: 6,
+      startingHeight: 12,
+      settleTimeout: 2000,
       offscreen: false,
       delay: 10,
     });
