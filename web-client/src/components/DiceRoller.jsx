@@ -12,9 +12,13 @@ const DiceRoller = forwardRef(({ onRollComplete }, ref) => {
 
     console.log('[DiceRoller] Starting initialization...');
 
+    // Make canvas visible first
+    const canvas = document.getElementById('dice-canvas');
+    console.log('[DiceRoller] Canvas found:', canvas);
+
     // Initialize dice box with new v1.1.0 API (single config object)
     const diceBox = new DiceBox({
-      id: 'dice-canvas',
+      container: '#dice-canvas',
       assetPath: '/assets/',
       theme: 'default',
       scale: 6,
@@ -64,10 +68,14 @@ const DiceRoller = forwardRef(({ onRollComplete }, ref) => {
 
     setIsRolling(true);
     console.log('[DiceRoller] Starting dice roll animation...');
+    console.log('[DiceRoller] Canvas element:', document.getElementById('dice-canvas'));
+    console.log('[DiceRoller] isRolling state will be set to true, making canvas visible');
 
     try {
       // Clear any previous dice
       diceBoxRef.current.clear();
+
+      console.log('[DiceRoller] Rolling dice with values:', die1, die2);
 
       // Roll two dice with specific values
       const result = await diceBoxRef.current.roll([
@@ -75,7 +83,7 @@ const DiceRoller = forwardRef(({ onRollComplete }, ref) => {
         { qty: 1, sides: 6, value: die2 }
       ]);
 
-      console.log('[DiceRoller] Dice roll initiated, result:', result);
+      console.log('[DiceRoller] Dice roll initiated successfully, result:', result);
 
       // Wait for dice to settle before notifying completion
       setTimeout(() => {
@@ -119,16 +127,18 @@ const DiceRoller = forwardRef(({ onRollComplete }, ref) => {
         width: '100%',
         height: '100%',
         pointerEvents: 'none',
-        zIndex: isRolling ? 1000 : -1,
+        zIndex: isRolling ? 1000 : 1,
         opacity: isRolling ? 1 : 0,
-        transition: 'opacity 0.3s ease'
+        transition: 'opacity 0.2s ease',
+        visibility: isRolling ? 'visible' : 'hidden'
       }}
     >
       <canvas
         id="dice-canvas"
         style={{
           width: '100%',
-          height: '100%'
+          height: '100%',
+          display: 'block'
         }}
       />
     </div>
