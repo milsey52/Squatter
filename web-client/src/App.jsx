@@ -1277,6 +1277,8 @@ function App() {
           playerBalances={playerBalances}
           onResolved={fetchGameLedgerJackpot}
           onBankruptcy={handleBankruptcy}
+          userId={userId}
+          players={game?.players || []}
         />
       )}
 

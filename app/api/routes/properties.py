@@ -327,12 +327,14 @@ def get_player_properties_detailed(
                     (models.AssetState.improvement_level > 0) | (models.AssetState.has_hotel == True)
                 ).first() is not None
 
-                # Get group name from property_groups table
+                # Get group name and color from property_groups table
                 property_group = session.query(models.PropertyGroup).filter_by(group_id=group_id).first()
                 group_name = property_group.group_name if property_group else f"Group {group_id}"
+                color_hex = property_group.color_hex if property_group else None
 
                 property_groups[group_key] = {
                     "group_name": group_name,
+                    "color_hex": color_hex,
                     "properties": [],
                     "has_monopoly": has_monopoly,
                     "any_mortgaged": any_mortgaged,
@@ -391,7 +393,15 @@ def get_player_properties_detailed(
                 property_groups[group_key]["has_monopoly"] and
                 not property_groups[group_key]["any_mortgaged"] and
                 not state.is_mortgaged
-            )
+            ),
+            # Rent progression for properties (null for transport/utilities)
+            "rent_base": asset.rent_base if space_type == 'property' else None,
+            "rent_group": asset.rent_group if space_type == 'property' else None,
+            "rent_house_1": asset.rent_house_1 if space_type == 'property' else None,
+            "rent_house_2": asset.rent_house_2 if space_type == 'property' else None,
+            "rent_house_3": asset.rent_house_3 if space_type == 'property' else None,
+            "rent_house_4": asset.rent_house_4 if space_type == 'property' else None,
+            "rent_hotel": asset.rent_hotel if space_type == 'property' else None
         })
 
     return {"groups": list(property_groups.values())}

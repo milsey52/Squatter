@@ -375,7 +375,7 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
                     background: property.is_mortgaged ? '#ffebee' : '#fff'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.8rem' }}>
-                      <div>
+                      <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>
                           {property.name}
                           {property.is_mortgaged && (
@@ -384,9 +384,48 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
                             </span>
                           )}
                         </div>
-                        <div style={{ fontSize: '0.9rem', color: '#666' }}>
+                        <div style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>
                           Current Rent: <strong>${property.current_rent}</strong>
                         </div>
+
+                        {/* Rent Progression - only show for properties with rent schedules */}
+                        {property.rent_base && property.rent_group && (
+                          <div style={{
+                            fontSize: '0.75rem',
+                            background: '#f9f9f9',
+                            padding: '0.4rem 0.5rem',
+                            borderRadius: '4px',
+                            border: '1px solid #e0e0e0'
+                          }}>
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(7, 1fr)',
+                              gap: '0.3rem',
+                              marginBottom: '0.2rem'
+                            }}>
+                              <div style={{ textAlign: 'center', fontWeight: 'bold', color: '#555' }}>Single</div>
+                              <div style={{ textAlign: 'center', fontWeight: 'bold', color: '#555' }}>Group</div>
+                              <div style={{ textAlign: 'center', fontWeight: 'bold', color: '#555' }}>1 Hse</div>
+                              <div style={{ textAlign: 'center', fontWeight: 'bold', color: '#555' }}>2 Hse</div>
+                              <div style={{ textAlign: 'center', fontWeight: 'bold', color: '#555' }}>3 Hse</div>
+                              <div style={{ textAlign: 'center', fontWeight: 'bold', color: '#555' }}>4 Hse</div>
+                              <div style={{ textAlign: 'center', fontWeight: 'bold', color: '#555' }}>Hotel</div>
+                            </div>
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(7, 1fr)',
+                              gap: '0.3rem'
+                            }}>
+                              <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>${property.rent_base}</div>
+                              <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>${property.rent_group}</div>
+                              <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>${property.rent_house_1}</div>
+                              <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>${property.rent_house_2}</div>
+                              <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>${property.rent_house_3}</div>
+                              <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>${property.rent_house_4}</div>
+                              <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>${property.rent_hotel}</div>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div style={{ textAlign: 'right' }}>

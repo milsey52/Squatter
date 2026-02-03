@@ -4,7 +4,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env
   ? import.meta.env.VITE_API_BASE
   : window.location.origin;
 
-export default function RentPaymentModal({ gameId, sessionToken, pendingAction, playerBalances, onResolved, onBankruptcy }) {
+export default function RentPaymentModal({ gameId, sessionToken, pendingAction, playerBalances, onResolved, onBankruptcy, userId, players }) {
   const [paying, setPaying] = useState(false);
 
   if (!pendingAction || pendingAction.action_type !== 'rent_payment') {
@@ -18,6 +18,12 @@ export default function RentPaymentModal({ gameId, sessionToken, pendingAction, 
 
   const currentBalance = playerBalances[String(pendingAction.active_player_id)] || 0;
   const canAfford = currentBalance >= rentAmount;
+
+  // Find current user's player and debtor player
+  // Use loose equality to handle type mismatches (string vs number)
+  const currentUserPlayer = players?.find(p => p.user_id == userId);
+  const debtorPlayer = players?.find(p => p.game_player_id == pendingAction.active_player_id);
+  const isDebtor = currentUserPlayer && currentUserPlayer.game_player_id == pendingAction.active_player_id;
 
   const handlePayRent = async () => {
     setPaying(true);
@@ -141,33 +147,67 @@ export default function RentPaymentModal({ gameId, sessionToken, pendingAction, 
         </div>
 
         {/* Action Button */}
-        <button
-          onClick={handlePayRent}
-          disabled={paying}
-          style={{
-            width: '100%',
-            padding: '1rem',
-            background: paying ? '#ccc' : '#d32f2f',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '1.1rem',
-            fontWeight: 'bold',
-            cursor: paying ? 'not-allowed' : 'pointer'
-          }}
-        >
-          {paying ? 'Processing...' : `Pay $${rentAmount}`}
-        </button>
+        {isDebtor ? (
+          <>
+            <button
+              onClick={handlePayRent}
+              disabled={paying}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                background: paying ? '#ccc' : '#d32f2f',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '1.1rem',
+                fontWeight: 'bold',
+                cursor: paying ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {paying ? 'Processing...' : `Pay $${rentAmount}`}
+            </button>
 
-        {!canAfford && (
-          <p style={{
-            marginTop: '1rem',
-            textAlign: 'center',
-            color: '#999',
-            fontSize: '0.9rem'
-          }}>
-            You may need to mortgage properties or sell houses to pay this rent.
-          </p>
+            {!canAfford && (
+              <p style={{
+                marginTop: '1rem',
+                textAlign: 'center',
+                color: '#999',
+                fontSize: '0.9rem'
+              }}>
+                You may need to mortgage properties or sell houses to pay this rent.
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <button
+              disabled={true}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                background: '#ccc',
+                color: '#666',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '1.1rem',
+                fontWeight: 'bold',
+                cursor: 'not-allowed',
+                opacity: 0.6
+              }}
+            >
+              Payment Required
+            </button>
+
+            <p style={{
+              marginTop: '1rem',
+              textAlign: 'center',
+              color: '#d32f2f',
+              fontSize: '1rem',
+              fontWeight: 'bold'
+            }}>
+              Waiting for {debtorPlayer?.player_name || 'the player'} to pay the bastard...
+            </p>
+          </>
         )}
       </div>
     </div>
