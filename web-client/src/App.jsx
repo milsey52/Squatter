@@ -101,16 +101,16 @@ function App() {
   const [animatedPositions, setAnimatedPositions] = useState({});
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // Create a map of space_id -> {improvement_level, has_hotel} for board display
+  // Create a map of board_index -> {improvement_level, has_hotel} for board display
   const propertyImprovements = useMemo(() => {
     const improvements = {};
 
-    // Flatten allPlayerAssets into a map keyed by space_id
+    // Flatten allPlayerAssets into a map keyed by board_index (0-39)
     Object.values(allPlayerAssets).forEach(playerAssets => {
       if (Array.isArray(playerAssets)) {
         playerAssets.forEach(asset => {
-          if (asset.asset_type === 'property' && asset.space_id) {
-            improvements[asset.space_id] = {
+          if (asset.asset_type === 'property' && asset.board_index !== undefined && asset.board_index !== null) {
+            improvements[asset.board_index] = {
               improvement_level: asset.improvement_level || 0,
               has_hotel: asset.has_hotel || false
             };

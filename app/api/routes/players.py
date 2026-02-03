@@ -43,6 +43,7 @@ def get_all_player_assets(game_id: int, session: Session = Depends(get_session))
             models.AssetState.has_hotel,
             models.Space.name.label("property_name"),
             models.Space.group_id,
+            models.Space.board_index,
             models.Asset.purchase_price,
             models.Asset.mortgage_value,
         )
@@ -57,6 +58,7 @@ def get_all_player_assets(game_id: int, session: Session = Depends(get_session))
         out.setdefault(owner, []).append({
             "asset_id": row.asset_id,
             "space_id": row.space_id,
+            "board_index": row.board_index,
             "name": row.property_name,
             "asset_type": row.asset_type,
             "group_id": row.group_id,

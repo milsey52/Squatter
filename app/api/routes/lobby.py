@@ -101,6 +101,7 @@ def create_game(
         user_id=user.user_id,
         player_name=request.host_user_name,
         turn_order=1,
+        current_space_id=0,  # Start at position 0 (Start/Payday)
         is_ready=False
     )
     session.add(game_player)
@@ -228,6 +229,7 @@ async def join_game(
         user_id=user.user_id,
         player_name=request.player_name,
         turn_order=next_turn_order,
+        current_space_id=0,  # Start at position 0 (Start/Payday)
         is_ready=False
     )
     session.add(game_player)

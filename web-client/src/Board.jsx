@@ -78,25 +78,24 @@ export default function Board({ players = [], currentPlayerId, propertyImproveme
       })}
 
       {/* Render houses and hotels on properties */}
-      {Object.entries(propertyImprovements).map(([spaceId, improvement]) => {
+      {Object.entries(propertyImprovements).map(([boardIndex, improvement]) => {
         if (!improvement || (improvement.improvement_level === 0 && !improvement.has_hotel)) {
           return null;
         }
 
-        // Map space_id directly to board index (no adjustment needed)
-        const spaceIdNum = parseInt(spaceId);
-        const boardIdx = toBoardIndex(spaceIdNum);
+        // propertyImprovements is now keyed by board_index (0-39)
+        const boardIdx = parseInt(boardIndex);
         const { left, top } = boardIndexToPixel(boardIdx);
 
         // Display hotel (RED)
         if (improvement.has_hotel) {
-          // For right column (space_id 32-40, board_index 31-39), shift left to align with color bar
-          const isRightColumn = spaceIdNum >= 32 && spaceIdNum <= 40;
+          // For right column (board_index 31-39), shift left to align with color bar
+          const isRightColumn = boardIdx >= 31 && boardIdx <= 39;
           const hotelLeft = isRightColumn ? left + 5 - 70 : left + 5;
 
           return (
             <div
-              key={`improvement-${spaceId}`}
+              key={`improvement-${boardIndex}`}
               style={{
                 position: "absolute",
                 left: hotelLeft,
@@ -127,13 +126,13 @@ export default function Board({ players = [], currentPlayerId, propertyImproveme
           const houseWidth = 25; // Each house is 25px wide (2 units out of 8)
           return Array.from({ length: houseCount }).map((_, i) => {
             // Position from RHS: House 0 at pixels 75-100, House 1 at 50-75, House 2 at 25-50, House 3 at 0-25
-            // For right column (space_id 32-40, board_index 31-39), shift left to align with color bar
-            const isRightColumn = spaceIdNum >= 32 && spaceIdNum <= 40;
+            // For right column (board_index 31-39), shift left to align with color bar
+            const isRightColumn = boardIdx >= 31 && boardIdx <= 39;
             const baseLeft = left + CELL - ((i + 1) * houseWidth);
             const houseLeft = isRightColumn ? baseLeft - 70 : baseLeft;
             return (
               <div
-                key={`improvement-${spaceId}-${i}`}
+                key={`improvement-${boardIndex}-${i}`}
                 style={{
                   position: "absolute",
                   left: houseLeft,
