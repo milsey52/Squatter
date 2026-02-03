@@ -60,8 +60,8 @@ export default function Board({ players = [], currentPlayerId, propertyImproveme
               alignItems: "center",
               justifyContent: "center",
               // THIS IS THE CHANGE:
-              left: left + centerOffset + offsetIndex * 14,
-              top: top + centerOffset + 0.5 * TOKEN_SIZE + offsetIndex * 14,
+              left: left + centerOffset + 5 + offsetIndex * 14,
+              top: top + centerOffset + 10 + 0.5 * TOKEN_SIZE + offsetIndex * 14,
               boxShadow: isActive
                 ? "0 0 10px 3px rgba(255,215,0,0.8)"
                 : "0 0 4px rgba(0,0,0,0.3)",
@@ -89,17 +89,39 @@ export default function Board({ players = [], currentPlayerId, propertyImproveme
 
         // Display hotel (RED)
         if (improvement.has_hotel) {
-          // For right column (board_index 31-39), shift left to align with color bar
+          // Special positioning adjustments by board region
+          const isBottomRow = boardIdx >= 1 && boardIdx <= 9;
+          const isTopRow = boardIdx >= 21 && boardIdx <= 30;
+          const isLeftColumn = boardIdx >= 11 && boardIdx <= 19;
           const isRightColumn = boardIdx >= 31 && boardIdx <= 39;
-          const hotelLeft = isRightColumn ? left + 5 - 70 : left + 5;
+          let hotelLeft = left + 5;
+          if (isRightColumn) {
+            hotelLeft = left + 5 - 70 + 250;  // Shift right for right column
+          } else if (isLeftColumn) {
+            hotelLeft = left + 5 + 5;  // Shift right for left column
+          } else if (isBottomRow) {
+            hotelLeft = left + 5 + 35;  // Shift right for bottom row
+          } else if (isTopRow) {
+            hotelLeft = left + 5 + 40;  // Shift right for top row
+          }
 
+          let hotelTop = top + 5;
+          if (isBottomRow) {
+            hotelTop = top + 5 + 145;
+          } else if (isTopRow) {
+            hotelTop = top + 5 + 27;
+          } else if (isRightColumn) {
+            hotelTop = top + 5 + 55;  // Shift down for right column
+          } else if (isLeftColumn) {
+            hotelTop = top + 5 + 50;  // Shift down for left column
+          }
           return (
             <div
               key={`improvement-${boardIndex}`}
               style={{
                 position: "absolute",
                 left: hotelLeft,
-                top: top + 5,
+                top: hotelTop,
                 fontSize: "1.8rem",
                 pointerEvents: "none",
                 background: "#ff0000",
@@ -125,18 +147,46 @@ export default function Board({ players = [], currentPlayerId, propertyImproveme
           const houseCount = improvement.improvement_level;
           const houseWidth = 25; // Each house is 25px wide (2 units out of 8)
           return Array.from({ length: houseCount }).map((_, i) => {
-            // Position from RHS: House 0 at pixels 75-100, House 1 at 50-75, House 2 at 25-50, House 3 at 0-25
-            // For right column (board_index 31-39), shift left to align with color bar
+            // Special positioning adjustments by board region
+            const isBottomRow = boardIdx >= 1 && boardIdx <= 9;
+            const isTopRow = boardIdx >= 21 && boardIdx <= 30;
+            const isLeftColumn = boardIdx >= 11 && boardIdx <= 19;
             const isRightColumn = boardIdx >= 31 && boardIdx <= 39;
-            const baseLeft = left + CELL - ((i + 1) * houseWidth);
-            const houseLeft = isRightColumn ? baseLeft - 70 : baseLeft;
+
+            let houseLeft, houseTop;
+
+            if (isLeftColumn || isRightColumn) {
+              // Vertical stacking for left and right columns
+              if (isRightColumn) {
+                houseLeft = left + 5 - 70 + 250;  // Shift right for right column
+                houseTop = top + 5 + 55 + (i * 20);  // Stack vertically with 55px offset and 20px spacing
+              } else if (isLeftColumn) {
+                houseLeft = left + 5 + 5;  // Shift right for left column
+                houseTop = top + 5 + 50 + (i * 20);  // Stack vertically with 50px offset and 20px spacing
+              }
+            } else {
+              // Horizontal stacking for top and bottom rows
+              const baseLeft = left + CELL - ((i + 1) * houseWidth);
+              houseLeft = baseLeft;
+              if (isBottomRow) {
+                houseLeft = baseLeft + 35;  // Shift right for bottom row
+              } else if (isTopRow) {
+                houseLeft = baseLeft + 40;  // Shift right for top row
+              }
+              houseTop = top + 5;
+              if (isBottomRow) {
+                houseTop = top + 5 + 145;
+              } else if (isTopRow) {
+                houseTop = top + 5 + 27;
+              }
+            }
             return (
               <div
                 key={`improvement-${boardIndex}-${i}`}
                 style={{
                   position: "absolute",
                   left: houseLeft,
-                  top: top + 5,
+                  top: houseTop,
                   fontSize: "0.9rem",
                   pointerEvents: "none",
                   background: "#0066ff",

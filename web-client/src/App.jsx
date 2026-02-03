@@ -736,8 +736,8 @@ function App() {
           {jackpot !== null && (
             <div style={{
               position: "absolute",
-              top: 40,
-              left: 40,
+              top: 140,
+              left: 44,
               background: "rgba(255,255,255,0.95)",
               padding: "10px 16px",
               borderRadius: 8,
@@ -747,7 +747,7 @@ function App() {
               fontSize: "1.2em",
               color: "#b28500"
             }}>
-              💰 Jackpot: ${jackpot}
+              Jackpot: {jackpot}
             </div>
           )}
 
