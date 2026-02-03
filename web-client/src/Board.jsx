@@ -90,12 +90,16 @@ export default function Board({ players = [], currentPlayerId, propertyImproveme
 
         // Display hotel (RED)
         if (improvement.has_hotel) {
+          // For spaces 31-39 (right column), shift left by 40px to align with color bar
+          const isRightColumn = spaceIdNum >= 31 && spaceIdNum <= 39;
+          const hotelLeft = isRightColumn ? left + 5 - 40 : left + 5;
+
           return (
             <div
               key={`improvement-${spaceId}`}
               style={{
                 position: "absolute",
-                left: left + 5,
+                left: hotelLeft,
                 top: top + 5,
                 fontSize: "1.8rem",
                 pointerEvents: "none",
@@ -123,7 +127,10 @@ export default function Board({ players = [], currentPlayerId, propertyImproveme
           const houseWidth = 25; // Each house is 25px wide (2 units out of 8)
           return Array.from({ length: houseCount }).map((_, i) => {
             // Position from RHS: House 0 at pixels 75-100, House 1 at 50-75, House 2 at 25-50, House 3 at 0-25
-            const houseLeft = left + CELL - ((i + 1) * houseWidth);
+            // For spaces 31-39 (right column), shift left by 40px to align with color bar
+            const isRightColumn = spaceIdNum >= 31 && spaceIdNum <= 39;
+            const baseLeft = left + CELL - ((i + 1) * houseWidth);
+            const houseLeft = isRightColumn ? baseLeft - 40 : baseLeft;
             return (
               <div
                 key={`improvement-${spaceId}-${i}`}
