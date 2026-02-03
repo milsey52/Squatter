@@ -86,6 +86,7 @@ export default function JailTurnOptions({ gameId, sessionToken, onAction }) {
   };
 
   const handleRollDice = () => {
+    console.log('[JailTurnOptions] Roll Doubles clicked, processing:', processing);
     // Just close the modal and let them roll normally
     if (onAction) onAction();
   };
@@ -120,6 +121,8 @@ export default function JailTurnOptions({ gameId, sessionToken, onAction }) {
     return null;
   }
 
+  console.log('[JailTurnOptions] Rendering, processing:', processing, 'jailStatus:', jailStatus);
+
   return (
     <div style={{
       position: 'fixed',
@@ -131,7 +134,7 @@ export default function JailTurnOptions({ gameId, sessionToken, onAction }) {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1000
+      zIndex: 10001
     }}>
       <div style={{
         background: 'white',

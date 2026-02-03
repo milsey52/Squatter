@@ -127,12 +127,19 @@ def get_player_worth(
         property_value = asset.purchase_price if not state.is_mortgaged else 0
         mortgage_value = asset.mortgage_value
 
-        # Calculate improvement value
+        # Calculate improvement value based on purchase price
+        # Use the same logic as in properties.py
+        price_to_house_cost = {
+            600: 600, 1000: 1000, 1200: 1000, 1400: 1400, 1600: 1400,
+            1800: 1800, 2000: 1800, 2200: 1800, 2400: 2000, 2600: 2000, 2800: 2000,
+        }
+        house_cost = price_to_house_cost.get(asset.purchase_price, 1000)
+
         improvement_value = 0
         if state.has_hotel:
-            improvement_value = asset.house_price * 5  # Hotel = 5 houses worth
+            improvement_value = house_cost * 5  # Hotel = 5 houses worth
         elif state.improvement_level > 0:
-            improvement_value = asset.house_price * state.improvement_level
+            improvement_value = house_cost * state.improvement_level
 
         total_property_value += property_value
         total_mortgage_value += mortgage_value

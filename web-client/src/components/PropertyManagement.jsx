@@ -388,7 +388,7 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
                           Current Rent: <strong>${property.current_rent}</strong>
                         </div>
 
-                        {/* Rent Progression - only show for properties with rent schedules */}
+                        {/* Rent Progression - for properties */}
                         {property.rent_base && property.rent_group && (
                           <div style={{
                             fontSize: '0.75rem',
@@ -423,6 +423,68 @@ export default function PropertyManagement({ gameId, sessionToken, playerBalance
                               <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>${property.rent_house_3}</div>
                               <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>${property.rent_house_4}</div>
                               <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>${property.rent_hotel}</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Rent Progression - for transport stations */}
+                        {property.rent_1_station !== undefined && (
+                          <div style={{
+                            fontSize: '0.75rem',
+                            background: '#f9f9f9',
+                            padding: '0.4rem 0.5rem',
+                            borderRadius: '4px',
+                            border: '1px solid #e0e0e0'
+                          }}>
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(4, 1fr)',
+                              gap: '0.3rem',
+                              marginBottom: '0.2rem'
+                            }}>
+                              <div style={{ textAlign: 'center', fontWeight: 'bold', color: '#555' }}>1 Stn</div>
+                              <div style={{ textAlign: 'center', fontWeight: 'bold', color: '#555' }}>2 Stn</div>
+                              <div style={{ textAlign: 'center', fontWeight: 'bold', color: '#555' }}>3 Stn</div>
+                              <div style={{ textAlign: 'center', fontWeight: 'bold', color: '#555' }}>4 Stn</div>
+                            </div>
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(4, 1fr)',
+                              gap: '0.3rem'
+                            }}>
+                              <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>${property.rent_1_station}</div>
+                              <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>${property.rent_2_stations}</div>
+                              <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>${property.rent_3_stations}</div>
+                              <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>${property.rent_4_stations}</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Rent Progression - for utilities */}
+                        {property.utility_mult_single !== undefined && (
+                          <div style={{
+                            fontSize: '0.75rem',
+                            background: '#f9f9f9',
+                            padding: '0.4rem 0.5rem',
+                            borderRadius: '4px',
+                            border: '1px solid #e0e0e0'
+                          }}>
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(2, 1fr)',
+                              gap: '0.3rem',
+                              marginBottom: '0.2rem'
+                            }}>
+                              <div style={{ textAlign: 'center', fontWeight: 'bold', color: '#555' }}>1 Utility</div>
+                              <div style={{ textAlign: 'center', fontWeight: 'bold', color: '#555' }}>Both Utilities</div>
+                            </div>
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(2, 1fr)',
+                              gap: '0.3rem'
+                            }}>
+                              <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>{property.utility_mult_single}× dice</div>
+                              <div style={{ textAlign: 'center', fontSize: '0.7rem' }}>{property.utility_mult_double}× dice</div>
                             </div>
                           </div>
                         )}

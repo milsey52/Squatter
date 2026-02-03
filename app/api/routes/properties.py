@@ -380,7 +380,8 @@ def get_player_properties_detailed(
                 # Monopoly with no improvements gets double rent
                 current_rent = asset.rent_group or (asset.rent_base * 2)
 
-        property_groups[group_key]["properties"].append({
+        # Build property dict with appropriate rent progression based on type
+        property_dict = {
             "asset_id": asset.asset_id,
             "name": name,
             "improvement_level": state.improvement_level,
@@ -393,16 +394,34 @@ def get_player_properties_detailed(
                 property_groups[group_key]["has_monopoly"] and
                 not property_groups[group_key]["any_mortgaged"] and
                 not state.is_mortgaged
-            ),
-            # Rent progression for properties (null for transport/utilities)
-            "rent_base": asset.rent_base if space_type == 'property' else None,
-            "rent_group": asset.rent_group if space_type == 'property' else None,
-            "rent_house_1": asset.rent_house_1 if space_type == 'property' else None,
-            "rent_house_2": asset.rent_house_2 if space_type == 'property' else None,
-            "rent_house_3": asset.rent_house_3 if space_type == 'property' else None,
-            "rent_house_4": asset.rent_house_4 if space_type == 'property' else None,
-            "rent_hotel": asset.rent_hotel if space_type == 'property' else None
-        })
+            )
+        }
+
+        # Add type-specific rent progression
+        if space_type == 'property':
+            property_dict.update({
+                "rent_base": asset.rent_base,
+                "rent_group": asset.rent_group,
+                "rent_house_1": asset.rent_house_1,
+                "rent_house_2": asset.rent_house_2,
+                "rent_house_3": asset.rent_house_3,
+                "rent_house_4": asset.rent_house_4,
+                "rent_hotel": asset.rent_hotel
+            })
+        elif space_type == 'transport':
+            property_dict.update({
+                "rent_1_station": asset.rent_base,
+                "rent_2_stations": asset.rent_tier_2,
+                "rent_3_stations": asset.rent_tier_3,
+                "rent_4_stations": asset.rent_tier_4
+            })
+        elif space_type == 'utility':
+            property_dict.update({
+                "utility_mult_single": asset.utility_mult_single,
+                "utility_mult_double": asset.utility_mult_double
+            })
+
+        property_groups[group_key]["properties"].append(property_dict)
 
     return {"groups": list(property_groups.values())}
 

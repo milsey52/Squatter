@@ -97,6 +97,7 @@ function App() {
   const [bankruptcyInfo, setBankruptcyInfo] = useState(null);
   const [showBankruptcyModal, setShowBankruptcyModal] = useState(false);
   const [gameOver, setGameOver] = useState(false);
+  const [jailChoiceMade, setJailChoiceMade] = useState(false);
   const [winner, setWinner] = useState(null);
   const [animatedPositions, setAnimatedPositions] = useState({});
   const [isAnimating, setIsAnimating] = useState(false);
@@ -379,6 +380,8 @@ function App() {
 
     switch (eventType) {
       case 'turn_played':
+        // Reset jail choice when a turn is played
+        setJailChoiceMade(false);
         // Update dice roll display for all players
         if (data.dice_roll && data.dice_roll.length === 2) {
           setLastDiceRoll({
@@ -991,16 +994,16 @@ function App() {
               <button
                 onClick={nextTurn}
                 disabled={isSubmitting || pendingAction || !isCurrentPlayer ||
-                         (currentUserPlayer?.in_jail && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id))}
+                         (currentUserPlayer?.in_jail && !jailChoiceMade && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id))}
                 style={{
                   padding: "0.5rem 1rem",
                   background: isSubmitting || pendingAction || !isCurrentPlayer ||
-                             (currentUserPlayer?.in_jail && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id)) ? "#ccc" : "#1982c4",
+                             (currentUserPlayer?.in_jail && !jailChoiceMade && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id)) ? "#ccc" : "#1982c4",
                   color: "#fff",
                   border: "none",
                   borderRadius: "6px",
                   cursor: isSubmitting || pendingAction || !isCurrentPlayer ||
-                         (currentUserPlayer?.in_jail && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id)) ? "not-allowed" : "pointer",
+                         (currentUserPlayer?.in_jail && !jailChoiceMade && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id)) ? "not-allowed" : "pointer",
                   fontSize: "1rem",
                 }}
               >
@@ -1008,7 +1011,7 @@ function App() {
                   ? "Processing..."
                   : pendingAction
                   ? "Resolve Action First"
-                  : (currentUserPlayer?.in_jail && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id))
+                  : (currentUserPlayer?.in_jail && !jailChoiceMade && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id))
                   ? "Choose Jail Action First"
                   : !isCurrentPlayer
                   ? `${game.players?.find(p => p.game_player_id === game.current_player_id)?.player_name || 'Player'}'s Turn`
@@ -1285,11 +1288,14 @@ function App() {
       {/* Jail Turn Options - Show when it's jailed player's turn */}
       {isCurrentPlayer && currentUserPlayer && currentUserPlayer.in_jail &&
        (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id) &&
-       !pendingAction && (
+       !pendingAction && !jailChoiceMade && (
         <JailTurnOptions
           gameId={gameId}
           sessionToken={sessionToken}
-          onAction={fetchGameLedgerJackpot}
+          onAction={() => {
+            setJailChoiceMade(true);
+            fetchGameLedgerJackpot();
+          }}
         />
       )}
 
