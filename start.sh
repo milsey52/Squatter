@@ -5,7 +5,7 @@ set -e
 . /opt/venv/bin/activate
 
 echo "Running database migrations..."
-alembic upgrade head
+alembic -c alembic.ini.bak upgrade head
 
 echo "Starting server..."
 uvicorn main:app --host 0.0.0.0 --port $PORT
