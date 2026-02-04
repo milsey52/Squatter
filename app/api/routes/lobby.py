@@ -644,6 +644,7 @@ def get_turn_order_rolls(
         roll = rolls_map.get(player.game_player_id)
         roll_data.append({
             "game_player_id": player.game_player_id,
+            "user_id": player.user_id,
             "player_name": player.player_name,
             "dice1": roll.dice_roll_1 if roll else None,
             "dice2": roll.dice_roll_2 if roll else None,

@@ -458,6 +458,7 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
         <TurnOrderRoll
           gameId={gameId}
           sessionToken={sessionToken}
+          userId={userId}
           isHost={isHost}
           onComplete={() => {
             setShowTurnOrderRoll(false);

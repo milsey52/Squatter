@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
-export default function TurnOrderRoll({ gameId, sessionToken, isHost, onComplete }) {
+export default function TurnOrderRoll({ gameId, sessionToken, userId, isHost, onComplete }) {
   const [rolls, setRolls] = useState([]);
   const [winner, setWinner] = useState(null);
   const [needsReroll, setNeedsReroll] = useState(false);
@@ -197,7 +197,7 @@ export default function TurnOrderRoll({ gameId, sessionToken, isHost, onComplete
               }}>
                 {roll.dice1 && roll.dice2 ? (
                   `${roll.dice1} + ${roll.dice2} = ${roll.total}`
-                ) : (
+                ) : roll.user_id === userId ? (
                   <button
                     onClick={handleRoll}
                     disabled={rolling}
@@ -215,6 +215,10 @@ export default function TurnOrderRoll({ gameId, sessionToken, isHost, onComplete
                   >
                     {rolling ? 'Rolling...' : 'Roll Dice'}
                   </button>
+                ) : (
+                  <span style={{ color: '#999', fontStyle: 'italic' }}>
+                    Waiting...
+                  </span>
                 )}
               </div>
             </div>
