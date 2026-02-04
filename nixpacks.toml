@@ -10,5 +10,8 @@ cmds = [
 [phases.build]
 cmds = ['./build.sh']
 
+[phases.release]
+cmds = []
+
 [start]
-cmd = './start.sh'
+cmd = '. /opt/venv/bin/activate && ./start.sh'
