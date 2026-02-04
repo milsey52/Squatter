@@ -1,8 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env.VITE_API_BASE !== '')
-  ? import.meta.env.VITE_API_BASE
-  : window.location.origin;
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 /**
  * Custom hook to listen to Server-Sent Events for real-time game updates.

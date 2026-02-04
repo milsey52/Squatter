@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env.VITE_API_BASE !== '')
-  ? import.meta.env.VITE_API_BASE
-  : window.location.origin;
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 export default function TradingBoard({ gameId, sessionToken, userId, game, playerBalances, allPlayerAssets, playerRetainedCards, onClose, activeTradeFromParent }) {
   const [activeTrade, setActiveTrade] = useState(activeTradeFromParent);

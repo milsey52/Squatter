@@ -1,8 +1,6 @@
 import { useState } from "react";
 
-const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env.VITE_API_BASE !== '')
-  ? import.meta.env.VITE_API_BASE
-  : window.location.origin;
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 function JailModal({ gameId, sessionToken, userId, pendingAction, players, onResolved }) {
   const [isSubmitting, setIsSubmitting] = useState(false);

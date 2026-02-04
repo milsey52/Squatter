@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env.VITE_API_BASE !== '')
-  ? import.meta.env.VITE_API_BASE
-  : window.location.origin;
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 export default function WorthModal({ gameId, sessionToken, onClose }) {
   const [worthData, setWorthData] = useState(null);

@@ -17,9 +17,7 @@ import WorthModal from "./components/WorthModal";
 import BankruptcyModal from "./components/BankruptcyModal";
 import { useGameEvents } from "./hooks/useGameEvents";
 
-const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env.VITE_API_BASE !== '')
-  ? import.meta.env.VITE_API_BASE
-  : window.location.origin;                                                                                                             
+const API_BASE = import.meta.env.VITE_API_BASE || '';                                                                                                             
 const SPACE_LABELS = [                                                                                                                                                                 
   "Start/Payday",                                                                                                                                                                      
   "Belvue House",                                                                                                                                                                      

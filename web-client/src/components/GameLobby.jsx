@@ -3,9 +3,7 @@ import { useGameEvents } from '../hooks/useGameEvents';
 import { QRCodeSVG } from 'qrcode.react';
 import TurnOrderRoll from './TurnOrderRoll';
 
-const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env.VITE_API_BASE !== '')
-  ? import.meta.env.VITE_API_BASE
-  : window.location.origin;
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHost, onGameStarted }) {
   const [lobbyData, setLobbyData] = useState(null);

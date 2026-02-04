@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const API_BASE = (import.meta.env.VITE_API_BASE !== undefined && import.meta.env.VITE_API_BASE !== '')
-  ? import.meta.env.VITE_API_BASE
-  : window.location.origin;
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 // Map purchase price to Monopoly color groups
 const getPropertyColor = (property) => {
