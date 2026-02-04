@@ -2,10 +2,11 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "./build.sh"
+    "buildCommand": "./build.sh",
+    "nixpacksConfigPath": "nixpacks.toml"
   },
   "deploy": {
-    "startCommand": "./start.sh",
+    "startCommand": ". /opt/venv/bin/activate && ./start.sh",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
