@@ -549,7 +549,10 @@ async def roll_for_turn_order(
     ).first()
 
     if existing_roll:
-        raise HTTPException(status_code=400, detail="You have already rolled in this round")
+        raise HTTPException(
+            status_code=400,
+            detail=f"You have already rolled in this round (player_id={player.game_player_id}, user_id={user_id}, round={current_round}, roll={existing_roll.total})"
+        )
 
     # Roll dice
     dice1 = random.randint(1, 6)
@@ -617,14 +620,17 @@ def get_turn_order_rolls(
     # Get current round
     max_round = session.query(func.max(models.TurnOrderRoll.round_number)).filter_by(
         game_id=game_id
-    ).scalar() or 1
+    ).scalar()
+
+    # If no rolls yet, default to round 1
+    current_round = max_round if max_round is not None and max_round > 0 else 1
 
     # Get rolls for current round
     rolls_query = (
         session.query(models.TurnOrderRoll)
         .filter(
             models.TurnOrderRoll.game_id == game_id,
-            models.TurnOrderRoll.round_number == max_round
+            models.TurnOrderRoll.round_number == current_round
         )
         .all()
     )
