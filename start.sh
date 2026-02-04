@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Activate virtual environment
+. /opt/venv/bin/activate
+
 echo "Running database migrations..."
 alembic upgrade head
 
