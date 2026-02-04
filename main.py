@@ -26,9 +26,6 @@ app.include_router(cards.router)
 cors_origins_str = os.environ.get("CORS_ORIGINS", "http://localhost:5173")
 cors_origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
 
-# Add ngrok URL to CORS for global access
-cors_origins.append("https://unorganic-andres-overplain.ngrok-free.dev")
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
