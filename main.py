@@ -60,24 +60,11 @@ if os.path.exists(static_dir):
 # Temporary admin endpoint to reset all game data
 @app.get("/admin/reset-all-games")
 def reset_all_games(session=Depends(get_session)):
-    tables = [
-        "turn_order_rolls",
-        "trade_sessions",
-        "debt_states",
-        "card_draws",
-        "jackpot_ledger",
-        "movements",
-        "transactions",
-        "pending_actions",
-        "turns",
-        "asset_states",
-        "house_rules",
-        "game_sessions",
-        "game_players",
-        "games",
-        "users",
-    ]
-    for table in tables:
-        session.execute(text(f"DELETE FROM {table}"))
+    session.execute(text(
+        "TRUNCATE TABLE turn_order_rolls, trade_sessions, debt_states, "
+        "card_draws, jackpot_ledger, movements, transactions, pending_actions, "
+        "turns, asset_states, house_rules, game_sessions, game_players, games, users "
+        "CASCADE"
+    ))
     session.commit()
     return {"status": "ok", "message": "All game data deleted"}
