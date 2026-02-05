@@ -58,7 +58,7 @@ if os.path.exists(static_dir):
 
 
 # Temporary admin endpoint to reset all game data
-@app.post("/admin/reset-all-games")
+@app.get("/admin/reset-all-games")
 def reset_all_games(session=Depends(get_session)):
     tables = [
         "turn_order_rolls",
