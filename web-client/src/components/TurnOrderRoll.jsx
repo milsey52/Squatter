@@ -197,7 +197,7 @@ export default function TurnOrderRoll({ gameId, sessionToken, userId, isHost, on
               }}>
                 {roll.dice1 && roll.dice2 ? (
                   `${roll.dice1} + ${roll.dice2} = ${roll.total}`
-                ) : roll.user_id === userId ? (
+                ) : String(roll.user_id) === String(userId) ? (
                   <button
                     onClick={handleRoll}
                     disabled={rolling}
