@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.api.routes import games, turns, ledger, jackpot, players, cards, decisions, lobby, events, trades, properties, bankruptcy
 
-app = FastAPI(title="MonopolyPerth API")
+app = FastAPI(title="MonopolyPerth API", redirect_slashes=False)
 
 app.include_router(lobby.router, prefix="/games", tags=["lobby"])
 app.include_router(events.router, prefix="/games", tags=["events"])
