@@ -30,7 +30,7 @@ def seed_property_groups(session):
     ]
     for g in groups:
         session.execute(text(
-            "INSERT INTO property_groups (group_id, name, color_hex, house_cost, hotel_cost) "
+            "INSERT INTO property_groups (group_id, group_name, color_hex, house_cost, hotel_cost) "
             "VALUES (:gid, :name, :color, :house, :hotel)"
         ), {"gid": g[0], "name": g[1], "color": g[2], "house": g[3], "hotel": g[4]})
     session.commit()
