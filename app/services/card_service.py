@@ -297,11 +297,14 @@ class CardService:
 
     def _log_movement(self, player, start_idx, end_idx, turn, movement_type, passed_start):
         distance = (end_idx - start_idx) % BOARD_SIZE
+        # Convert board_index to space_id for FK constraints
+        start_space = self._space_by_board_index(start_idx)
+        end_space = self._space_by_board_index(end_idx)
         movement = models.Movement(
             turn_id=turn.turn_id if turn else None,
             game_player_id=player.game_player_id,
-            start_space_id=start_idx,
-            end_space_id=end_idx,
+            start_space_id=start_space.space_id,
+            end_space_id=end_space.space_id,
             movement_type=movement_type,
             distance=distance,
             passed_start=1 if passed_start else 0,
