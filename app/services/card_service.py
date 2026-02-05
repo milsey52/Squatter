@@ -208,7 +208,7 @@ class CardService:
 
     def _effect_go_to_jail(self, player, turn):
         start_idx = player.current_space_id
-        jail_idx = self._to_board_index(JAIL_SPACE_ID)
+        jail_idx = JAIL_SPACE_ID  # Already a board_index (10 = Visit Jail)
         player.current_space_id = jail_idx
         player.in_jail = True
         player.jail_turns = 0
