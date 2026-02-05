@@ -1,9 +1,11 @@
 import os
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from sqlalchemy import text
 from app.api.routes import games, turns, ledger, jackpot, players, cards, decisions, lobby, events, trades, properties, bankruptcy
+from app.api.deps import get_session
 
 app = FastAPI(title="MonopolyPerth API", redirect_slashes=False)
 
@@ -53,3 +55,25 @@ if os.path.exists(static_dir):
     async def serve_root():
         index_path = os.path.join(static_dir, "index.html")
         return FileResponse(index_path)
+
+
+# Temporary admin endpoint to reset all game data
+@app.post("/admin/reset-all-games")
+def reset_all_games(session=Depends(get_session)):
+    tables = [
+        "turn_order_rolls",
+        "trade_sessions",
+        "debt_states",
+        "transactions",
+        "pending_actions",
+        "turns",
+        "asset_states",
+        "game_sessions",
+        "game_players",
+        "games",
+        "users",
+    ]
+    for table in tables:
+        session.execute(text(f"DELETE FROM {table}"))
+    session.commit()
+    return {"status": "ok", "message": "All game data deleted"}
