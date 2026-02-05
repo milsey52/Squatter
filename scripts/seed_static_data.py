@@ -1,6 +1,7 @@
 """Seed static data (spaces, assets, cards, property_groups) if tables are empty.
 
 Run this on startup to ensure Railway PostgreSQL has the required game data.
+v2 - fixed property_groups column name
 """
 import sys
 from pathlib import Path
