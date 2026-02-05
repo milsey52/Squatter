@@ -211,6 +211,13 @@ async def join_game(
             } for p in players]
         )
 
+    # New players can only join during lobby phase
+    if game.status != "lobby":
+        raise HTTPException(
+            status_code=400,
+            detail="Game has already started. Only existing players can re-join."
+        )
+
     # Check if game is full (only for NEW players)
     current_player_count = session.query(models.GamePlayer).filter_by(
         game_id=game.game_id
