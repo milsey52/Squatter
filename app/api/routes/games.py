@@ -9,7 +9,7 @@ from app.services.ledger_service import LedgerService
 
 router = APIRouter()
 
-@router.post("/")
+@router.post("")
 def create_game(payload: CreateGameRequest, session: Session = Depends(deps.get_session)):
     game = models.Game(...)
     session.add(game)

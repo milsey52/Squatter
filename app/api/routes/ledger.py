@@ -5,7 +5,7 @@ from app import models
 
 router = APIRouter()
 
-@router.get("/")
+@router.get("")
 def list_ledger(game_id: int, limit: int = 50, session: Session = Depends(deps.get_session)):
     # Verify game exists
     deps.get_game_or_404(game_id, session)

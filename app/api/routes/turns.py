@@ -9,7 +9,7 @@ import asyncio
 
 router = APIRouter()
 
-@router.post("/")
+@router.post("")
 async def play_turn(
     game_id: int,
     auth_data: tuple[int, int] = Depends(auth.verify_session_token),
