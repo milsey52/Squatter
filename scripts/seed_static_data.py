@@ -203,7 +203,7 @@ def seed_cards(session):
     for c in cards:
         session.execute(text(
             "INSERT INTO cards (card_id, deck_type, title, body_text, is_retainable, effect_code, effect_params) "
-            "VALUES (:cid, :dtype, :title, :body, :retain, :ecode, :eparams)"
+            "VALUES (:cid, :dtype, :title, :body, CAST(:retain AS boolean), :ecode, :eparams)"
         ), {
             "cid": c[0], "dtype": c[1], "title": c[2], "body": c[3],
             "retain": c[4], "ecode": c[5], "eparams": c[6],
