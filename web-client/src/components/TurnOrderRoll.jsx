@@ -25,6 +25,13 @@ export default function TurnOrderRoll({ gameId, sessionToken, userId, isHost, on
       }
 
       const data = await response.json();
+      console.log('[TurnOrderRoll] Fetched rolls:', data.rolls);
+      console.log('[TurnOrderRoll] Current userId prop:', userId, 'type:', typeof userId);
+      if (data.rolls) {
+        data.rolls.forEach(r => {
+          console.log(`[TurnOrderRoll] Roll for ${r.player_name}: user_id=${r.user_id} (type: ${typeof r.user_id}), matches=${String(r.user_id) === String(userId)}`);
+        });
+      }
       setRolls(data.rolls || []);
       setWinner(data.winner);
       setNeedsReroll(data.needs_reroll);
@@ -34,7 +41,7 @@ export default function TurnOrderRoll({ gameId, sessionToken, userId, isHost, on
     } catch (error) {
       console.error('Error fetching rolls:', error);
     }
-  }, [gameId, sessionToken]);
+  }, [gameId, sessionToken, userId]);
 
   useEffect(() => {
     fetchRolls();
