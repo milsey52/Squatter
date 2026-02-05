@@ -58,9 +58,11 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
     }
   }, [gameId, sessionToken, userId, onGameStarted]);
 
-  // Initial fetch on mount
+  // Initial fetch on mount + periodic polling every 3 seconds
   useEffect(() => {
     fetchLobbyStatus();
+    const interval = setInterval(fetchLobbyStatus, 3000);
+    return () => clearInterval(interval);
   }, [fetchLobbyStatus]);
 
   // Handle real-time events
@@ -129,8 +131,8 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
         throw new Error(data.detail || 'Failed to start game');
       }
 
-      // Game started - parent component will handle transition
-      onGameStarted();
+      // Game is now in "rolling_for_order" state - show the turn order roll modal
+      setShowTurnOrderRoll(true);
     } catch (err) {
       setError(err.message);
       setStarting(false);
