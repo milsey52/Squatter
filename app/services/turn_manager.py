@@ -114,17 +114,32 @@ class TurnManager:
 
     # Movement -----------------------------------------------------------
     def _move_player(self, player, steps: int) -> Tuple[models.Space, bool]:
-        start_space = player.current_space_id
+        start_board_idx = player.current_space_id
         # Simple modulo arithmetic with 0-based indexing (board uses indices 0-39)
-        end_space_idx = (start_space + steps) % BOARD_SIZE
-        passed_start = (start_space + steps) >= BOARD_SIZE
-        player.current_space_id = end_space_idx
+        end_board_idx = (start_board_idx + steps) % BOARD_SIZE
+        passed_start = (start_board_idx + steps) >= BOARD_SIZE
+        player.current_space_id = end_board_idx
+
+        # Look up actual space records for FK references
+        start_space = (
+            self.session.query(models.Space)
+            .filter(models.Space.board_index == start_board_idx)
+            .first()
+        )
+        end_space = (
+            self.session.query(models.Space)
+            .filter(models.Space.board_index == end_board_idx)
+            .first()
+        )
+
+        if end_space is None:
+            raise ValueError(f"No space found for board_index={end_board_idx}")
 
         movement = models.Movement(
             turn_id=self._current_turn_id(player),
             game_player_id=player.game_player_id,
-            start_space_id=start_space,
-            end_space_id=end_space_idx,
+            start_space_id=start_space.space_id if start_space else 1,
+            end_space_id=end_space.space_id,
             movement_type="roll",
             distance=steps,
             passed_start=passed_start,
@@ -135,15 +150,7 @@ class TurnManager:
         if passed_start:
             self.ledger.record_pass_start_bonus(player)
 
-        space = (
-            self.session.query(models.Space)
-            .filter(models.Space.board_index == end_space_idx)
-            .first()
-        )
-        if space is None:
-            raise ValueError(f"No space found for board_index={end_space_idx}")
-
-        return (space, passed_start)
+        return (end_space, passed_start)
 
     def _current_turn_id(self, player) -> Optional[int]:
         turn = (
