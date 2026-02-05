@@ -92,8 +92,8 @@ def get_dice_rolls(game_id: int, session: Session = Depends(get_session)):
             models.GamePlayer.player_name,
             models.Turn.dice_roll_1,
             models.Turn.dice_roll_2,
-            space_from.c.space_id.label('from_location'),
-            space_to.c.space_id.label('to_location')
+            space_from.c.board_index.label('from_location'),
+            space_to.c.board_index.label('to_location')
         )
         .join(models.GamePlayer, models.Turn.active_game_player_id == models.GamePlayer.game_player_id)
         .outerjoin(
