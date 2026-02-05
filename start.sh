@@ -7,5 +7,8 @@ set -e
 echo "Running database migrations..."
 alembic upgrade head
 
+echo "Seeding static data..."
+python scripts/seed_static_data.py
+
 echo "Starting server..."
 uvicorn main:app --host 0.0.0.0 --port $PORT
