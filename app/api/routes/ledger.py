@@ -31,10 +31,7 @@ def list_ledger(game_id: int, limit: int = 50, session: Session = Depends(deps.g
         .outerjoin(PlayerTo, models.Transaction.player_to_id == PlayerTo.c.game_player_id)
         .outerjoin(UserTo, PlayerTo.c.user_id == UserTo.c.user_id)
         .filter(models.Transaction.game_id == game_id)
-        .order_by(
-            models.Transaction.turn_id.desc(),
-            models.Transaction.sequence_in_turn.asc()
-        )
+        .order_by(models.Transaction.transaction_id.desc())
         .limit(limit)
         .all()
     )
