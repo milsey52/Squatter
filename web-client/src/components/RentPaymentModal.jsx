@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Z_INDEX } from '../constants/zIndex';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -67,7 +68,7 @@ export default function RentPaymentModal({ gameId, sessionToken, pendingAction, 
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 9999
+      zIndex: Z_INDEX.MODAL_RENT
     }}>
       <div style={{
         background: '#fff',

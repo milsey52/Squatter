@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Z_INDEX } from '../constants/zIndex';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -45,7 +46,7 @@ export default function SuspendedGameNotice({ gameId, sessionToken }) {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 9999
+      zIndex: Z_INDEX.MODAL_SUSPENDED
     }}>
       <div style={{
         background: 'white',

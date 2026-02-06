@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Z_INDEX } from '../constants/zIndex';
 
 export default function BankruptcyModal({
   gameId,
@@ -137,7 +138,7 @@ export default function BankruptcyModal({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 10000
+      zIndex: Z_INDEX.MODAL_BANKRUPTCY
     }} onClick={onClose}>
       <div style={{
         background: '#fff',

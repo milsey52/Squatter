@@ -1,6 +1,4 @@
-import { useState, useEffect } from 'react';
-
-const API_BASE = import.meta.env.VITE_API_BASE || '';
+import { useState } from 'react';
 
 // Map purchase price to Monopoly color groups
 const getPropertyColor = (property) => {
@@ -19,10 +17,7 @@ const getPropertyColor = (property) => {
   return '#cccccc'; // Default gray
 };
 
-export default function PropertyLedger({ gameId, sessionToken }) {
-  const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+export default function PropertyLedger({ properties = [] }) {
   const [selectedOwner, setSelectedOwner] = useState('All');
 
   // Check if an owner has a monopoly (owns all properties in a color group)
@@ -52,49 +47,7 @@ export default function PropertyLedger({ gameId, sessionToken }) {
     return monopolies;
   };
 
-  useEffect(() => {
-    console.log('[PropertyLedger] Mounted with gameId:', gameId, 'sessionToken:', sessionToken ? 'present' : 'missing');
-
-    if (!gameId || !sessionToken) {
-      console.log('[PropertyLedger] Missing gameId or sessionToken, not fetching');
-      return;
-    }
-
-    const fetchProperties = async () => {
-      try {
-        console.log('[PropertyLedger] Fetching from:', `${API_BASE}/games/${gameId}/properties/all`);
-        const response = await fetch(`${API_BASE}/games/${gameId}/properties/all`, {
-          headers: {
-            'Authorization': `Bearer ${sessionToken}`
-          }
-        });
-
-        console.log('[PropertyLedger] Response status:', response.status, response.statusText);
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch properties');
-        }
-
-        const data = await response.json();
-        console.log('[PropertyLedger] Fetched properties:', data.properties?.length || 0);
-        setProperties(data.properties || []);
-        setError(null);
-      } catch (error) {
-        console.error('[PropertyLedger] Error fetching properties:', error);
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProperties();
-
-    // Refresh every 2 seconds to keep ownership updated
-    const interval = setInterval(fetchProperties, 2000);
-    return () => clearInterval(interval);
-  }, [gameId, sessionToken]);
-
-  if (loading) {
+  if (properties.length === 0) {
     return (
       <div style={{
         padding: '1rem',
@@ -103,20 +56,6 @@ export default function PropertyLedger({ gameId, sessionToken }) {
         textAlign: 'center'
       }}>
         Loading properties...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{
-        padding: '1rem',
-        background: '#ffebee',
-        borderRadius: '8px',
-        textAlign: 'center',
-        color: '#c62828'
-      }}>
-        Error: {error}
       </div>
     );
   }

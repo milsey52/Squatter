@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Z_INDEX } from '../constants/zIndex';
 
 export default function RetainedCardPopup({ card, onClose }) {
   if (!card) return null;
@@ -17,7 +18,7 @@ export default function RetainedCardPopup({ card, onClose }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 10000
+        zIndex: Z_INDEX.POPUP_CARD_DETAILS
       }}
       onClick={onClose}
     >

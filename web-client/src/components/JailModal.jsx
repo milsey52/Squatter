@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Z_INDEX } from '../constants/zIndex';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -49,7 +50,7 @@ function JailModal({ gameId, sessionToken, userId, pendingAction, players, onRes
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      zIndex: 1000
+      zIndex: Z_INDEX.MODAL
     }}>
       <div style={{
         background: "#fff",

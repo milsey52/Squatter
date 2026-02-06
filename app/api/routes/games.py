@@ -90,8 +90,10 @@ def get_dice_rolls(game_id: int, session: Session = Depends(get_session)):
         session.query(
             models.Turn.turn_number,
             models.GamePlayer.player_name,
+            models.GamePlayer.game_player_id,
             models.Turn.dice_roll_1,
             models.Turn.dice_roll_2,
+            models.Turn.is_double,
             space_from.c.board_index.label('from_location'),
             space_to.c.board_index.label('to_location')
         )
@@ -110,13 +112,15 @@ def get_dice_rolls(game_id: int, session: Session = Depends(get_session)):
     )
 
     result = []
-    for turn_number, player_name, dice1, dice2, from_location, to_location in rolls:
+    for turn_number, player_name, game_player_id, dice1, dice2, is_double, from_location, to_location in rolls:
         result.append({
             "roll_number": turn_number,
             "player": player_name,
+            "player_id": game_player_id,
             "dice1": dice1,
             "dice2": dice2,
             "total": (dice1 or 0) + (dice2 or 0),
+            "is_double": is_double or False,
             "from_location": from_location,
             "to_location": to_location
         })

@@ -16,6 +16,7 @@ import PropertyLedger from "./components/PropertyLedger";
 import WorthModal from "./components/WorthModal";
 import BankruptcyModal from "./components/BankruptcyModal";
 import { useGameEvents } from "./hooks/useGameEvents";
+import { Z_INDEX } from "./constants/zIndex";
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';                                                                                                             
 const SPACE_LABELS = [                                                                                                                                                                 
@@ -71,10 +72,11 @@ function App() {
   const [isHost, setIsHost] = useState(false);
 
   // Game state
-  const [game, setGame] = useState(null);                                                                                                                                              
-  const [ledger, setLedger] = useState([]);                                                                                                                                            
+  const [game, setGame] = useState(null);
+  const [ledger, setLedger] = useState([]);
   const [diceRolls, setDiceRolls] = useState([]);
-  const [jackpot, setJackpot] = useState(null);                                                                                                                                        
+  const [jackpot, setJackpot] = useState(null);
+  const [allProperties, setAllProperties] = useState([]);                                                                                                                                        
   const [playerBalances, setPlayerBalances] = useState({});                                                                                                                            
   const [allPlayerAssets, setAllPlayerAssets] = useState({});                                                                                                                          
   const [loading, setLoading] = useState(true);                                                                                                                                        
@@ -99,8 +101,9 @@ function App() {
   const [rentModalDismissed, setRentModalDismissed] = useState(false);
   const [winner, setWinner] = useState(null);
   const [animatedPositions, setAnimatedPositions] = useState({});
-  const [isAnimating, setIsAnimating] = useState(false);
-  const isAnimatingRef = useRef(false);
+  const [animatingPlayers, setAnimatingPlayers] = useState(new Set());
+  const animatingPlayersRef = useRef(new Set());
+  const fetchAbortControllerRef = useRef(null);
 
   // Create a map of board_index -> {improvement_level, has_hotel} for board display
   const propertyImprovements = useMemo(() => {
@@ -244,56 +247,85 @@ function App() {
   const fetchGameLedgerJackpot = useCallback(async () => {
     if (!gameId) return;
 
+    // Cancel any in-flight request to prevent race conditions
+    if (fetchAbortControllerRef.current) {
+      fetchAbortControllerRef.current.abort();
+    }
+    const abortController = new AbortController();
+    fetchAbortControllerRef.current = abortController;
+
     const headers = sessionToken ? {
       'Authorization': `Bearer ${sessionToken}`
     } : {};
 
-    const [gameRes, ledgerRes, jackpotRes, balancesRes, assetsRes, cardsRes, lastDrawnCardsRes, pendingRes, tradeRes, diceRollsRes] = await Promise.all([
-      fetch(`${API_BASE}/games/${gameId}`, { headers }),
-      fetch(`${API_BASE}/games/${gameId}/ledger`, { headers }),
-      fetch(`${API_BASE}/games/${gameId}/jackpot`, { headers }),
-      fetch(`${API_BASE}/games/${gameId}/player_balances`, { headers }),
-      fetch(`${API_BASE}/games/${gameId}/player_assets`, { headers }),
-      fetch(`${API_BASE}/games/${gameId}/player_retained_cards`, { headers }),
-      fetch(`${API_BASE}/games/${gameId}/last_drawn_cards`, { headers }),
-      fetch(`${API_BASE}/games/${gameId}/pending-action`, { headers }),
-      fetch(`${API_BASE}/games/${gameId}/trades/active`, { headers }),
-      fetch(`${API_BASE}/games/${gameId}/dice_rolls`, { headers })
-    ]);                                                                                                                                                                                
-                                                       
-    
-    if (!gameRes.ok) {                                                                                                                                                                 
-      const text = await gameRes.text();                                                                                                                                               
-      throw new Error(`Failed to load game: ${gameRes.status}`);                                                                                                                       
-    }                                                                                                                                                                                  
-                                                                                                                                                                                       
-    if (!ledgerRes.ok) {                                                                                                                                                               
-      const text = await ledgerRes.text();                                                                                                                                             
-      throw new Error(`Failed to load ledger: ${ledgerRes.status}`);                                                                                                                   
-    }                                                                                                                                                                                  
-                                                                                                                                                                                       
-    const gameData = await gameRes.json();
-    const ledgerData = await ledgerRes.json();
-    const jackpotData = jackpotRes.ok ? await jackpotRes.json() : { jackpot: null };
-    const balancesData = balancesRes.ok ? await balancesRes.json() : {};
-    const assetsData = assetsRes.ok ? await assetsRes.json() : {};
-    const cardsData = cardsRes.ok ? await cardsRes.json() : {};
-    const lastDrawnCardsData = lastDrawnCardsRes.ok ? await lastDrawnCardsRes.json() : { CHANCE: null, WELFARE: null };
-    const pendingData = pendingRes.ok ? await pendingRes.json() : { pending_action: null };
-    const tradeData = tradeRes.ok ? await tradeRes.json() : { trade: null };
-    const diceRollsData = diceRollsRes.ok ? await diceRollsRes.json() : { rolls: [] };
+    try {
+      const [gameRes, ledgerRes, jackpotRes, balancesRes, assetsRes, cardsRes, lastDrawnCardsRes, pendingRes, tradeRes, diceRollsRes, propertiesRes] = await Promise.all([
+        fetch(`${API_BASE}/games/${gameId}`, { headers, signal: abortController.signal }),
+        fetch(`${API_BASE}/games/${gameId}/ledger`, { headers, signal: abortController.signal }),
+        fetch(`${API_BASE}/games/${gameId}/jackpot`, { headers, signal: abortController.signal }),
+        fetch(`${API_BASE}/games/${gameId}/player_balances`, { headers, signal: abortController.signal }),
+        fetch(`${API_BASE}/games/${gameId}/player_assets`, { headers, signal: abortController.signal }),
+        fetch(`${API_BASE}/games/${gameId}/player_retained_cards`, { headers, signal: abortController.signal }),
+        fetch(`${API_BASE}/games/${gameId}/last_drawn_cards`, { headers, signal: abortController.signal }),
+        fetch(`${API_BASE}/games/${gameId}/pending-action`, { headers, signal: abortController.signal }),
+        fetch(`${API_BASE}/games/${gameId}/trades/active`, { headers, signal: abortController.signal }),
+        fetch(`${API_BASE}/games/${gameId}/dice_rolls`, { headers, signal: abortController.signal }),
+        fetch(`${API_BASE}/games/${gameId}/properties/all`, { headers, signal: abortController.signal })
+      ]);
 
-    setGame(gameData);
-    setLedger(Array.isArray(ledgerData) ? ledgerData : []);
-    setDiceRolls(diceRollsData.rolls || []);
-    setJackpot(jackpotData.jackpot);
-    setPlayerBalances(balancesData);
-    setAllPlayerAssets(assetsData);
-    setPlayerRetainedCards(cardsData);
-    setLastDrawnCards(lastDrawnCardsData);
-    setPendingAction(pendingData.pending_action);
-    setActiveTrade(tradeData.trade);
-    setError(null);
+      if (!gameRes.ok) {
+        throw new Error(`Failed to load game: ${gameRes.status}`);
+      }
+
+      if (!ledgerRes.ok) {
+        throw new Error(`Failed to load ledger: ${ledgerRes.status}`);
+      }
+
+      const gameData = await gameRes.json();
+      const ledgerData = await ledgerRes.json();
+      const jackpotData = jackpotRes.ok ? await jackpotRes.json() : { jackpot: null };
+      const balancesData = balancesRes.ok ? await balancesRes.json() : {};
+      const assetsData = assetsRes.ok ? await assetsRes.json() : {};
+      const cardsData = cardsRes.ok ? await cardsRes.json() : {};
+      const lastDrawnCardsData = lastDrawnCardsRes.ok ? await lastDrawnCardsRes.json() : { CHANCE: null, WELFARE: null };
+      const pendingData = pendingRes.ok ? await pendingRes.json() : { pending_action: null };
+      const tradeData = tradeRes.ok ? await tradeRes.json() : { trade: null };
+      const diceRollsData = diceRollsRes.ok ? await diceRollsRes.json() : { rolls: [] };
+      const propertiesData = propertiesRes.ok ? await propertiesRes.json() : { properties: [] };
+
+      setGame(gameData);
+      setLedger(Array.isArray(ledgerData) ? ledgerData : []);
+      const rolls = diceRollsData.rolls || [];
+      console.log('[App] Dice rolls fetched:', rolls.length, 'rolls', rolls[0]);
+      setDiceRolls(rolls);
+      // Set lastDiceRoll from most recent roll (first in array since sorted desc)
+      if (rolls.length > 0) {
+        const latestRoll = rolls[0];
+        console.log('[App] Setting lastDiceRoll from fetch:', latestRoll);
+        setLastDiceRoll({
+          dice_roll_1: latestRoll.dice1,
+          dice_roll_2: latestRoll.dice2,
+          total_roll: latestRoll.total,
+          is_double: latestRoll.is_double,
+          player_id: latestRoll.player_id
+        });
+      }
+      setJackpot(jackpotData.jackpot);
+      setPlayerBalances(balancesData);
+      setAllPlayerAssets(assetsData);
+      setPlayerRetainedCards(cardsData);
+      setLastDrawnCards(lastDrawnCardsData);
+      setPendingAction(pendingData.pending_action);
+      setActiveTrade(tradeData.trade);
+      setAllProperties(propertiesData.properties || []);
+      setError(null);
+    } catch (err) {
+      // Ignore abort errors - they're expected when canceling stale requests
+      if (err.name === 'AbortError') {
+        return;
+      }
+      throw err;
+    }
   }, [gameId, sessionToken]);
 
   // Only fetch game data when on the game screen
@@ -318,7 +350,7 @@ function App() {
     // Poll for game state updates every 5 seconds as backup to SSE
     // But skip polling during token animation to avoid showing modals early
     const pollInterval = setInterval(() => {
-      if (!isAnimatingRef.current) {
+      if (animatingPlayersRef.current.size === 0) {
         fetchGameLedgerJackpot();
       }
     }, 5000);
@@ -331,8 +363,9 @@ function App() {
     const BOARD_SIZE = 40;
     const STEP_DELAY = 300; // milliseconds between each space
 
-    isAnimatingRef.current = true;
-    setIsAnimating(true);
+    // Track this player as animating
+    animatingPlayersRef.current = new Set([...animatingPlayersRef.current, playerId]);
+    setAnimatingPlayers(prev => new Set([...prev, playerId]));
 
     // Animate through each space
     for (let step = 1; step <= diceTotal; step++) {
@@ -345,8 +378,9 @@ function App() {
       }));
     }
 
-    isAnimatingRef.current = false;
-    setIsAnimating(false);
+    // Remove this player from animating set
+    animatingPlayersRef.current = new Set([...animatingPlayersRef.current].filter(id => id !== playerId));
+    setAnimatingPlayers(prev => new Set([...prev].filter(id => id !== playerId)));
 
     // Don't clear animated position here - let it persist until database updates
     // This prevents the token from jumping back to the old position
@@ -655,7 +689,7 @@ function App() {
           fontSize: "1rem",
           fontWeight: "bold",
           cursor: "pointer",
-          zIndex: 1001,
+          zIndex: Z_INDEX.LOGOUT_BUTTON,
           boxShadow: "0 4px 8px rgba(0,0,0,0.2)"
         }}
         onMouseEnter={(e) => e.target.style.background = "#c82333"}
@@ -683,7 +717,7 @@ function App() {
           color: "#fff",
           padding: "1rem",
           textAlign: "center",
-          zIndex: 1000,
+          zIndex: Z_INDEX.TRADE_BANNER,
           boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
           fontSize: "1.1rem",
           fontWeight: "bold"
@@ -750,7 +784,7 @@ function App() {
               padding: "10px 16px",
               borderRadius: 8,
               boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-              zIndex: 5,
+              zIndex: Z_INDEX.BOARD_OVERLAY,
               fontWeight: "bold",
               fontSize: "1.2em",
               color: "#b28500"
@@ -773,7 +807,7 @@ function App() {
                 border: "3px solid #6a4c93",
                 borderRadius: "12px",
                 boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-                zIndex: bankruptcyInfo ? 10001 : 100,
+                zIndex: bankruptcyInfo ? Z_INDEX.PANEL_BANKRUPTCY : Z_INDEX.PANEL,
                 display: "flex",
                 flexDirection: "column"
               }}>
@@ -815,7 +849,7 @@ function App() {
               border: bankruptcyInfo ? "3px solid #d32f2f" : "3px solid #4caf50",
               borderRadius: "12px",
               boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-              zIndex: bankruptcyInfo ? 10001 : 100,
+              zIndex: bankruptcyInfo ? Z_INDEX.PANEL_BANKRUPTCY : Z_INDEX.PANEL,
               display: "flex",
               flexDirection: "column"
             }}>
@@ -850,7 +884,7 @@ function App() {
           position: 'relative',
           left: '100px',
           top: '-233px',
-          zIndex: 10
+          zIndex: Z_INDEX.CARD_SECTION
         }}>
           {/* Welfare Centre Card */}
           <div style={{
@@ -1233,14 +1267,13 @@ function App() {
           top: 20,
         }}>
           <PropertyLedger
-            gameId={gameId}
-            sessionToken={sessionToken}
+            properties={allProperties}
           />
         </div>
       </div>
 
       {/* Purchase/Auction Modals - wait for animation to complete */}
-      {!isAnimating && pendingAction && pendingAction.action_type === "purchase_decision" && (
+      {animatingPlayers.size === 0 && pendingAction && pendingAction.action_type === "purchase_decision" && (
         <PurchaseModal
           gameId={gameId}
           sessionToken={sessionToken}
@@ -1252,7 +1285,7 @@ function App() {
         />
       )}
 
-      {!isAnimating && pendingAction && pendingAction.action_type === "auction" && (
+      {animatingPlayers.size === 0 && pendingAction && pendingAction.action_type === "auction" && (
         <AuctionModal
           gameId={gameId}
           sessionToken={sessionToken}
@@ -1265,7 +1298,7 @@ function App() {
       )}
 
       {/* Card Modal for Chance/Welfare */}
-      {!isAnimating && pendingAction && pendingAction.action_type === "card_drawn" && (
+      {animatingPlayers.size === 0 && pendingAction && pendingAction.action_type === "card_drawn" && (
         <CardModal
           gameId={gameId}
           sessionToken={sessionToken}
@@ -1277,7 +1310,7 @@ function App() {
       )}
 
       {/* Rent Payment Modal - hide during bankruptcy flow or if creditor dismissed it */}
-      {!isAnimating && pendingAction && pendingAction.action_type === "rent_payment" && !bankruptcyInfo && !showBankruptcyModal && !rentModalDismissed && (
+      {animatingPlayers.size === 0 && pendingAction && pendingAction.action_type === "rent_payment" && !bankruptcyInfo && !showBankruptcyModal && !rentModalDismissed && (
         <RentPaymentModal
           gameId={gameId}
           sessionToken={sessionToken}
@@ -1306,7 +1339,7 @@ function App() {
       )}
 
       {/* Jail Notification Modal */}
-      {!isAnimating && pendingAction && pendingAction.action_type === "jail_notification" && (
+      {animatingPlayers.size === 0 && pendingAction && pendingAction.action_type === "jail_notification" && (
         <JailModal
           gameId={gameId}
           sessionToken={sessionToken}
@@ -1351,7 +1384,7 @@ function App() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 10000
+          zIndex: Z_INDEX.GAME_OVER
         }}>
           <div style={{
             background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',

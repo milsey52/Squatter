@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Z_INDEX } from '../constants/zIndex';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -44,7 +45,7 @@ export default function WorthModal({ gameId, sessionToken, onClose }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1000
+        zIndex: Z_INDEX.MODAL
       }}>
         <div style={{
           background: 'white',
@@ -70,7 +71,7 @@ export default function WorthModal({ gameId, sessionToken, onClose }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1000
+        zIndex: Z_INDEX.MODAL
       }} onClick={onClose}>
         <div style={{
           background: 'white',
@@ -106,7 +107,7 @@ export default function WorthModal({ gameId, sessionToken, onClose }) {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1000,
+      zIndex: Z_INDEX.MODAL,
       overflow: 'auto',
       padding: '2rem'
     }} onClick={onClose}>
