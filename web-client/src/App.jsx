@@ -766,13 +766,22 @@ function App() {
           flexShrink: 0,
           width: 1100
         }}>
-        {/* Game heading - centered above board */}
-        <h1 style={{ margin: "150px 0 -4.5rem 0", fontSize: "1.5rem", textAlign: "center" }}>
-          Game {gameId} - {currentUserPlayer?.player_name || 'Unknown Player'}
-        </h1>
-
         {/* Board + floating controls */}
         <div style={{ position: "relative", width: 1100, height: 1100 }}>
+          {/* Game heading - inside board, below top row of spaces */}
+          <h1 style={{
+            position: "absolute",
+            top: "140px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            margin: 0,
+            fontSize: "1.5rem",
+            textAlign: "center",
+            zIndex: 2,
+            color: "#333"
+          }}>
+            Game {gameId} - {currentUserPlayer?.player_name || 'Unknown Player'}
+          </h1>
           <Board
             players={game.players || []}
             currentPlayerId={game.current_player_id}
