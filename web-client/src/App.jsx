@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Board from "./Board";
 import PurchaseModal from "./PurchaseModal";
 import AuctionModal from "./AuctionModal";
@@ -99,6 +99,7 @@ function App() {
   const [winner, setWinner] = useState(null);
   const [animatedPositions, setAnimatedPositions] = useState({});
   const [isAnimating, setIsAnimating] = useState(false);
+  const isAnimatingRef = useRef(false);
 
   // Create a map of board_index -> {improvement_level, has_hotel} for board display
   const propertyImprovements = useMemo(() => {
@@ -316,19 +317,20 @@ function App() {
     // Poll for game state updates every 5 seconds as backup to SSE
     // But skip polling during token animation to avoid showing modals early
     const pollInterval = setInterval(() => {
-      if (!isAnimating) {
+      if (!isAnimatingRef.current) {
         fetchGameLedgerJackpot();
       }
     }, 5000);
 
     return () => clearInterval(pollInterval);
-  }, [screen, gameId, sessionToken, fetchGameLedgerJackpot, isAnimating]);
+  }, [screen, gameId, sessionToken, fetchGameLedgerJackpot]);
 
   // Animate token movement step-by-step
   const animateTokenMovement = useCallback(async (playerId, startPosition, diceTotal) => {
     const BOARD_SIZE = 40;
     const STEP_DELAY = 300; // milliseconds between each space
 
+    isAnimatingRef.current = true;
     setIsAnimating(true);
 
     // Animate through each space
@@ -342,6 +344,7 @@ function App() {
       }));
     }
 
+    isAnimatingRef.current = false;
     setIsAnimating(false);
 
     // Don't clear animated position here - let it persist until database updates
