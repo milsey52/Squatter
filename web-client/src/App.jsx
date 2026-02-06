@@ -745,7 +745,7 @@ function App() {
                 border: "3px solid #6a4c93",
                 borderRadius: "12px",
                 boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-                zIndex: 100,
+                zIndex: bankruptcyInfo ? 10001 : 100,
                 display: "flex",
                 flexDirection: "column"
               }}>
@@ -784,10 +784,10 @@ function App() {
               width: "800px",
               height: "700px",
               background: "#fff",
-              border: "3px solid #4caf50",
+              border: bankruptcyInfo ? "3px solid #d32f2f" : "3px solid #4caf50",
               borderRadius: "12px",
               boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-              zIndex: 100,
+              zIndex: bankruptcyInfo ? 10001 : 100,
               display: "flex",
               flexDirection: "column"
             }}>
@@ -1248,8 +1248,8 @@ function App() {
         />
       )}
 
-      {/* Rent Payment Modal */}
-      {!isAnimating && pendingAction && pendingAction.action_type === "rent_payment" && (
+      {/* Rent Payment Modal - hide during bankruptcy flow */}
+      {!isAnimating && pendingAction && pendingAction.action_type === "rent_payment" && !bankruptcyInfo && !showBankruptcyModal && (
         <RentPaymentModal
           gameId={gameId}
           sessionToken={sessionToken}
