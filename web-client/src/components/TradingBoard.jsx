@@ -20,12 +20,25 @@ export default function TradingBoard({ gameId, sessionToken, userId, game, playe
 
   const currentUserPlayer = game.players?.find(p => p.user_id === userId);
 
-  // Sync with parent's active trade
+  // Track the trade session ID to detect when a NEW trade starts
+  const [lastTradeSessionId, setLastTradeSessionId] = useState(null);
+
+  // Determine if current user is initiator or counterparty
+  const isUserInitiator = currentUserPlayer && activeTradeFromParent?.initiator_player_id === currentUserPlayer.game_player_id;
+  const isUserCounterparty = currentUserPlayer && activeTradeFromParent?.counterparty_player_id === currentUserPlayer.game_player_id;
+
+  // Sync with parent's active trade - only reset local state when trade session changes
   useEffect(() => {
     setActiveTrade(activeTradeFromParent);
 
-    // Update offers when trade changes
-    if (activeTradeFromParent) {
+    // Only sync offers from server when it's a NEW trade session
+    // This prevents overwriting user's uncommitted changes during polling
+    const newTradeSessionId = activeTradeFromParent?.trade_session_id;
+
+    if (activeTradeFromParent && newTradeSessionId !== lastTradeSessionId) {
+      // New trade session - sync all state from server
+      setLastTradeSessionId(newTradeSessionId);
+
       if (activeTradeFromParent.initiator_offer) {
         setInitiatorCash(activeTradeFromParent.initiator_offer.cash || 0);
         setInitiatorPropertyIds(activeTradeFromParent.initiator_offer.properties || []);
@@ -36,8 +49,36 @@ export default function TradingBoard({ gameId, sessionToken, userId, game, playe
         setCounterpartyPropertyIds(activeTradeFromParent.counterparty_offer.properties || []);
         setCounterpartyCardIds(activeTradeFromParent.counterparty_offer.cards || []);
       }
+    } else if (!activeTradeFromParent) {
+      // Trade was cancelled/closed - reset everything
+      setLastTradeSessionId(null);
     }
-  }, [activeTradeFromParent]);
+  }, [activeTradeFromParent, lastTradeSessionId]);
+
+  // Sync the OTHER party's offer when it changes (so we see their updates)
+  // But don't touch our own offer (to preserve uncommitted changes)
+  useEffect(() => {
+    if (!activeTradeFromParent || !lastTradeSessionId) return;
+
+    // If user is initiator, sync counterparty's offer
+    if (isUserInitiator && activeTradeFromParent.counterparty_offer) {
+      setCounterpartyCash(activeTradeFromParent.counterparty_offer.cash || 0);
+      setCounterpartyPropertyIds(activeTradeFromParent.counterparty_offer.properties || []);
+      setCounterpartyCardIds(activeTradeFromParent.counterparty_offer.cards || []);
+    }
+    // If user is counterparty, sync initiator's offer
+    if (isUserCounterparty && activeTradeFromParent.initiator_offer) {
+      setInitiatorCash(activeTradeFromParent.initiator_offer.cash || 0);
+      setInitiatorPropertyIds(activeTradeFromParent.initiator_offer.properties || []);
+      setInitiatorCardIds(activeTradeFromParent.initiator_offer.cards || []);
+    }
+  }, [
+    activeTradeFromParent?.initiator_offer,
+    activeTradeFromParent?.counterparty_offer,
+    isUserInitiator,
+    isUserCounterparty,
+    lastTradeSessionId
+  ]);
 
   const initiateTrade = async () => {
     if (!selectedCounterparty) {
