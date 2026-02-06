@@ -21,6 +21,7 @@ def get_retained_cards(game_id: int, player_id: int, session: Session = Depends(
     # Return card info
     return [
         {
+            "card_draw_id": d.card_draw_id,
             "title": d.card.title,
             "body_text": d.card.body_text,
             "deck_type": d.deck_type,
@@ -52,6 +53,7 @@ def get_all_player_retained_cards(game_id: int, session: Session = Depends(get_s
         if player_id not in result:
             result[player_id] = []
         result[player_id].append({
+            "card_draw_id": draw.card_draw_id,
             "title": draw.card.title,
             "body_text": draw.card.body_text,
             "deck_type": draw.deck_type,
