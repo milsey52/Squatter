@@ -64,7 +64,10 @@ export default function BankruptcyModal({
         onClose();
       } else {
         const error = await response.json();
-        alert(`Failed to resolve debt: ${error.detail}`);
+        const errorMessage = typeof error.detail === 'string'
+          ? error.detail
+          : (error.detail?.message || error.message || JSON.stringify(error));
+        alert(`Failed to resolve debt: ${errorMessage}`);
       }
     } catch (error) {
       console.error('Failed to resolve debt:', error);
@@ -104,7 +107,10 @@ export default function BankruptcyModal({
         onClose();
       } else {
         const error = await response.json();
-        alert(`Failed to resign: ${error.detail}`);
+        const errorMessage = typeof error.detail === 'string'
+          ? error.detail
+          : (error.detail?.message || error.message || JSON.stringify(error));
+        alert(`Failed to resign: ${errorMessage}`);
       }
     } catch (error) {
       console.error('Failed to resign:', error);
