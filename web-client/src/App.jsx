@@ -313,37 +313,10 @@ function App() {
       })
       .finally(() => setLoading(false));
 
-    // Poll for trade updates every 3 seconds as backup to SSE
+    // Poll for game state updates every 5 seconds as backup to SSE
     const pollInterval = setInterval(() => {
-      fetch(`${API_BASE}/games/${gameId}/trades/active`, {
-        headers: sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {}
-      })
-        .then(res => {
-          if (!res.ok) {
-            // Silently ignore 404 or other errors - no active trade
-            return { trade: null };
-          }
-          return res.json();
-        })
-        .then(data => {
-          setActiveTrade(prevTrade => {
-            // If no active trade, clear the state
-            if (!data.trade) {
-              if (prevTrade !== null) {
-                console.log('[Poll] Trade cleared');
-              }
-              return null;
-            }
-            // If trade exists and is different, update it
-            if (JSON.stringify(data.trade) !== JSON.stringify(prevTrade)) {
-              console.log('[Poll] Trade updated:', data.trade);
-              return data.trade;
-            }
-            return prevTrade;
-          });
-        })
-        .catch(err => console.error('[Poll] Error fetching trade:', err));
-    }, 3000);
+      fetchGameLedgerJackpot();
+    }, 5000);
 
     return () => clearInterval(pollInterval);
   }, [screen, gameId, sessionToken, fetchGameLedgerJackpot]);
