@@ -363,6 +363,8 @@ function App() {
     const BOARD_SIZE = 40;
     const STEP_DELAY = 300; // milliseconds between each space
 
+    console.log('[Animation] Starting animation for player', playerId, 'from', startPosition, 'moving', diceTotal, 'spaces');
+
     // Track this player as animating
     animatingPlayersRef.current = new Set([...animatingPlayersRef.current, playerId]);
     setAnimatingPlayers(prev => new Set([...prev, playerId]));
@@ -372,6 +374,7 @@ function App() {
       await new Promise(resolve => setTimeout(resolve, STEP_DELAY));
       const newPosition = (startPosition + step) % BOARD_SIZE;
 
+      console.log('[Animation] Step', step, '- moving to position', newPosition);
       setAnimatedPositions(prev => ({
         ...prev,
         [playerId]: newPosition
@@ -409,8 +412,11 @@ function App() {
           const movingPlayerId = data.player_id;
           const movingPlayer = game?.players?.find(p => p.game_player_id === movingPlayerId);
 
+          console.log('[App] Animation check:', { movingPlayerId, movingPlayer, diceTotal, gamePlayers: game?.players });
+
           if (movingPlayer && diceTotal > 0) {
             const startPosition = movingPlayer.current_space_id;
+            console.log('[App] Starting animation from', startPosition, 'for', diceTotal, 'spaces');
 
             // Animate token movement, then show modals after delay
             animateTokenMovement(movingPlayerId, startPosition, diceTotal).then(() => {
