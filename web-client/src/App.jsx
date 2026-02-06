@@ -314,12 +314,15 @@ function App() {
       .finally(() => setLoading(false));
 
     // Poll for game state updates every 5 seconds as backup to SSE
+    // But skip polling during token animation to avoid showing modals early
     const pollInterval = setInterval(() => {
-      fetchGameLedgerJackpot();
+      if (!isAnimating) {
+        fetchGameLedgerJackpot();
+      }
     }, 5000);
 
     return () => clearInterval(pollInterval);
-  }, [screen, gameId, sessionToken, fetchGameLedgerJackpot]);
+  }, [screen, gameId, sessionToken, fetchGameLedgerJackpot, isAnimating]);
 
   // Animate token movement step-by-step
   const animateTokenMovement = useCallback(async (playerId, startPosition, diceTotal) => {
@@ -1205,8 +1208,8 @@ function App() {
         </div>
       </div>
 
-      {/* Purchase/Auction Modals */}
-      {pendingAction && pendingAction.action_type === "purchase_decision" && (
+      {/* Purchase/Auction Modals - wait for animation to complete */}
+      {!isAnimating && pendingAction && pendingAction.action_type === "purchase_decision" && (
         <PurchaseModal
           gameId={gameId}
           sessionToken={sessionToken}
@@ -1218,7 +1221,7 @@ function App() {
         />
       )}
 
-      {pendingAction && pendingAction.action_type === "auction" && (
+      {!isAnimating && pendingAction && pendingAction.action_type === "auction" && (
         <AuctionModal
           gameId={gameId}
           sessionToken={sessionToken}
@@ -1231,7 +1234,7 @@ function App() {
       )}
 
       {/* Card Modal for Chance/Welfare */}
-      {pendingAction && pendingAction.action_type === "card_drawn" && (
+      {!isAnimating && pendingAction && pendingAction.action_type === "card_drawn" && (
         <CardModal
           gameId={gameId}
           sessionToken={sessionToken}
@@ -1243,7 +1246,7 @@ function App() {
       )}
 
       {/* Rent Payment Modal */}
-      {pendingAction && pendingAction.action_type === "rent_payment" && (
+      {!isAnimating && pendingAction && pendingAction.action_type === "rent_payment" && (
         <RentPaymentModal
           gameId={gameId}
           sessionToken={sessionToken}
@@ -1271,7 +1274,7 @@ function App() {
       )}
 
       {/* Jail Notification Modal */}
-      {pendingAction && pendingAction.action_type === "jail_notification" && (
+      {!isAnimating && pendingAction && pendingAction.action_type === "jail_notification" && (
         <JailModal
           gameId={gameId}
           sessionToken={sessionToken}
