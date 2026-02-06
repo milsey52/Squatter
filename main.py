@@ -68,3 +68,21 @@ def reset_all_games(session=Depends(get_session)):
     ))
     session.commit()
     return {"status": "ok", "message": "All game data deleted"}
+
+
+# Admin endpoint to reseed static data (property_groups, spaces, assets, cards)
+@app.get("/admin/reseed-static-data")
+def reseed_static_data(session=Depends(get_session)):
+    from scripts.seed_static_data import seed_property_groups, seed_spaces, seed_assets, seed_cards
+
+    # Clear existing static data first
+    session.execute(text("TRUNCATE TABLE cards, assets, spaces, property_groups CASCADE"))
+    session.commit()
+
+    # Reseed
+    seed_property_groups(session)
+    seed_spaces(session)
+    seed_assets(session)
+    seed_cards(session)
+
+    return {"status": "ok", "message": "Static data reseeded"}
