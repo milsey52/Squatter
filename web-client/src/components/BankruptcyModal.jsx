@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 export default function BankruptcyModal({
   gameId,
   debtInfo,
+  playerId,
   onClose,
   onLiquidate,
   onTrade,
@@ -16,11 +17,11 @@ export default function BankruptcyModal({
 
   useEffect(() => {
     fetchLiquidationPreview();
-  }, [gameId, debtInfo]);
+  }, [gameId, debtInfo, playerId]);
 
   const fetchLiquidationPreview = async () => {
+    if (!playerId) return;
     try {
-      const playerId = sessionStorage.getItem('game_player_id');
       const response = await fetch(
         `/games/${gameId}/liquidation-preview?player_id=${playerId}`,
         {
@@ -82,9 +83,12 @@ export default function BankruptcyModal({
   };
 
   const handleConfirmResign = async () => {
+    if (!playerId) {
+      alert('Error: Player ID not found');
+      return;
+    }
     setLoading(true);
     try {
-      const playerId = sessionStorage.getItem('game_player_id');
       const response = await fetch(
         `/games/${gameId}/bankruptcy/resign?player_id=${playerId}`,
         {

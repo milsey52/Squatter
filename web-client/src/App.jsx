@@ -1301,6 +1301,7 @@ function App() {
         <BankruptcyModal
           gameId={gameId}
           debtInfo={bankruptcyInfo}
+          playerId={currentUserPlayer?.game_player_id}
           onClose={() => setShowBankruptcyModal(false)}
           onLiquidate={handleBankruptcyLiquidate}
           onTrade={handleBankruptcyTrade}
