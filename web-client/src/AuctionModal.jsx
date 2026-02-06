@@ -170,12 +170,28 @@ function AuctionModal({ gameId, sessionToken, userId, pendingAction, playerBalan
           </label>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <span style={{ fontSize: "1.2rem" }}>$</span>
+            <button
+              onClick={() => setBidAmount(prev => Math.max(pendingAction.min_bid || 1, prev - 10))}
+              disabled={!isCurrentBidder || bidAmount <= (pendingAction.min_bid || 1)}
+              style={{
+                padding: "10px 16px",
+                fontSize: "1.2rem",
+                fontWeight: "bold",
+                border: "2px solid #ddd",
+                borderRadius: "6px",
+                background: !isCurrentBidder ? "#f5f5f5" : "#fff",
+                cursor: !isCurrentBidder ? "not-allowed" : "pointer",
+              }}
+            >
+              -10
+            </button>
             <input
               type="number"
               value={bidAmount}
               onChange={(e) => setBidAmount(Math.max(pendingAction.min_bid || 1, parseInt(e.target.value) || 0))}
               min={pendingAction.min_bid || 1}
               max={bidderBalance}
+              step={10}
               disabled={!isCurrentBidder}
               style={{
                 flex: 1,
@@ -185,8 +201,24 @@ function AuctionModal({ gameId, sessionToken, userId, pendingAction, playerBalan
                 borderRadius: "6px",
                 background: !isCurrentBidder ? "#f5f5f5" : "#fff",
                 cursor: !isCurrentBidder ? "not-allowed" : "text",
+                textAlign: "center",
               }}
             />
+            <button
+              onClick={() => setBidAmount(prev => Math.min(bidderBalance, prev + 10))}
+              disabled={!isCurrentBidder || bidAmount >= bidderBalance}
+              style={{
+                padding: "10px 16px",
+                fontSize: "1.2rem",
+                fontWeight: "bold",
+                border: "2px solid #ddd",
+                borderRadius: "6px",
+                background: !isCurrentBidder ? "#f5f5f5" : "#fff",
+                cursor: !isCurrentBidder ? "not-allowed" : "pointer",
+              }}
+            >
+              +10
+            </button>
           </div>
           {isCurrentBidder && !canAffordCurrentBid && (
             <div style={{ color: "#e63946", fontSize: "0.85rem", marginTop: "4px" }}>
