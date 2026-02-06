@@ -143,12 +143,12 @@ def get_all_properties(
                 current_rent = asset.rent_tier_4 or asset.rent_tier_3 or asset.rent_tier_2 or asset.rent_base or 0
         elif space_type == 'utility':
             # For utilities, we can't calculate exact rent without dice roll
-            # Show the multiplier instead
+            # Show the multiplier instead (default to single multiplier for unowned)
             owned = count_owned(owner_id, 'utility')
-            if owned == 1:
-                current_rent = asset.utility_mult_single or 0  # This is a multiplier, not actual rent
-            elif owned >= 2:
-                current_rent = asset.utility_mult_double or 0  # This is a multiplier, not actual rent
+            if owned >= 2:
+                current_rent = asset.utility_mult_double or 10  # 10× dice when both owned
+            else:
+                current_rent = asset.utility_mult_single or 5  # 5× dice when one or unowned
 
         result_properties.append({
             "asset_id": asset.asset_id,
