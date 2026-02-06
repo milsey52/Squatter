@@ -588,9 +588,9 @@ function App() {
   }
 
   // Game screen - existing game board UI
-  if (loading) return <div>Loading…</div>;
+  if (loading && !game) return <div>Loading…</div>;
   if (error) return <div style={{ color: "red" }}>Error: {error}</div>;
-  if (!game) return <div>No game data.</div>;
+  if (!game) return <div>Loading game...</div>;
 
   // Find the current user's game_player_id
   const currentUserPlayer = game.players?.find(p => p.user_id === userId);
