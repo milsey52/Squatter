@@ -96,6 +96,7 @@ function App() {
   const [showBankruptcyModal, setShowBankruptcyModal] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [jailChoiceMade, setJailChoiceMade] = useState(false);
+  const [rentModalDismissed, setRentModalDismissed] = useState(false);
   const [winner, setWinner] = useState(null);
   const [animatedPositions, setAnimatedPositions] = useState({});
   const [isAnimating, setIsAnimating] = useState(false);
@@ -357,8 +358,9 @@ function App() {
 
     switch (eventType) {
       case 'turn_played':
-        // Reset jail choice when a turn is played
+        // Reset jail choice and rent modal dismissed state when a turn is played
         setJailChoiceMade(false);
+        setRentModalDismissed(false);
         // Update dice roll display for all players
         if (data.dice_roll && data.dice_roll.length === 2) {
           setLastDiceRoll({
@@ -1248,8 +1250,8 @@ function App() {
         />
       )}
 
-      {/* Rent Payment Modal - hide during bankruptcy flow */}
-      {!isAnimating && pendingAction && pendingAction.action_type === "rent_payment" && !bankruptcyInfo && !showBankruptcyModal && (
+      {/* Rent Payment Modal - hide during bankruptcy flow or if creditor dismissed it */}
+      {!isAnimating && pendingAction && pendingAction.action_type === "rent_payment" && !bankruptcyInfo && !showBankruptcyModal && !rentModalDismissed && (
         <RentPaymentModal
           gameId={gameId}
           sessionToken={sessionToken}
@@ -1259,6 +1261,7 @@ function App() {
           onBankruptcy={handleBankruptcy}
           userId={userId}
           players={game?.players || []}
+          onDismiss={() => setRentModalDismissed(true)}
         />
       )}
 

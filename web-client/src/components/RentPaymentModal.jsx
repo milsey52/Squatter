@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
-export default function RentPaymentModal({ gameId, sessionToken, pendingAction, playerBalances, onResolved, onBankruptcy, userId, players }) {
+export default function RentPaymentModal({ gameId, sessionToken, pendingAction, playerBalances, onResolved, onBankruptcy, userId, players, onDismiss }) {
   const [paying, setPaying] = useState(false);
 
   if (!pendingAction || pendingAction.action_type !== 'rent_payment') {
@@ -178,32 +178,40 @@ export default function RentPaymentModal({ gameId, sessionToken, pendingAction, 
           </>
         ) : (
           <>
-            <button
-              disabled={true}
-              style={{
-                width: '100%',
-                padding: '1rem',
-                background: '#ccc',
-                color: '#666',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '1.1rem',
-                fontWeight: 'bold',
-                cursor: 'not-allowed',
-                opacity: 0.6
-              }}
-            >
-              Payment Required
-            </button>
-
             <p style={{
-              marginTop: '1rem',
+              marginBottom: '1rem',
               textAlign: 'center',
               color: '#d32f2f',
               fontSize: '1rem',
               fontWeight: 'bold'
             }}>
-              Waiting for {debtorPlayer?.player_name || 'the player'} to pay the bastard...
+              Waiting for {debtorPlayer?.player_name || 'the player'} to pay...
+            </p>
+
+            <button
+              onClick={onDismiss}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                background: '#6c757d',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '1.1rem',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              Dismiss (Continue Playing)
+            </button>
+
+            <p style={{
+              marginTop: '0.75rem',
+              textAlign: 'center',
+              color: '#666',
+              fontSize: '0.85rem'
+            }}>
+              You can dismiss this and continue playing while waiting for payment.
             </p>
           </>
         )}
