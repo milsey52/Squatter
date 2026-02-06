@@ -49,6 +49,10 @@ class LedgerService:
     def pay_bank(self, player, amount, txn_type, turn_id, **kwargs):
         return self.transfer(player, BANK_PLAYER_ID, amount, txn_type, turn_id, **kwargs)
 
+    def pay_player(self, from_player, to_player, amount, txn_type, turn_id, **kwargs):
+        """Transfer money from one player to another."""
+        return self.transfer(from_player, to_player.game_player_id, amount, txn_type, turn_id, **kwargs)
+
     def receive_from_bank(self, player, amount, txn_type, turn_id, **kwargs):
         return self.transfer(
             payer=models.GamePlayer(game_player_id=None),  # placeholder not used
@@ -95,6 +99,10 @@ class LedgerService:
         )
         starting_cash = self._house_rules().starting_cash
         return starting_cash + incoming - outgoing
+
+    # Alias for convenience
+    def get_balance(self, player_id: int) -> int:
+        return self.player_balance(player_id)
 
     # ----- internal helpers -----
     def _next_sequence(self, turn_id):

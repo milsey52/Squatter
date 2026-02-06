@@ -608,7 +608,12 @@ async def execute_trade(
 
     trade.status = "completed"
     trade.completed_at = datetime.now()
-    session.commit()
+
+    try:
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Trade execution failed: {str(e)}")
 
     # Broadcast trade executed event
     background_tasks.add_task(
