@@ -767,7 +767,7 @@ function App() {
           width: 1100
         }}>
         {/* Game heading - centered above board */}
-        <h1 style={{ margin: "0 0 -4.5rem 0", fontSize: "1.5rem", textAlign: "center" }}>
+        <h1 style={{ margin: "150px 0 -4.5rem 0", fontSize: "1.5rem", textAlign: "center" }}>
           Game {gameId} - {currentUserPlayer?.player_name || 'Unknown Player'}
         </h1>
 
