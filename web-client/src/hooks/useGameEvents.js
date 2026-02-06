@@ -1,9 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
+// Reconnection settings
+const INITIAL_RECONNECT_DELAY = 1000;  // 1 second
+const MAX_RECONNECT_DELAY = 30000;     // 30 seconds max
+const RECONNECT_MULTIPLIER = 1.5;      // Exponential backoff
+
 /**
  * Custom hook to listen to Server-Sent Events for real-time game updates.
+ * Includes automatic reconnection with exponential backoff.
  *
  * @param {number} gameId - The game ID to listen to
  * @param {string} sessionToken - The authentication token
@@ -12,33 +18,42 @@ const API_BASE = import.meta.env.VITE_API_BASE || '';
 export function useGameEvents(gameId, sessionToken, onEvent) {
   const eventSourceRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+  const reconnectDelayRef = useRef(INITIAL_RECONNECT_DELAY);
+  const [connectionState, setConnectionState] = useState('disconnected'); // 'disconnected', 'connecting', 'connected'
 
-  useEffect(() => {
+  // Use a counter to force reconnection
+  const [reconnectTrigger, setReconnectTrigger] = useState(0);
+
+  const connect = useCallback(() => {
     if (!gameId || !sessionToken) {
-      return;
+      return null;
     }
 
     console.log(`[SSE] Connecting to game ${gameId} events...`);
+    setConnectionState('connecting');
 
-    // Create EventSource connection with token as query parameter
     const url = `${API_BASE}/games/${gameId}/events?token=${encodeURIComponent(sessionToken)}`;
 
     const eventSource = new EventSource(url, {
       withCredentials: false
     });
 
-    // Store reference
-    eventSourceRef.current = eventSource;
-
     // Event: connected
     eventSource.addEventListener('connected', (e) => {
       const data = JSON.parse(e.data);
       console.log('[SSE] Connected:', data);
+      setConnectionState('connected');
+      // Reset reconnect delay on successful connection
+      reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
     });
 
     // Event: heartbeat
     eventSource.addEventListener('heartbeat', (e) => {
       // Silent heartbeat, just keep connection alive
+      // But use it to confirm we're still connected
+      if (connectionState !== 'connected') {
+        setConnectionState('connected');
+      }
     });
 
     // Event: player_joined
@@ -111,37 +126,119 @@ export function useGameEvents(gameId, sessionToken, onEvent) {
       onEvent('game_state_changed', data);
     });
 
-    // Handle errors
+    // Event: trade events
+    eventSource.addEventListener('trade_initiated', (e) => {
+      const data = JSON.parse(e.data);
+      console.log('[SSE] Trade initiated:', data);
+      onEvent('trade_initiated', data);
+    });
+
+    eventSource.addEventListener('trade_status_changed', (e) => {
+      const data = JSON.parse(e.data);
+      console.log('[SSE] Trade status changed:', data);
+      onEvent('trade_status_changed', data);
+    });
+
+    eventSource.addEventListener('trade_offer_updated', (e) => {
+      const data = JSON.parse(e.data);
+      console.log('[SSE] Trade offer updated:', data);
+      onEvent('trade_offer_updated', data);
+    });
+
+    eventSource.addEventListener('trade_accepted', (e) => {
+      const data = JSON.parse(e.data);
+      console.log('[SSE] Trade accepted:', data);
+      onEvent('trade_accepted', data);
+    });
+
+    eventSource.addEventListener('trade_executed', (e) => {
+      const data = JSON.parse(e.data);
+      console.log('[SSE] Trade executed:', data);
+      onEvent('trade_executed', data);
+    });
+
+    eventSource.addEventListener('trade_cancelled', (e) => {
+      const data = JSON.parse(e.data);
+      console.log('[SSE] Trade cancelled:', data);
+      onEvent('trade_cancelled', data);
+    });
+
+    // Event: bankruptcy events
+    eventSource.addEventListener('player_resigned', (e) => {
+      const data = JSON.parse(e.data);
+      console.log('[SSE] Player resigned:', data);
+      onEvent('player_resigned', data);
+    });
+
+    eventSource.addEventListener('debt_resolved', (e) => {
+      const data = JSON.parse(e.data);
+      console.log('[SSE] Debt resolved:', data);
+      onEvent('debt_resolved', data);
+    });
+
+    eventSource.addEventListener('game_over', (e) => {
+      const data = JSON.parse(e.data);
+      console.log('[SSE] Game over:', data);
+      onEvent('game_over', data);
+    });
+
+    // Handle errors and reconnection
     eventSource.onerror = (error) => {
       console.error('[SSE] Connection error:', error);
+      setConnectionState('disconnected');
 
-      // EventSource will automatically try to reconnect
-      // We can add custom reconnection logic here if needed
-      if (eventSource.readyState === EventSource.CLOSED) {
-        console.log('[SSE] Connection closed. Will reconnect...');
+      // Close the failed connection
+      eventSource.close();
 
-        // Clean up
-        eventSource.close();
+      // Calculate next reconnect delay with exponential backoff
+      const delay = reconnectDelayRef.current;
+      reconnectDelayRef.current = Math.min(
+        delay * RECONNECT_MULTIPLIER,
+        MAX_RECONNECT_DELAY
+      );
 
-        // Attempt reconnect after delay
-        reconnectTimeoutRef.current = setTimeout(() => {
-          console.log('[SSE] Attempting to reconnect...');
-          // The useEffect will run again due to dependencies
-        }, 3000);
-      }
+      console.log(`[SSE] Will attempt reconnect in ${delay}ms...`);
+
+      // Schedule reconnection
+      reconnectTimeoutRef.current = setTimeout(() => {
+        console.log('[SSE] Attempting to reconnect...');
+        setReconnectTrigger(prev => prev + 1);
+      }, delay);
     };
+
+    return eventSource;
+  }, [gameId, sessionToken, onEvent, connectionState]);
+
+  useEffect(() => {
+    // Clear any pending reconnect timeout
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
+    // Close existing connection
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
+    // Create new connection
+    const eventSource = connect();
+    eventSourceRef.current = eventSource;
 
     // Cleanup function
     return () => {
       console.log('[SSE] Disconnecting from game events...');
-      if (eventSource) {
-        eventSource.close();
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
     };
-  }, [gameId, sessionToken, onEvent]);
+  }, [gameId, sessionToken, connect, reconnectTrigger]);
 
-  return null;
+  return { connectionState };
 }
