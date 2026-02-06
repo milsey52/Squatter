@@ -380,24 +380,50 @@ function App() {
 
             // Animate token movement, then show modals after delay
             animateTokenMovement(movingPlayerId, startPosition, diceTotal).then(() => {
-              // Delay before showing any modals (rent, cards, etc.)
-              setTimeout(() => {
-                fetchGameLedgerJackpot().then(() => {
-                  // Clear animated position after database is updated
-                  setAnimatedPositions(prev => {
-                    const newPositions = { ...prev };
-                    delete newPositions[movingPlayerId];
-                    return newPositions;
-                  });
+              // Apply pending action from SSE immediately (no wait for fetch)
+              if (data.pending_action) {
+                console.log('[App] Applying pending action from SSE:', data.pending_action);
+                setPendingAction(data.pending_action);
+              }
+
+              // Also update player position from SSE if available
+              if (data.new_position !== undefined && data.new_position !== null) {
+                setGame(prevGame => {
+                  if (!prevGame) return prevGame;
+                  return {
+                    ...prevGame,
+                    players: prevGame.players.map(p =>
+                      p.game_player_id === movingPlayerId
+                        ? { ...p, current_space_id: data.new_position, in_jail: data.in_jail }
+                        : p
+                    )
+                  };
                 });
-              }, 500);
+              }
+
+              // Clear animated position now that we have real position
+              setAnimatedPositions(prev => {
+                const newPositions = { ...prev };
+                delete newPositions[movingPlayerId];
+                return newPositions;
+              });
+
+              // Still fetch full state in background for complete sync
+              // but modals will show immediately from SSE data
+              fetchGameLedgerJackpot();
             });
           } else {
-            // No animation needed, just refresh
+            // No animation needed - apply pending action and refresh
+            if (data.pending_action) {
+              setPendingAction(data.pending_action);
+            }
             fetchGameLedgerJackpot();
           }
         } else {
-          // No dice roll data, just refresh
+          // No dice roll data - apply pending action and refresh
+          if (data.pending_action) {
+            setPendingAction(data.pending_action);
+          }
           fetchGameLedgerJackpot();
         }
         break;

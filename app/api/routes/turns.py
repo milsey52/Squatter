@@ -72,7 +72,12 @@ async def play_turn(
     # Check if a pending action was created this turn
     pending_action = decision_service.get_auction_state()
 
-    # Broadcast turn_played event
+    # Get updated player position for animation
+    updated_player = session.query(models.GamePlayer).filter_by(
+        game_player_id=turn.active_game_player_id
+    ).first()
+
+    # Broadcast turn_played event with full pending action data
     await events.broadcast_game_event(
         game_id,
         "turn_played",
@@ -81,7 +86,10 @@ async def play_turn(
             "player_id": turn.active_game_player_id,
             "dice_roll": [turn.dice_roll_1, turn.dice_roll_2],
             "is_double": turn.is_double,
-            "has_pending_action": pending_action is not None
+            "new_position": updated_player.current_space_id if updated_player else None,
+            "in_jail": updated_player.in_jail if updated_player else False,
+            "has_pending_action": pending_action is not None,
+            "pending_action": pending_action  # Include full pending action data
         }
     )
 
