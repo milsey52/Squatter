@@ -1164,7 +1164,7 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {ledger.slice(-7).map((txn) => (
+                {[...ledger.slice(0, 7)].reverse().map((txn) => (
                   <tr key={txn.id} style={{ borderBottom: "1px solid #eee" }}>
                     <td style={{ color: "#555", padding: "6px 4px" }}>{txn.type}</td>
                     <td style={{ color: "#555", padding: "6px 4px" }}>${txn.amount}</td>

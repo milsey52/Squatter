@@ -16,8 +16,7 @@ def list_ledger(game_id: int, limit: int = 50, session: Session = Depends(deps.g
     PlayerTo = models.GamePlayer.__table__.alias('player_to')
     UserTo = models.User.__table__.alias('user_to')
 
-    # Get most recent transactions, then reverse to show in chronological order
-    # (oldest of the recent first, so the ledger reads naturally top-to-bottom)
+    # Get most recent transactions ordered by transaction_id desc (newest first)
     txns = (
         session.query(
             models.Transaction,
@@ -38,8 +37,6 @@ def list_ledger(game_id: int, limit: int = 50, session: Session = Depends(deps.g
         .limit(limit)
         .all()
     )
-    # Reverse to get chronological order (oldest first)
-    txns = list(reversed(txns))
     return [
         {
             "id": t.Transaction.transaction_id,
