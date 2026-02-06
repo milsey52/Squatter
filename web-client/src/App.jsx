@@ -771,7 +771,7 @@ function App() {
           {/* Game heading - inside board, below top row of spaces */}
           <h1 style={{
             position: "absolute",
-            top: "140px",
+            top: "215px",
             left: "50%",
             transform: "translateX(-50%)",
             margin: 0,
