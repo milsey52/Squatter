@@ -322,6 +322,9 @@ class SpaceResolver:
         return owned_in_group == total_in_group
 
     def _send_player_to_jail(self, player, turn):
+        # Mark player as in jail immediately so doubles don't grant another roll
+        player.in_jail = True
+
         # Create a pending action for the jail modal
         from app.services.decision_service import DecisionService
         decision_service = DecisionService(self.session, turn.game_id)
