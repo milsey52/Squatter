@@ -606,6 +606,31 @@ async def execute_trade(
             if card_draw:
                 card_draw.kept_by_player_id = initiator.game_player_id
 
+    # Check for and resolve any pending debt between the trade parties
+    debt_resolved_data = None
+    if not is_bank_trade:
+        from app.services.bankruptcy_service import BankruptcyService
+        bankruptcy_service = BankruptcyService(session, game_id)
+
+        resolved_debt = bankruptcy_service.resolve_debt_by_trade(
+            debtor_player_id=initiator.game_player_id,
+            creditor_player_id=counterparty.game_player_id,
+            trade_session_id=trade.trade_session_id,
+        )
+        if not resolved_debt:
+            resolved_debt = bankruptcy_service.resolve_debt_by_trade(
+                debtor_player_id=counterparty.game_player_id,
+                creditor_player_id=initiator.game_player_id,
+                trade_session_id=trade.trade_session_id,
+            )
+
+        if resolved_debt:
+            debt_resolved_data = {
+                "debtor_id": resolved_debt.debtor_player_id,
+                "creditor_id": resolved_debt.creditor_player_id,
+                "amount": resolved_debt.debt_amount,
+            }
+
     trade.status = "completed"
     trade.completed_at = datetime.now()
 
@@ -621,5 +646,11 @@ async def execute_trade(
             "trade_session_id": trade.trade_session_id
         }
     )
+
+    # If a debt was resolved by this trade, broadcast debt_resolved event
+    if debt_resolved_data:
+        background_tasks.add_task(
+            broadcast_game_event, game_id, "debt_resolved", debt_resolved_data
+        )
 
     return {"status": "completed"}

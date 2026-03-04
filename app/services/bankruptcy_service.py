@@ -183,9 +183,54 @@ class BankruptcyService:
         # Mark debt as resolved
         debt.status = "resolved"
         debt.resolved_at = datetime.now()
+
+        # Also resolve the associated rent_payment PendingAction
+        self._resolve_rent_pending_action(debt.debtor_player_id)
+
         self.session.flush()
 
         return True
+
+    def resolve_debt_by_trade(
+        self,
+        debtor_player_id: int,
+        creditor_player_id: int,
+        trade_session_id: int,
+    ) -> Optional[models.DebtState]:
+        """Resolve a pending debt via trade — no additional cash transfer.
+
+        The trade itself constitutes the payment (creditor accepted assets
+        in lieu of cash).  Returns the resolved DebtState, or None if no
+        matching pending debt exists between these two players.
+        """
+        debt = self.session.query(models.DebtState).filter(
+            and_(
+                models.DebtState.game_id == self.game_id,
+                models.DebtState.debtor_player_id == debtor_player_id,
+                models.DebtState.creditor_player_id == creditor_player_id,
+                models.DebtState.status == "pending",
+            )
+        ).first()
+
+        if not debt:
+            return None
+
+        debt.status = "resolved"
+        debt.resolved_at = datetime.now()
+        self._resolve_rent_pending_action(debtor_player_id)
+        self.session.flush()
+        return debt
+
+    def _resolve_rent_pending_action(self, debtor_player_id: int):
+        """Resolve the rent_payment PendingAction for a debtor whose debt is settled."""
+        pending = self.session.query(models.PendingAction).filter(
+            models.PendingAction.game_id == self.game_id,
+            models.PendingAction.action_type == "rent_payment",
+            models.PendingAction.active_player_id == debtor_player_id,
+            models.PendingAction.resolved_at.is_(None),
+        ).first()
+        if pending:
+            pending.resolved_at = datetime.now()
 
     def resign_player(self, player_id: int, turn_id: Optional[int] = None):
         """Remove player from game and return all assets to bank."""
