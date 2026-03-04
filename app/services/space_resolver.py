@@ -53,55 +53,52 @@ class SpaceResolver:
             self._create_rent_pending_action(player, state, asset, turn, "utility_rent")
 
     def _handle_chance(self, player, space, turn, passed_start):
-        if getattr(self, "_skip_card_spaces", False):
-            return
-        if not self.card_service:
-            raise RuntimeError("CardService not initialized on SpaceResolver")
-        # Draw card but don't apply yet - create pending action
-        card_draw = self.card_service._draw_card("chance", turn.turn_id)
-        card = self.session.query(models.Card).get(card_draw.card_id)
-
-        import json
-        pending = models.PendingAction(
-            game_id=self.game_id,
-            turn_id=turn.turn_id,
-            action_type="card_drawn",
-            active_player_id=player.game_player_id,
-            action_data=json.dumps({
-                "deck_type": "chance",
-                "card_id": card.card_id,
-                "card_draw_id": card_draw.card_draw_id,
-                "card_name": card.title,
-                "card_description": card.body_text,
-                "is_retainable": card.is_retainable
-            })
-        )
-        self.session.add(pending)
-        self.session.flush()
+        self._handle_card_draw(player, "chance", turn)
 
     def _handle_welfare(self, player, space, turn, passed_start):
+        self._handle_card_draw(player, "welfare", turn)
+
+    def _handle_card_draw(self, player, deck_type, turn):
         if getattr(self, "_skip_card_spaces", False):
             return
         if not self.card_service:
             raise RuntimeError("CardService not initialized on SpaceResolver")
-        # Draw card but don't apply yet - create pending action
-        card_draw = self.card_service._draw_card("welfare", turn.turn_id)
-        card = self.session.query(models.Card).get(card_draw.card_id)
 
         import json
+
+        card_draw = self.card_service._draw_card(deck_type, turn.turn_id)
+        card = self.session.query(models.Card).get(card_draw.card_id)
+
+        action_data = {
+            "deck_type": deck_type,
+            "card_id": card.card_id,
+            "card_draw_id": card_draw.card_draw_id,
+            "card_name": card.title,
+            "card_description": card.body_text,
+            "is_retainable": card.is_retainable,
+        }
+
+        # For PAY_REPAIRS cards, pre-calculate the breakdown so the modal can show it
+        if card.effect_code == "PAY_REPAIRS":
+            params = json.loads(card.effect_params or "{}")
+            per_house = params.get("per_house", 0)
+            per_hotel = params.get("per_hotel", 0)
+            houses, hotels = self.card_service._count_buildings(player.game_player_id)
+            total = houses * per_house + hotels * per_hotel
+            action_data["repair_details"] = {
+                "houses": houses,
+                "hotels": hotels,
+                "per_house": per_house,
+                "per_hotel": per_hotel,
+                "total": total,
+            }
+
         pending = models.PendingAction(
             game_id=self.game_id,
             turn_id=turn.turn_id,
             action_type="card_drawn",
             active_player_id=player.game_player_id,
-            action_data=json.dumps({
-                "deck_type": "welfare",
-                "card_id": card.card_id,
-                "card_draw_id": card_draw.card_draw_id,
-                "card_name": card.title,
-                "card_description": card.body_text,
-                "is_retainable": card.is_retainable
-            })
+            action_data=json.dumps(action_data),
         )
         self.session.add(pending)
         self.session.flush()

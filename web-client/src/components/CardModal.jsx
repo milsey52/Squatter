@@ -111,6 +111,44 @@ export default function CardModal({ gameId, sessionToken, userId, pendingAction,
                 Debug: No card data received. Please report this issue.
               </div>
             )}
+            {cardData.repair_details && (
+              <div style={{
+                marginTop: '1rem',
+                background: '#fff3e0',
+                border: '2px solid #ff9800',
+                borderRadius: '8px',
+                padding: '1rem',
+                textAlign: 'left',
+                fontSize: '0.95rem',
+                color: '#333'
+              }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', textAlign: 'center', color: '#e65100' }}>
+                  Assessment Breakdown
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                  <span>Houses owned:</span>
+                  <span style={{ fontWeight: 'bold' }}>{cardData.repair_details.houses}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                  <span>Hotels owned:</span>
+                  <span style={{ fontWeight: 'bold' }}>{cardData.repair_details.hotels}</span>
+                </div>
+                <hr style={{ border: 'none', borderTop: '1px solid #ccc', margin: '0.5rem 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                  <span>Houses: {cardData.repair_details.houses} x ${cardData.repair_details.per_house}</span>
+                  <span>${cardData.repair_details.houses * cardData.repair_details.per_house}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                  <span>Hotels: {cardData.repair_details.hotels} x ${cardData.repair_details.per_hotel}</span>
+                  <span>${cardData.repair_details.hotels * cardData.repair_details.per_hotel}</span>
+                </div>
+                <hr style={{ border: 'none', borderTop: '2px solid #e65100', margin: '0.5rem 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '1.1rem', color: '#e65100' }}>
+                  <span>Total Due:</span>
+                  <span>${cardData.repair_details.total}</span>
+                </div>
+              </div>
+            )}
             {cardData.is_retainable && (
               <div style={{
                 marginTop: '1rem',
