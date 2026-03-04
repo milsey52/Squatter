@@ -139,6 +139,9 @@ class CardService:
         elif code == "ADVANCE_NEAREST_UTILITY":
             self._effect_advance_nearest(player, "utility", params, turn)
 
+        elif code == "JACK-POT":
+            self._effect_jack_pot(player, params, turn)
+
         elif code == "GET_OUT_OF_JAIL":
             # Retain-only cards are handled in draw_and_apply
             pass
@@ -153,6 +156,20 @@ class CardService:
         amount = params.get("amount", 0)
         if amount > 0:
             self.ledger.record_bank_reward(player, amount, "card_collect", turn.turn_id)
+
+    def _effect_jack_pot(self, player, params, turn):
+        amount = params.get("amount", 0)
+        if amount <= 0:
+            return
+
+        txn = self.ledger.record_bank_payment(
+            player,
+            amount,
+            txn_type="card_penalty",
+            turn_id=turn.turn_id,
+        )
+
+        self.jackpot.contribute(amount, turn.turn_id, txn.transaction_id)
 
     def _effect_pay_bank(self, player, params, turn):
         amount = params.get("amount", 0)
