@@ -474,6 +474,8 @@ function App() {
         break;
       case 'debt_resolved':
         console.log('[App] Debt resolved:', data);
+        setBankruptcyInfo(null);
+        setShowBankruptcyModal(false);
         fetchGameLedgerJackpot();
         break;
       case 'player_resigned':
@@ -847,7 +849,13 @@ function App() {
                 allPlayerAssets={allPlayerAssets}
                 playerRetainedCards={playerRetainedCards}
                 activeTradeFromParent={activeTrade}
-                onClose={() => setShowTradingBoard(false)}
+                onClose={() => {
+                  setShowTradingBoard(false);
+                  if (bankruptcyInfo) {
+                    fetchGameLedgerJackpot();
+                    setShowBankruptcyModal(true);
+                  }
+                }}
               />
             </div>
           )}
@@ -872,7 +880,13 @@ function App() {
                 gameId={gameId}
                 sessionToken={sessionToken}
                 playerBalance={currentUserPlayer ? (playerBalances[String(currentUserPlayer.game_player_id)] ?? 0) : 0}
-                onClose={() => setShowPropertyManagement(false)}
+                onClose={() => {
+                  setShowPropertyManagement(false);
+                  if (bankruptcyInfo) {
+                    fetchGameLedgerJackpot();
+                    setShowBankruptcyModal(true);
+                  }
+                }}
                 onUpdate={fetchGameLedgerJackpot}
                 liquidationMode={showBankruptcyModal || bankruptcyInfo !== null}
               />
@@ -1379,7 +1393,11 @@ function App() {
           gameId={gameId}
           debtInfo={bankruptcyInfo}
           playerId={currentUserPlayer?.game_player_id}
-          onClose={() => setShowBankruptcyModal(false)}
+          onClose={() => {
+            setShowBankruptcyModal(false);
+            setBankruptcyInfo(null);
+            fetchGameLedgerJackpot();
+          }}
           onLiquidate={handleBankruptcyLiquidate}
           onTrade={handleBankruptcyTrade}
           onResign={handleBankruptcyResign}
