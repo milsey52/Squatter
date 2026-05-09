@@ -163,10 +163,8 @@ class TurnManager:
 
     # Player rotation ----------------------------------------------------
     def _maybe_advance_turn(self, player, is_double):
-        if is_double and player.double_streak < 3 and not player.in_jail:
-            # same player goes again
-            return
-
+        # Per Squatter manual p.4: "Players are permitted only one throw of
+        # the dice each turn; Doubles do not entitle a Player to a second throw."
         if player.double_streak >= 3:
             # send to jail
             player.in_jail = True
