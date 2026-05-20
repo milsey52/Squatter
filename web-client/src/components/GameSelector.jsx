@@ -48,8 +48,8 @@ export default function GameSelector({ onGameJoined }) {
       const data = await response.json();
 
       // Store session token
-      localStorage.setItem('monopoly_session_token', data.session_token);
-      localStorage.setItem('monopoly_player_name', playerName.trim());
+      localStorage.setItem('squatter_session_token', data.session_token);
+      localStorage.setItem('squatter_player_name', playerName.trim());
 
       // Notify parent component
       onGameJoined({
@@ -98,8 +98,8 @@ export default function GameSelector({ onGameJoined }) {
       const data = await response.json();
 
       // Store session token
-      localStorage.setItem('monopoly_session_token', data.session_token);
-      localStorage.setItem('monopoly_player_name', playerName.trim());
+      localStorage.setItem('squatter_session_token', data.session_token);
+      localStorage.setItem('squatter_player_name', playerName.trim());
 
       // Notify parent component
       onGameJoined({
@@ -126,7 +126,7 @@ export default function GameSelector({ onGameJoined }) {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #2d5016 0%, #4a7c23 100%)',
         fontFamily: 'sans-serif'
       }}>
         <div style={{
@@ -138,10 +138,10 @@ export default function GameSelector({ onGameJoined }) {
           width: '90%'
         }}>
           <h1 style={{ margin: '0 0 1rem 0', textAlign: 'center', color: '#333' }}>
-            Monopoly Perth
+            Squatter
           </h1>
           <p style={{ textAlign: 'center', color: '#666', marginBottom: '2rem' }}>
-            Choose an option to get started
+            The Australian Sheep Station Game
           </p>
 
           <button
@@ -197,7 +197,7 @@ export default function GameSelector({ onGameJoined }) {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #2d5016 0%, #4a7c23 100%)',
         fontFamily: 'sans-serif'
       }}>
         <div style={{
@@ -321,7 +321,7 @@ export default function GameSelector({ onGameJoined }) {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #2d5016 0%, #4a7c23 100%)',
         fontFamily: 'sans-serif'
       }}>
         <div style={{

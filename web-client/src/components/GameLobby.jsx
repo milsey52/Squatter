@@ -158,7 +158,7 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Join my Monopoly Perth game!',
+          title: 'Join my Squatter game!',
           text: `Game code: ${gameCode}`,
           url: url
         });
@@ -215,7 +215,7 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'linear-gradient(135deg, #2d5016 0%, #4a7c23 100%)',
       fontFamily: 'sans-serif',
       padding: '2rem'
     }}>

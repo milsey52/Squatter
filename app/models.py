@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db import Base
 
+
 class User(Base):
     __tablename__ = "users"
     user_id = Column(Integer, primary_key=True)
@@ -15,6 +16,7 @@ class User(Base):
     games_hosted = relationship("Game", back_populates="host")
     players = relationship("GamePlayer", back_populates="user")
     sessions = relationship("GameSession", back_populates="user")
+
 
 class GameSession(Base):
     __tablename__ = "game_sessions"
@@ -27,34 +29,37 @@ class GameSession(Base):
     user = relationship("User", back_populates="sessions")
     game = relationship("Game")
 
+
 class Game(Base):
     __tablename__ = "games"
     game_id = Column(Integer, primary_key=True)
     host_user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     game_code = Column(String(6), unique=True, nullable=False, index=True)
-    status = Column(String, nullable=False, default="lobby")  # "lobby", "in_progress", "completed"
+    status = Column(String, nullable=False, default="lobby")
     max_players = Column(Integer, nullable=False, default=6)
     current_game_player_id = Column(Integer, ForeignKey("game_players.game_player_id"))
     created_at = Column(DateTime, server_default=func.now())
     last_saved_at = Column(DateTime)
+    current_turn_order_round = Column(Integer, nullable=False, default=1)
 
     host = relationship("User", back_populates="games_hosted")
-    house_rules = relationship("HouseRule", back_populates="game", uselist=False)
+    game_rules = relationship("GameRule", back_populates="game", uselist=False)
     players = relationship("GamePlayer", back_populates="game", foreign_keys="[GamePlayer.game_id]")
     turns = relationship("Turn", back_populates="game")
     current_player = relationship("GamePlayer", foreign_keys=[current_game_player_id])
 
-class HouseRule(Base):
-    __tablename__ = "house_rules"
+
+class GameRule(Base):
+    __tablename__ = "game_rules"
     game_id = Column(Integer, ForeignKey("games.game_id"), primary_key=True)
-    starting_cash = Column(Integer, nullable=False)
-    pass_start_bonus = Column(Integer, nullable=False)
-    jackpot_enabled = Column(Boolean, default=True)
-    allow_auctions = Column(Boolean, default=True)
-    allow_trading = Column(Boolean, default=True)
+    starting_cash = Column(Integer, nullable=False, default=2000)
+    quick_game = Column(Boolean, nullable=False, default=False)
+    starting_paddock_type = Column(String, nullable=False, default="natural")
+    allow_trading = Column(Boolean, nullable=False, default=True)
     notes = Column(Text)
 
-    game = relationship("Game", back_populates="house_rules")
+    game = relationship("Game", back_populates="game_rules")
+
 
 class GamePlayer(Base):
     __tablename__ = "game_players"
@@ -67,25 +72,31 @@ class GamePlayer(Base):
     is_ready = Column(Boolean, nullable=False, default=False)
     logged_in = Column(Boolean, nullable=False, default=True)
     current_space_id = Column(Integer, nullable=False, default=0)
-    in_jail = Column(Boolean, nullable=False, default=False)
-    jail_turns = Column(Integer, nullable=False, default=0)
-    double_streak = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, server_default=func.now())
+
+    # Squatter-specific fields
+    visiting_town_turns = Column(Integer, nullable=False, default=0)
+    is_in_drought = Column(Boolean, nullable=False, default=False)
+    drought_start_space = Column(Integer)
+    drought_spaces_remaining = Column(Integer, nullable=False, default=0)
+    has_haystack = Column(Boolean, nullable=False, default=False)
+    haystack_used = Column(Boolean, nullable=False, default=False)
+    bore_dried_up = Column(Boolean, nullable=False, default=False)
+    restock_blocked_until_circuit = Column(Boolean, nullable=False, default=False)
+    restock_block_spaces_remaining = Column(Integer, nullable=False, default=0)
+    wool_cheque_bonus = Column(Integer, nullable=False, default=0)
+    next_sell_price_modifier = Column(Integer, nullable=False, default=0)
+    footrot_immune = Column(Boolean, nullable=False, default=False)
+    next_drought_halved = Column(Boolean, nullable=False, default=False)
 
     game = relationship("Game", back_populates="players", foreign_keys=[game_id])
     user = relationship("User", back_populates="players")
+    paddocks = relationship("Paddock", back_populates="owner")
 
     __table_args__ = (
         UniqueConstraint("game_id", "turn_order", name="uq_game_player_turn"),
     )
 
-class PropertyGroup(Base):
-    __tablename__ = "property_groups"
-    group_id = Column(Integer, primary_key=True)
-    group_name = Column(String, nullable=False)
-    color_hex = Column(String, nullable=False)
-    house_cost = Column(Integer, nullable=False)
-    hotel_cost = Column(Integer, nullable=False)
 
 class Space(Base):
     __tablename__ = "spaces"
@@ -93,47 +104,78 @@ class Space(Base):
     board_index = Column(Integer, unique=True, nullable=False)
     name = Column(String, nullable=False)
     space_type = Column(String, nullable=False)
-    group_id = Column(Integer, ForeignKey("property_groups.group_id"))
-    asset_id = Column(Integer)  # filled after assets created
+    season = Column(String)  # NULL or "Haymaking"
 
-class Asset(Base):
-    __tablename__ = "assets"
-    asset_id = Column(Integer, primary_key=True)
-    space_id = Column(Integer, ForeignKey("spaces.space_id"), unique=True, nullable=False)
-    asset_type = Column(String, nullable=False)
-    purchase_price = Column(Integer, nullable=False)
-    mortgage_value = Column(Integer, nullable=False)
-    rent_base = Column(Integer)
-    rent_group = Column(Integer)
-    rent_house_1 = Column(Integer)
-    rent_house_2 = Column(Integer)
-    rent_house_3 = Column(Integer)
-    rent_house_4 = Column(Integer)
-    rent_hotel = Column(Integer)
-    rent_tier_2 = Column(Integer)
-    rent_tier_3 = Column(Integer)
-    rent_tier_4 = Column(Integer)
-    utility_mult_single = Column(Integer)
-    utility_mult_double = Column(Integer)
+    # Cost fields for expense spaces
+    cost_per_pen = Column(Integer)
+    cost_flat = Column(Integer)
+    cost_per_pen_with_card = Column(Integer)
+    cost_flat_with_card = Column(Integer)
+    relevant_card_name = Column(String)
 
-class AssetState(Base):
-    __tablename__ = "asset_states"
-    asset_state_id = Column(Integer, primary_key=True)
+    # Stud ram fields
+    purchase_price = Column(Integer)
+    sell_back_price = Column(Integer)
+    stud_fee = Column(Integer)
+
+
+class Paddock(Base):
+    __tablename__ = "paddocks"
+    paddock_id = Column(Integer, primary_key=True)
     game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
-    asset_id = Column(Integer, ForeignKey("assets.asset_id"), nullable=False)
-    owner_game_player_id = Column(Integer, ForeignKey("game_players.game_player_id"))
-    is_mortgaged = Column(Boolean, default=False)
-    improvement_level = Column(Integer, default=0)
-    has_hotel = Column(Boolean, default=False)
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    owner_game_player_id = Column(Integer, ForeignKey("game_players.game_player_id"), nullable=False)
+    paddock_number = Column(Integer, nullable=False)
+    paddock_type = Column(String, nullable=False, default="natural")
+    sheep_pens = Column(Integer, nullable=False, default=3)
+    max_pens = Column(Integer, nullable=False, default=3)
+    is_mortgaged = Column(Boolean, nullable=False, default=False)
+
+    owner = relationship("GamePlayer", back_populates="paddocks")
 
     __table_args__ = (
-        UniqueConstraint("game_id", "asset_id", name="uq_asset_state_game_asset"),
+        UniqueConstraint("game_id", "owner_game_player_id", "paddock_number",
+                         name="uq_paddock"),
     )
+
+
+class StudRamState(Base):
+    __tablename__ = "stud_ram_states"
+    stud_ram_state_id = Column(Integer, primary_key=True)
+    game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
+    space_id = Column(Integer, ForeignKey("spaces.space_id"), nullable=False)
+    owner_game_player_id = Column(Integer, ForeignKey("game_players.game_player_id"))
+    is_available = Column(Boolean, nullable=False, default=True)
+
+    space = relationship("Space")
+    owner = relationship("GamePlayer")
+
+    __table_args__ = (
+        UniqueConstraint("game_id", "space_id", name="uq_stud_ram_game_space"),
+    )
+
+
+class StockCard(Base):
+    __tablename__ = "stock_cards"
+    stock_card_id = Column(Integer, primary_key=True)
+    buy_price_per_pen = Column(Integer, nullable=False)
+    sell_price_natural = Column(Integer, nullable=False)
+    sell_price_improved_irrigated = Column(Integer, nullable=False)
+
+
+class StockCardDraw(Base):
+    __tablename__ = "stock_card_draws"
+    stock_card_draw_id = Column(Integer, primary_key=True)
+    game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
+    turn_id = Column(Integer, ForeignKey("turns.turn_id"), nullable=False)
+    stock_card_id = Column(Integer, ForeignKey("stock_cards.stock_card_id"), nullable=False)
+    draw_order = Column(Integer, nullable=False)
+
+    stock_card = relationship("StockCard")
+    turn = relationship("Turn")
+
 
 class Turn(Base):
     __tablename__ = "turns"
-
     turn_id = Column(Integer, primary_key=True)
     game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
     turn_number = Column(Integer, nullable=False)
@@ -143,13 +185,14 @@ class Turn(Base):
     is_double = Column(Boolean, default=False)
     double_count = Column(Integer, default=0)
     started_at = Column(DateTime, server_default=func.now())
+
     game = relationship("Game", back_populates="turns")
     active_player = relationship("GamePlayer")
     movements = relationship("Movement", back_populates="turn")
 
+
 class Movement(Base):
     __tablename__ = "movements"
-
     movement_id = Column(Integer, primary_key=True, autoincrement=True)
     turn_id = Column(Integer, ForeignKey("turns.turn_id"), nullable=False)
     game_player_id = Column(Integer, ForeignKey("game_players.game_player_id"), nullable=False)
@@ -165,9 +208,9 @@ class Movement(Base):
     start_space = relationship("Space", foreign_keys=[start_space_id])
     end_space = relationship("Space", foreign_keys=[end_space_id])
 
+
 class Transaction(Base):
     __tablename__ = "transactions"
-
     transaction_id = Column(Integer, primary_key=True)
     game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
     turn_id = Column(Integer, ForeignKey("turns.turn_id"))
@@ -176,29 +219,30 @@ class Transaction(Base):
     player_to_id = Column(Integer, ForeignKey("game_players.game_player_id"))
     amount = Column(Integer, nullable=False)
     transaction_type = Column(String, nullable=False)
-    asset_id = Column(Integer, ForeignKey("assets.asset_id"))
     space_id = Column(Integer, ForeignKey("spaces.space_id"))
     card_id = Column(Integer, ForeignKey("cards.card_id"))
     notes = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
 
+
 class Card(Base):
     __tablename__ = "cards"
     card_id = Column(Integer, primary_key=True)
-    deck_type = Column(String, nullable=False)      # <-- ensure this line exists
+    deck_type = Column(String, nullable=False)  # "tucker_bag"
     title = Column(String, nullable=False)
     body_text = Column(Text, nullable=False)
     is_retainable = Column(Boolean, default=False, nullable=False)
+    one_time = Column(Boolean, default=False, nullable=False)  # drawn at most once per game
     effect_code = Column(String, nullable=False)
-    effect_params = Column(Text)
+    effect_params = Column(Text)  # JSON
+
 
 class CardDraw(Base):
     __tablename__ = "card_draws"
-
     card_draw_id = Column(Integer, primary_key=True, autoincrement=True)
     game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
     turn_id = Column(Integer, ForeignKey("turns.turn_id"), nullable=False)
-    deck_type = Column(String, nullable=False)  # or Enum if you prefer
+    deck_type = Column(String, nullable=False)
     card_id = Column(Integer, ForeignKey("cards.card_id"), nullable=False)
     draw_order = Column(Integer, nullable=False)
     kept_by_player_id = Column(Integer, ForeignKey("game_players.game_player_id"))
@@ -210,51 +254,32 @@ class CardDraw(Base):
     turn = relationship("Turn")
     kept_by_player = relationship("GamePlayer")
 
-class JackpotLedger(Base):
-    __tablename__ = "jackpot_ledger"
-
-    jackpot_entry_id = Column(Integer, primary_key=True, autoincrement=True)
-    game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
-    turn_id = Column(Integer, ForeignKey("turns.turn_id"))
-    transaction_id = Column(Integer, ForeignKey("transactions.transaction_id"))
-    delta_amount = Column(Integer, nullable=False)
-    balance_after = Column(Integer, nullable=False)
-    created_at = Column(DateTime, server_default=func.now(), nullable=False)
-
-    game = relationship("Game")
-    turn = relationship("Turn")
-    transaction = relationship("Transaction")
-
 
 class PendingAction(Base):
     __tablename__ = "pending_actions"
-
     pending_action_id = Column(Integer, primary_key=True)
     game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
     turn_id = Column(Integer, ForeignKey("turns.turn_id"), nullable=False)
-    action_type = Column(String(50), nullable=False)  # "purchase_decision" or "auction"
-    asset_id = Column(Integer, ForeignKey("assets.asset_id"))
+    action_type = Column(String(50), nullable=False)
     active_player_id = Column(Integer, ForeignKey("game_players.game_player_id"))
-    action_data = Column(Text)  # JSON for auction state (bids, current_bidder, etc.)
+    action_data = Column(Text)  # JSON
     created_at = Column(DateTime, server_default=func.now())
     resolved_at = Column(DateTime)
 
     game = relationship("Game")
     turn = relationship("Turn")
-    asset = relationship("Asset")
     active_player = relationship("GamePlayer")
 
 
 class TradeSession(Base):
     __tablename__ = "trade_sessions"
-
     trade_session_id = Column(Integer, primary_key=True)
     game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
     initiator_player_id = Column(Integer, ForeignKey("game_players.game_player_id"), nullable=False)
-    counterparty_player_id = Column(Integer, ForeignKey("game_players.game_player_id"))  # NULL means Bank
-    status = Column(String(50), nullable=False, default="pending_invite")  # pending_invite, active, completed, cancelled
-    initiator_offer = Column(Text)  # JSON: {cash: 1000, properties: [1,2], cards: [3]}
-    counterparty_offer = Column(Text)  # JSON: {cash: 500, properties: [4,5]}
+    counterparty_player_id = Column(Integer, ForeignKey("game_players.game_player_id"))
+    status = Column(String(50), nullable=False, default="pending_invite")
+    initiator_offer = Column(Text)  # JSON: {cash: int, stud_ram_ids: []}
+    counterparty_offer = Column(Text)  # JSON
     initiator_accepted = Column(Boolean, nullable=False, default=False)
     counterparty_accepted = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, server_default=func.now())
@@ -265,9 +290,9 @@ class TradeSession(Base):
     initiator = relationship("GamePlayer", foreign_keys=[initiator_player_id])
     counterparty = relationship("GamePlayer", foreign_keys=[counterparty_player_id])
 
+
 class TurnOrderRoll(Base):
     __tablename__ = "turn_order_rolls"
-
     roll_id = Column(Integer, primary_key=True)
     game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
     game_player_id = Column(Integer, ForeignKey("game_players.game_player_id"), nullable=False)
@@ -281,26 +306,6 @@ class TurnOrderRoll(Base):
     player = relationship("GamePlayer")
 
     __table_args__ = (
-        UniqueConstraint("game_id", "game_player_id", "round_number", name="uq_turn_order_roll"),
+        UniqueConstraint("game_id", "game_player_id", "round_number",
+                         name="uq_turn_order_roll"),
     )
-
-class DebtState(Base):
-    __tablename__ = "debt_states"
-
-    debt_state_id = Column(Integer, primary_key=True)
-    game_id = Column(Integer, ForeignKey("games.game_id"), nullable=False)
-    debtor_player_id = Column(Integer, ForeignKey("game_players.game_player_id"), nullable=False)
-    creditor_player_id = Column(Integer, ForeignKey("game_players.game_player_id"), nullable=True)
-    debt_amount = Column(Integer, nullable=False)
-    debt_reason = Column(String(50), nullable=False)
-    status = Column(String(50), nullable=False, default="pending")
-    asset_id = Column(Integer, ForeignKey("assets.asset_id"), nullable=True)
-    turn_id = Column(Integer, ForeignKey("turns.turn_id"), nullable=True)
-    created_at = Column(DateTime, server_default=func.now(), nullable=False)
-    resolved_at = Column(DateTime, nullable=True)
-
-    game = relationship("Game")
-    debtor = relationship("GamePlayer", foreign_keys=[debtor_player_id])
-    creditor = relationship("GamePlayer", foreign_keys=[creditor_player_id])
-    asset = relationship("Asset")
-    turn = relationship("Turn")

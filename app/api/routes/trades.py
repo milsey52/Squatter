@@ -1,10 +1,10 @@
 # app/api/routes/trades.py
+"""Trades in Squatter: players can trade cash and stud rams."""
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional, List
 import json
-import asyncio
 from datetime import datetime
 
 from app.api import deps, auth
@@ -15,13 +15,12 @@ router = APIRouter()
 
 
 class InitiateTradeRequest(BaseModel):
-    counterparty_player_id: Optional[int] = None  # None means Bank
+    counterparty_player_id: int
 
 
 class UpdateOfferRequest(BaseModel):
     cash: int = 0
-    property_ids: List[int] = []
-    card_ids: List[int] = []
+    stud_ram_space_ids: List[int] = []
 
 
 @router.post("/initiate")
@@ -32,26 +31,22 @@ async def initiate_trade(
     auth_data: tuple[int, int] = Depends(auth.verify_session_token),
     session: Session = Depends(deps.get_session)
 ):
-    """
-    Initiate a trade session. Only one active trade allowed per game.
-    """
+    """Initiate a trade session."""
     user_id, token_game_id = auth_data
 
     if token_game_id != game_id:
         raise HTTPException(status_code=403, detail="Session token is for a different game")
 
-    game = deps.get_game_or_404(game_id, session)
+    deps.get_game_or_404(game_id, session)
 
-    # Find initiator's game_player
     initiator = session.query(models.GamePlayer).filter_by(
-        game_id=game_id,
-        user_id=user_id
+        game_id=game_id, user_id=user_id
     ).first()
 
     if not initiator:
         raise HTTPException(status_code=403, detail="You are not a player in this game")
 
-    # Check if there's already an active or pending trade
+    # Check if there's already an active trade
     existing_trade = session.query(models.TradeSession).filter(
         models.TradeSession.game_id == game_id,
         models.TradeSession.status.in_(["pending_invite", "active"])
@@ -60,19 +55,17 @@ async def initiate_trade(
     if existing_trade:
         raise HTTPException(status_code=400, detail="Another trade is already in progress")
 
-    # Create new trade session
     trade = models.TradeSession(
         game_id=game_id,
         initiator_player_id=initiator.game_player_id,
         counterparty_player_id=request.counterparty_player_id,
-        status="pending_invite" if request.counterparty_player_id else "active",  # Bank trades are immediately active
-        initiator_offer=json.dumps({"cash": 0, "properties": [], "cards": []}),
-        counterparty_offer=json.dumps({"cash": 0, "properties": [], "cards": []})
+        status="pending_invite",
+        initiator_offer=json.dumps({"cash": 0, "stud_ram_space_ids": []}),
+        counterparty_offer=json.dumps({"cash": 0, "stud_ram_space_ids": []})
     )
     session.add(trade)
     session.commit()
 
-    # Broadcast trade initiated event
     background_tasks.add_task(
         broadcast_game_event, game_id, "trade_initiated", {
             "trade_session_id": trade.trade_session_id,
@@ -85,8 +78,6 @@ async def initiate_trade(
     return {
         "trade_session_id": trade.trade_session_id,
         "status": trade.status,
-        "initiator_player_id": trade.initiator_player_id,
-        "counterparty_player_id": trade.counterparty_player_id
     }
 
 
@@ -96,9 +87,7 @@ def get_active_trade(
     auth_data: tuple[int, int] = Depends(auth.verify_session_token),
     session: Session = Depends(deps.get_session)
 ):
-    """
-    Get the currently active trade session for this game.
-    """
+    """Get the currently active trade session."""
     user_id, token_game_id = auth_data
 
     if token_game_id != game_id:
@@ -115,7 +104,6 @@ def get_active_trade(
     return {
         "trade": {
             "trade_session_id": trade.trade_session_id,
-            "game_id": trade.game_id,
             "initiator_player_id": trade.initiator_player_id,
             "counterparty_player_id": trade.counterparty_player_id,
             "status": trade.status,
@@ -123,7 +111,6 @@ def get_active_trade(
             "counterparty_offer": json.loads(trade.counterparty_offer) if trade.counterparty_offer else {},
             "initiator_accepted": trade.initiator_accepted,
             "counterparty_accepted": trade.counterparty_accepted,
-            "created_at": trade.created_at.isoformat() if trade.created_at else None
         }
     }
 
@@ -137,23 +124,19 @@ async def accept_trade_invite(
     auth_data: tuple[int, int] = Depends(auth.verify_session_token),
     session: Session = Depends(deps.get_session)
 ):
-    """
-    Accept or reject a trade invitation.
-    """
+    """Accept or reject a trade invitation."""
     user_id, token_game_id = auth_data
 
     if token_game_id != game_id:
         raise HTTPException(status_code=403, detail="Session token is for a different game")
 
     trade = session.query(models.TradeSession).filter_by(
-        trade_session_id=trade_id,
-        game_id=game_id
+        trade_session_id=trade_id, game_id=game_id
     ).first()
 
     if not trade:
         raise HTTPException(status_code=404, detail="Trade not found")
 
-    # Verify user is the counterparty
     counterparty = session.query(models.GamePlayer).filter_by(
         game_player_id=trade.counterparty_player_id
     ).first()
@@ -169,13 +152,9 @@ async def accept_trade_invite(
 
     session.commit()
 
-    # Broadcast trade status change
     background_tasks.add_task(
-        broadcast_game_event, game_id, "trade_status_changed", {
-            "trade_session_id": trade.trade_session_id,
-            "status": trade.status,
-            "accepted": accept
-        }
+        broadcast_game_event, game_id, "trade_status_changed",
+        {"trade_session_id": trade.trade_session_id, "status": trade.status}
     )
 
     return {"status": trade.status}
@@ -189,26 +168,21 @@ async def cancel_trade(
     auth_data: tuple[int, int] = Depends(auth.verify_session_token),
     session: Session = Depends(deps.get_session)
 ):
-    """
-    Cancel the trade. Can be done by either party.
-    """
+    """Cancel the trade."""
     user_id, token_game_id = auth_data
 
     if token_game_id != game_id:
         raise HTTPException(status_code=403, detail="Session token is for a different game")
 
     trade = session.query(models.TradeSession).filter_by(
-        trade_session_id=trade_id,
-        game_id=game_id
+        trade_session_id=trade_id, game_id=game_id
     ).first()
 
     if not trade:
         raise HTTPException(status_code=404, detail="Trade not found")
 
-    # Verify user is part of the trade
     user_player = session.query(models.GamePlayer).filter_by(
-        game_id=game_id,
-        user_id=user_id
+        game_id=game_id, user_id=user_id
     ).first()
 
     if not user_player or (user_player.game_player_id != trade.initiator_player_id and
@@ -219,11 +193,9 @@ async def cancel_trade(
     trade.completed_at = datetime.now()
     session.commit()
 
-    # Broadcast trade cancelled event
     background_tasks.add_task(
-        broadcast_game_event, game_id, "trade_cancelled", {
-            "trade_session_id": trade.trade_session_id
-        }
+        broadcast_game_event, game_id, "trade_cancelled",
+        {"trade_session_id": trade.trade_session_id}
     )
 
     return {"status": "cancelled"}
@@ -238,43 +210,34 @@ async def update_offer(
     auth_data: tuple[int, int] = Depends(auth.verify_session_token),
     session: Session = Depends(deps.get_session)
 ):
-    """
-    Update your offer in the trade.
-    """
+    """Update your offer in the trade."""
     user_id, token_game_id = auth_data
 
     if token_game_id != game_id:
         raise HTTPException(status_code=403, detail="Session token is for a different game")
 
     trade = session.query(models.TradeSession).filter_by(
-        trade_session_id=trade_id,
-        game_id=game_id,
-        status="active"
+        trade_session_id=trade_id, game_id=game_id, status="active"
     ).first()
 
     if not trade:
         raise HTTPException(status_code=404, detail="No active trade found")
 
-    # Determine if user is initiator or counterparty
     user_player = session.query(models.GamePlayer).filter_by(
-        game_id=game_id,
-        user_id=user_id
+        game_id=game_id, user_id=user_id
     ).first()
 
-    offer_data = {
+    offer_data = json.dumps({
         "cash": offer.cash,
-        "properties": offer.property_ids,
-        "cards": offer.card_ids
-    }
+        "stud_ram_space_ids": offer.stud_ram_space_ids
+    })
 
     if user_player.game_player_id == trade.initiator_player_id:
-        trade.initiator_offer = json.dumps(offer_data)
-        # Reset acceptance flags when offer changes
+        trade.initiator_offer = offer_data
         trade.initiator_accepted = False
         trade.counterparty_accepted = False
     elif user_player.game_player_id == trade.counterparty_player_id:
-        trade.counterparty_offer = json.dumps(offer_data)
-        # Reset acceptance flags when offer changes
+        trade.counterparty_offer = offer_data
         trade.initiator_accepted = False
         trade.counterparty_accepted = False
     else:
@@ -283,16 +246,9 @@ async def update_offer(
     trade.updated_at = datetime.now()
     session.commit()
 
-    # Broadcast offer updated event with full trade details
     background_tasks.add_task(
-        broadcast_game_event, game_id, "trade_offer_updated", {
-            "trade_session_id": trade.trade_session_id,
-            "updated_by": user_player.game_player_id,
-            "initiator_offer": json.loads(trade.initiator_offer) if trade.initiator_offer else {},
-            "counterparty_offer": json.loads(trade.counterparty_offer) if trade.counterparty_offer else {},
-            "initiator_accepted": trade.initiator_accepted,
-            "counterparty_accepted": trade.counterparty_accepted
-        }
+        broadcast_game_event, game_id, "trade_offer_updated",
+        {"trade_session_id": trade.trade_session_id, "updated_by": user_player.game_player_id}
     )
 
     return {"status": "offer_updated"}
@@ -306,27 +262,21 @@ async def accept_trade(
     auth_data: tuple[int, int] = Depends(auth.verify_session_token),
     session: Session = Depends(deps.get_session)
 ):
-    """
-    Accept/confirm the trade. Both parties must accept before trade can be executed.
-    """
+    """Accept the trade. Both parties must accept."""
     user_id, token_game_id = auth_data
 
     if token_game_id != game_id:
         raise HTTPException(status_code=403, detail="Session token is for a different game")
 
     trade = session.query(models.TradeSession).filter_by(
-        trade_session_id=trade_id,
-        game_id=game_id,
-        status="active"
+        trade_session_id=trade_id, game_id=game_id, status="active"
     ).first()
 
     if not trade:
         raise HTTPException(status_code=404, detail="No active trade found")
 
-    # Determine if user is initiator or counterparty
     user_player = session.query(models.GamePlayer).filter_by(
-        game_id=game_id,
-        user_id=user_id
+        game_id=game_id, user_id=user_id
     ).first()
 
     if user_player.game_player_id == trade.initiator_player_id:
@@ -339,21 +289,16 @@ async def accept_trade(
     trade.updated_at = datetime.now()
     session.commit()
 
-    # Broadcast acceptance event
     background_tasks.add_task(
-        broadcast_game_event, game_id, "trade_accepted", {
+        broadcast_game_event, game_id, "trade_accepted",
+        {
             "trade_session_id": trade.trade_session_id,
-            "accepted_by": user_player.game_player_id,
-            "initiator_accepted": trade.initiator_accepted,
-            "counterparty_accepted": trade.counterparty_accepted,
             "both_accepted": trade.initiator_accepted and trade.counterparty_accepted
         }
     )
 
     return {
         "status": "accepted",
-        "initiator_accepted": trade.initiator_accepted,
-        "counterparty_accepted": trade.counterparty_accepted,
         "both_accepted": trade.initiator_accepted and trade.counterparty_accepted
     }
 
@@ -366,291 +311,87 @@ async def execute_trade(
     auth_data: tuple[int, int] = Depends(auth.verify_session_token),
     session: Session = Depends(deps.get_session)
 ):
-    """
-    Execute the trade (both parties agree).
-    For now, this is a placeholder - actual asset transfer logic will be added.
-    """
+    """Execute the trade after both parties accept."""
     user_id, token_game_id = auth_data
 
     if token_game_id != game_id:
         raise HTTPException(status_code=403, detail="Session token is for a different game")
 
     trade = session.query(models.TradeSession).filter_by(
-        trade_session_id=trade_id,
-        game_id=game_id,
-        status="active"
+        trade_session_id=trade_id, game_id=game_id, status="active"
     ).first()
 
     if not trade:
         raise HTTPException(status_code=404, detail="No active trade found")
 
-    # Check if this is a Bank trade (mortgage)
-    is_bank_trade = trade.counterparty_player_id is None
+    if not trade.initiator_accepted or not trade.counterparty_accepted:
+        raise HTTPException(status_code=400, detail="Both parties must accept before executing")
 
-    # For player-to-player trades, require both parties to have accepted
-    if not is_bank_trade:
-        if not trade.initiator_accepted or not trade.counterparty_accepted:
-            raise HTTPException(
-                status_code=400,
-                detail="Both parties must accept the trade before it can be executed"
-            )
+    # Parse offers
+    initiator_offer = json.loads(trade.initiator_offer)
+    counterparty_offer = json.loads(trade.counterparty_offer)
 
-    if is_bank_trade:
-        # Handle Bank mortgage trade
-        from app.services.ledger_service import LedgerService
+    initiator = session.query(models.GamePlayer).filter_by(
+        game_player_id=trade.initiator_player_id
+    ).first()
+    counterparty = session.query(models.GamePlayer).filter_by(
+        game_player_id=trade.counterparty_player_id
+    ).first()
 
-        # Parse initiator's offer
-        initiator_offer = json.loads(trade.initiator_offer) if isinstance(trade.initiator_offer, str) else trade.initiator_offer
-        property_ids = initiator_offer.get("properties", [])
+    if not initiator or not counterparty:
+        raise HTTPException(status_code=404, detail="Player not found")
 
-        if not property_ids:
-            raise HTTPException(status_code=400, detail="No properties selected for mortgage")
+    from app.services.ledger_service import LedgerService
+    ledger = LedgerService(session, game_id)
 
-        # Get initiator player
-        initiator = session.query(models.GamePlayer).filter_by(
-            game_player_id=trade.initiator_player_id
+    turn = session.query(models.Turn).filter_by(
+        game_id=game_id
+    ).order_by(models.Turn.turn_id.desc()).first()
+    turn_id = turn.turn_id if turn else None
+
+    # Transfer cash
+    initiator_cash = initiator_offer.get("cash", 0)
+    counterparty_cash = counterparty_offer.get("cash", 0)
+
+    if initiator_cash > 0:
+        balance = ledger.get_balance(initiator.game_player_id)
+        if balance < initiator_cash:
+            raise HTTPException(status_code=400, detail=f"{initiator.player_name} doesn't have ${initiator_cash}")
+        ledger.pay_player(initiator, counterparty, initiator_cash, "trade", turn_id,
+                         notes="Trade payment")
+
+    if counterparty_cash > 0:
+        balance = ledger.get_balance(counterparty.game_player_id)
+        if balance < counterparty_cash:
+            raise HTTPException(status_code=400, detail=f"{counterparty.player_name} doesn't have ${counterparty_cash}")
+        ledger.pay_player(counterparty, initiator, counterparty_cash, "trade", turn_id,
+                         notes="Trade payment")
+
+    # Transfer stud rams
+    for space_id in initiator_offer.get("stud_ram_space_ids", []):
+        ram = session.query(models.StudRamState).filter_by(
+            game_id=game_id, space_id=space_id, owner_game_player_id=initiator.game_player_id
         ).first()
+        if not ram:
+            raise HTTPException(status_code=400, detail=f"{initiator.player_name} doesn't own stud ram at space {space_id}")
+        ram.owner_game_player_id = counterparty.game_player_id
 
-        if not initiator:
-            raise HTTPException(status_code=404, detail="Initiator player not found")
-
-        # Validate and mortgage each property
-        total_mortgage_value = 0
-
-        # Get current turn_id (if any)
-        current_turn = session.query(models.Turn).filter_by(
-            game_id=game_id
-        ).order_by(models.Turn.turn_id.desc()).first()
-        turn_id = current_turn.turn_id if current_turn else None
-
-        # Transfer mortgage payment from Bank to player
-        ledger = LedgerService(session, game_id)
-
-        for asset_id in property_ids:
-            # Get asset and its state
-            asset = session.query(models.Asset).filter_by(asset_id=asset_id).first()
-            asset_state = session.query(models.AssetState).filter_by(
-                game_id=game_id,
-                asset_id=asset_id
-            ).first()
-
-            if not asset or not asset_state:
-                raise HTTPException(status_code=404, detail=f"Asset {asset_id} not found")
-
-            # Validate ownership
-            if asset_state.owner_game_player_id != trade.initiator_player_id:
-                raise HTTPException(status_code=403, detail=f"Player does not own asset {asset_id}")
-
-            # NEW RULE: Check if ANY property in the same group has improvements
-            # Find all properties in the same group (same purchase price and rent structure)
-            group_assets = (
-                session.query(models.Asset, models.AssetState, models.Space.name)
-                .join(models.AssetState, models.Asset.asset_id == models.AssetState.asset_id)
-                .join(models.Space, models.Asset.space_id == models.Space.space_id)
-                .filter(
-                    models.AssetState.game_id == game_id,
-                    models.Asset.asset_type == 'property',
-                    models.Asset.purchase_price == asset.purchase_price,
-                    models.Asset.rent_house_1 == asset.rent_house_1,
-                    models.Asset.rent_hotel == asset.rent_hotel
-                )
-                .all()
-            )
-
-            # Check if any property in the group has improvements
-            for group_asset, group_state, group_name in group_assets:
-                if group_state.improvement_level > 0 or group_state.has_hotel:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Cannot mortgage - property '{group_name}' in this group has improvements. Sell all houses/hotels in the group first."
-                    )
-
-            # Validate not already mortgaged
-            if asset_state.is_mortgaged:
-                raise HTTPException(status_code=400, detail=f"Property {asset_id} is already mortgaged")
-
-            # Mark as mortgaged
-            asset_state.is_mortgaged = True
-            total_mortgage_value += asset.mortgage_value
-
-            # Create a separate transaction for each mortgaged property
-            ledger.receive_from_bank(
-                player=initiator,
-                amount=asset.mortgage_value,
-                txn_type="mortgage",
-                turn_id=turn_id,
-                asset_id=asset_id,
-                notes=f"Mortgaged property"
-            )
-    else:
-        # Implement player-to-player trade logic
-        from app.services.ledger_service import LedgerService
-
-        # Parse offers
-        initiator_offer = json.loads(trade.initiator_offer) if isinstance(trade.initiator_offer, str) else trade.initiator_offer
-        counterparty_offer = json.loads(trade.counterparty_offer) if isinstance(trade.counterparty_offer, str) else trade.counterparty_offer
-
-        initiator_cash = initiator_offer.get("cash", 0)
-        initiator_properties = initiator_offer.get("properties", [])
-        initiator_cards = initiator_offer.get("cards", [])
-
-        counterparty_cash = counterparty_offer.get("cash", 0)
-        counterparty_properties = counterparty_offer.get("properties", [])
-        counterparty_cards = counterparty_offer.get("cards", [])
-
-        # Get players
-        initiator = session.query(models.GamePlayer).filter_by(
-            game_player_id=trade.initiator_player_id
+    for space_id in counterparty_offer.get("stud_ram_space_ids", []):
+        ram = session.query(models.StudRamState).filter_by(
+            game_id=game_id, space_id=space_id, owner_game_player_id=counterparty.game_player_id
         ).first()
-        counterparty = session.query(models.GamePlayer).filter_by(
-            game_player_id=trade.counterparty_player_id
-        ).first()
-
-        if not initiator or not counterparty:
-            raise HTTPException(status_code=404, detail="Player not found")
-
-        # Get current turn
-        current_turn = session.query(models.Turn).filter_by(
-            game_id=game_id
-        ).order_by(models.Turn.turn_id.desc()).first()
-        turn_id = current_turn.turn_id if current_turn else None
-
-        ledger = LedgerService(session, game_id)
-
-        # Validate initiator has what they're offering
-        if initiator_cash > 0:
-            initiator_balance = ledger.get_balance(initiator.game_player_id)
-            if initiator_balance < initiator_cash:
-                raise HTTPException(status_code=400, detail=f"{initiator.player_name} doesn't have ${initiator_cash}")
-
-        for asset_id in initiator_properties:
-            asset_state = session.query(models.AssetState).filter_by(
-                game_id=game_id,
-                asset_id=asset_id
-            ).first()
-            if not asset_state or asset_state.owner_game_player_id != initiator.game_player_id:
-                raise HTTPException(status_code=400, detail=f"{initiator.player_name} doesn't own property {asset_id}")
-            if asset_state.is_mortgaged:
-                raise HTTPException(status_code=400, detail=f"Property {asset_id} is mortgaged and cannot be traded")
-
-        # Validate counterparty has what they're offering
-        if counterparty_cash > 0:
-            counterparty_balance = ledger.get_balance(counterparty.game_player_id)
-            if counterparty_balance < counterparty_cash:
-                raise HTTPException(status_code=400, detail=f"{counterparty.player_name} doesn't have ${counterparty_cash}")
-
-        for asset_id in counterparty_properties:
-            asset_state = session.query(models.AssetState).filter_by(
-                game_id=game_id,
-                asset_id=asset_id
-            ).first()
-            if not asset_state or asset_state.owner_game_player_id != counterparty.game_player_id:
-                raise HTTPException(status_code=400, detail=f"{counterparty.player_name} doesn't own property {asset_id}")
-            if asset_state.is_mortgaged:
-                raise HTTPException(status_code=400, detail=f"Property {asset_id} is mortgaged and cannot be traded")
-
-        # Execute the trade
-        # 1. Transfer cash from initiator to counterparty
-        if initiator_cash > 0:
-            ledger.pay_player(
-                from_player=initiator,
-                to_player=counterparty,
-                amount=initiator_cash,
-                txn_type="trade",
-                turn_id=turn_id,
-                notes=f"Trade payment from {initiator.player_name} to {counterparty.player_name}"
-            )
-
-        # 2. Transfer cash from counterparty to initiator
-        if counterparty_cash > 0:
-            ledger.pay_player(
-                from_player=counterparty,
-                to_player=initiator,
-                amount=counterparty_cash,
-                txn_type="trade",
-                turn_id=turn_id,
-                notes=f"Trade payment from {counterparty.player_name} to {initiator.player_name}"
-            )
-
-        # 3. Transfer properties from initiator to counterparty
-        for asset_id in initiator_properties:
-            asset_state = session.query(models.AssetState).filter_by(
-                game_id=game_id,
-                asset_id=asset_id
-            ).first()
-            asset_state.owner_game_player_id = counterparty.game_player_id
-
-        # 4. Transfer properties from counterparty to initiator
-        for asset_id in counterparty_properties:
-            asset_state = session.query(models.AssetState).filter_by(
-                game_id=game_id,
-                asset_id=asset_id
-            ).first()
-            asset_state.owner_game_player_id = initiator.game_player_id
-
-        # 5. Transfer cards from initiator to counterparty
-        for card_id in initiator_cards:
-            card_draw = session.query(models.CardDraw).filter_by(
-                card_draw_id=card_id,
-                kept_by_player_id=initiator.game_player_id
-            ).first()
-            if card_draw:
-                card_draw.kept_by_player_id = counterparty.game_player_id
-
-        # 6. Transfer cards from counterparty to initiator
-        for card_id in counterparty_cards:
-            card_draw = session.query(models.CardDraw).filter_by(
-                card_draw_id=card_id,
-                kept_by_player_id=counterparty.game_player_id
-            ).first()
-            if card_draw:
-                card_draw.kept_by_player_id = initiator.game_player_id
-
-    # Check for and resolve any pending debt between the trade parties
-    debt_resolved_data = None
-    if not is_bank_trade:
-        from app.services.bankruptcy_service import BankruptcyService
-        bankruptcy_service = BankruptcyService(session, game_id)
-
-        resolved_debt = bankruptcy_service.resolve_debt_by_trade(
-            debtor_player_id=initiator.game_player_id,
-            creditor_player_id=counterparty.game_player_id,
-            trade_session_id=trade.trade_session_id,
-        )
-        if not resolved_debt:
-            resolved_debt = bankruptcy_service.resolve_debt_by_trade(
-                debtor_player_id=counterparty.game_player_id,
-                creditor_player_id=initiator.game_player_id,
-                trade_session_id=trade.trade_session_id,
-            )
-
-        if resolved_debt:
-            debt_resolved_data = {
-                "debtor_id": resolved_debt.debtor_player_id,
-                "creditor_id": resolved_debt.creditor_player_id,
-                "amount": resolved_debt.debt_amount,
-            }
+        if not ram:
+            raise HTTPException(status_code=400, detail=f"{counterparty.player_name} doesn't own stud ram at space {space_id}")
+        ram.owner_game_player_id = initiator.game_player_id
 
     trade.status = "completed"
     trade.completed_at = datetime.now()
 
-    try:
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        raise HTTPException(status_code=500, detail=f"Trade execution failed: {str(e)}")
+    session.commit()
 
-    # Broadcast trade executed event
     background_tasks.add_task(
-        broadcast_game_event, game_id, "trade_executed", {
-            "trade_session_id": trade.trade_session_id
-        }
+        broadcast_game_event, game_id, "trade_executed",
+        {"trade_session_id": trade.trade_session_id}
     )
-
-    # If a debt was resolved by this trade, broadcast debt_resolved event
-    if debt_resolved_data:
-        background_tasks.add_task(
-            broadcast_game_event, game_id, "debt_resolved", debt_resolved_data
-        )
 
     return {"status": "completed"}

@@ -1,7 +1,7 @@
 from .game import (
     CreateGameRequest,
     PlayerCreate,
-    HouseRulesCreate,
+    GameRulesCreate,
     PlayerSummary,
     GameSummary,
 )
@@ -9,7 +9,7 @@ from .game import (
 __all__ = [
     "CreateGameRequest",
     "PlayerCreate",
-    "HouseRulesCreate",
+    "GameRulesCreate",
     "PlayerSummary",
     "GameSummary",
 ]

@@ -1,17 +1,7 @@
 # app/services/seed.py
-from app import models
+from app.services.game_service import initialize_game_state
 
-def seed_asset_states(session, game_id: int):
-    assets = session.query(models.Asset).all()
-    for asset in assets:
-        session.add(
-            models.AssetState(
-                game_id=game_id,
-                asset_id=asset.asset_id,
-                owner_game_player_id=None,
-                is_mortgaged=False,
-                improvement_level=0,
-                has_hotel=False,
-            )
-        )
-    session.flush()
+
+def seed_game_state(session, game_id: int, quick_game: bool = False):
+    """Seed initial game state (paddocks and stud ram states)."""
+    initialize_game_state(session, game_id, quick_game=quick_game)

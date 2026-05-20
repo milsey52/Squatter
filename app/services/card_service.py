@@ -1,397 +1,405 @@
 # app/services/card_service.py
-
 import json
 import random
 from typing import Optional, TYPE_CHECKING
-
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
-from sqlalchemy import func, literal
+from sqlalchemy import func
+
+from app import models
+from app.services.ledger_service import LedgerService
+from app.services.station_service import StationService
+from app.services.drought_service import DroughtService
+from app.services.stock_sale_service import StockSaleService
 
 if TYPE_CHECKING:
     from .space_resolver import SpaceResolver
 
-from app import models
-from app.constants import BOARD_SIZE, JAIL_SPACE_ID
-from .ledger_service import LedgerService
-from .jackpot_service import JackpotService
-
 
 class CardService:
-    def __init__(self, session: Session, game_id: int, space_resolver: "SpaceResolver"):
+    def __init__(self, session: Session, game_id: int, space_resolver: Optional["SpaceResolver"] = None):
         self.session = session
         self.game_id = game_id
-        self.ledger = LedgerService(session, game_id)
-        self.jackpot = JackpotService(session, game_id)
         self.space_resolver = space_resolver
+        self.ledger = LedgerService(session, game_id)
+        self.station = StationService(session, game_id)
+        self.drought = DroughtService(session, game_id)
+        self.stock_sale = StockSaleService(session, game_id)
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-    def draw_and_apply(self, player, deck_type: str, turn):
-        card_draw = self._draw_card(deck_type, turn.turn_id)
-        card = self.session.query(models.Card).get(card_draw.card_id)
+    def draw_card(self, turn_id: int) -> models.Card:
+        """Draw a Tucker Bag card.
 
-        if card.is_retainable:
-            card_draw.kept_by_player_id = player.game_player_id
-            self.session.flush()
-            return card
+        Rule: the FIRST Tucker Bag draw of each game is always Fire Fighting
+        Equipment. Subsequent draws are uniformly random from the deck, with
+        one-time cards (cards.one_time = TRUE) excluded once they've been drawn."""
+        # Has any Tucker Bag card been drawn yet this game?
+        prior_count = (
+            self.session.query(func.count(models.CardDraw.card_draw_id))
+            .filter_by(game_id=self.game_id, deck_type="tucker_bag")
+            .scalar()
+        )
 
-        self._apply_effect(card, player, turn)
+        if prior_count == 0:
+            # First Tucker Bag draw of the game — force Fire Fighting Equipment.
+            ffe = (
+                self.session.query(models.Card)
+                .filter_by(deck_type="tucker_bag", effect_code="FIRE_FIGHTING_EQUIPMENT")
+                .first()
+            )
+            if ffe is None:
+                # Fallback to random pool if FFE is missing from the deck for some reason.
+                ffe = (
+                    self.session.query(models.Card)
+                    .filter_by(deck_type="tucker_bag")
+                    .first()
+                )
+            card = ffe
+        else:
+            # Card IDs of one-time cards already drawn this game.
+            already_drawn_one_time = {
+                cid for (cid,) in self.session.query(models.CardDraw.card_id)
+                    .join(models.Card, models.Card.card_id == models.CardDraw.card_id)
+                    .filter(models.CardDraw.game_id == self.game_id,
+                            models.Card.one_time.is_(True))
+                    .distinct()
+                    .all()
+            }
+            q = self.session.query(models.Card).filter_by(deck_type="tucker_bag")
+            if already_drawn_one_time:
+                q = q.filter(~models.Card.card_id.in_(already_drawn_one_time))
+            all_cards = q.all()
+            if not all_cards:
+                raise RuntimeError("No Tucker Bag cards available to draw")
+            card = random.choice(all_cards)
 
-        card_draw.discarded_at = turn.started_at
-        self.session.flush()
-        return card
-
-    # ------------------------------------------------------------------
-    # Drawing / deck helpers
-    # ------------------------------------------------------------------
-    def _draw_card(self, deck_type: str, turn_id: int) -> models.CardDraw:
-        deck = self._shuffled_deck(deck_type)
-        card = deck.pop(0)
+        draw_order = (
+            self.session.query(func.coalesce(func.max(models.CardDraw.draw_order), 0))
+            .filter_by(game_id=self.game_id)
+            .scalar()
+        ) + 1
 
         draw = models.CardDraw(
             game_id=self.game_id,
             turn_id=turn_id,
-            deck_type=deck_type,
+            deck_type="tucker_bag",
             card_id=card.card_id,
-            draw_order=self._next_draw_order(deck_type),
+            draw_order=draw_order,
         )
         self.session.add(draw)
         self.session.flush()
-        return draw
+        return card
 
-    def _shuffled_deck(self, deck_type: str):
-        cards = (
-            self.session.query(models.Card)
-            .filter(models.Card.deck_type == deck_type)
-            .order_by(models.Card.card_id)
-            .all()
-        )
-        random.shuffle(cards)
-        return cards
+    def apply_effect(self, player: models.GamePlayer, card: models.Card, turn_id: int) -> dict:
+        """Apply a Tucker Bag card effect. Returns result dict."""
+        params = json.loads(card.effect_params) if card.effect_params else {}
+        handler = getattr(self, f"_effect_{card.effect_code.lower()}", None)
+        if handler:
+            return handler(player, params, turn_id)
+        return {"message": f"Unknown effect: {card.effect_code}"}
 
-    def _next_draw_order(self, deck_type: str) -> int:
-        count = (
-            self.session.query(func.count(models.CardDraw.card_draw_id))
-            .filter(
-                models.CardDraw.game_id == self.game_id,
-                models.CardDraw.deck_type == deck_type,
+    def retain_card(self, player: models.GamePlayer, card: models.Card, turn_id: int):
+        """Mark a retainable card as kept by the player."""
+        draw = (
+            self.session.query(models.CardDraw)
+            .filter_by(
+                game_id=self.game_id,
+                turn_id=turn_id,
+                card_id=card.card_id,
             )
-            .scalar()
-        )
-        return count + 1
-
-    # ------------------------------------------------------------------
-    # Effect dispatcher
-    # ------------------------------------------------------------------
-    def _apply_effect(self, card: models.Card, player, turn):
-        code = card.effect_code or "UNKNOWN"
-        params = json.loads(card.effect_params or "{}")
-
-        if code == "COLLECT":
-            self._effect_collect(player, params, turn)
-
-        elif code == "PAY_BANK":
-            self._effect_pay_bank(player, params, turn)
-
-        elif code == "PAY_REPAIRS":
-            self._effect_pay_repairs(player, params, turn)
-
-        elif code == "COLLECT_FROM_EACH_PLAYER":
-            self._effect_collect_each(player, params, turn)
-
-        elif code == "PAY_EACH_PLAYER":
-            self._effect_pay_each(player, params, turn)
-
-        elif code == "GO_TO_JAIL":
-            self._effect_go_to_jail(player, turn)
-
-        elif code == "ADVANCE_TO":
-            space_name = params.get("space_name")
-            if space_name:
-                # Find the space by name
-                space = self.session.query(models.Space).filter(
-                    models.Space.name.ilike(f"%{space_name}%")
-                ).first()
-                if space:
-                    collect_bonus = params.get("collect_pass_bonus", False)
-                    self._move_player_to_space(player, space.space_id, turn, allow_pass_bonus=collect_bonus)
-                    # Check if we need to resolve landing on the space
-                    passed_start = self._passed_start(player.current_space_id, space.board_index)
-                    self.space_resolver.resolve(player, space, turn, passed_start)
-
-        elif code == "MOVE_TO":
-            self._effect_move_to(player, params, turn)
-
-        elif code == "MOVE_BACK":
-            self._effect_move_back(player, params, turn)
-
-        elif code == "MOVE_RELATIVE":
-            self._effect_move_back(player, params, turn)
-
-        elif code == "ADVANCE_NEAREST":
-            space_type = params.get("space_type", "transport")
-            self._effect_advance_nearest(player, space_type, params, turn)
-
-        elif code == "ADVANCE_NEAREST_TRANSPORT":
-            self._effect_advance_nearest(player, "transport", params, turn)
-
-        elif code == "ADVANCE_NEAREST_UTILITY":
-            self._effect_advance_nearest(player, "utility", params, turn)
-
-        elif code == "JACK-POT":
-            self._effect_jack_pot(player, params, turn)
-
-        elif code == "GET_OUT_OF_JAIL":
-            # Retain-only cards are handled in draw_and_apply
-            pass
-
-        else:
-            print(f"[CardService] Unhandled effect_code: {code}")
-
-    # ------------------------------------------------------------------
-    # Individual effect handlers
-    # ------------------------------------------------------------------
-    def _effect_collect(self, player, params, turn):
-        amount = params.get("amount", 0)
-        if amount > 0:
-            self.ledger.record_bank_reward(player, amount, "card_collect", turn.turn_id)
-
-    def _effect_jack_pot(self, player, params, turn):
-        amount = params.get("amount", 0)
-        if amount <= 0:
-            return
-
-        txn = self.ledger.record_bank_payment(
-            player,
-            amount,
-            txn_type="card_penalty",
-            turn_id=turn.turn_id,
-        )
-
-        self.jackpot.contribute(amount, turn.turn_id, txn.transaction_id)
-
-    def _effect_pay_bank(self, player, params, turn):
-        amount = params.get("amount", 0)
-        if amount <= 0:
-            return
-
-        txn = self.ledger.record_bank_payment(
-            player,
-            amount,
-            txn_type="card_penalty",
-            turn_id=turn.turn_id,
-        )
-
-        if params.get("jackpot"):
-            self.jackpot.contribute(amount, turn.turn_id, txn.transaction_id)
-
-    def _effect_pay_repairs(self, player, params, turn):
-        per_house = params.get("per_house", 0)
-        per_hotel = params.get("per_hotel", 0)
-        houses, hotels = self._count_buildings(player.game_player_id)
-        amount = houses * per_house + hotels * per_hotel
-        if amount <= 0:
-            return
-        self.ledger.record_bank_payment(player, amount, "repairs", turn.turn_id)
-
-    def _effect_collect_each(self, player, params, turn):
-        amount = params.get("amount", 0)
-        if amount <= 0:
-            return
-        others = self._other_players(player.game_player_id)
-        for other in self._other_players(player.game_player_id):
-            self.ledger.transfer(
-                payer=other,
-                payee_id=player.game_player_id,
-                amount=amount,
-                txn_type="card_collect_each",
-                turn_id=turn.turn_id,
-            )
-
-    def _effect_pay_each(self, player, params, turn):
-        amount = params.get("amount", 0)
-        if amount <= 0:
-            return
-        others = self._other_players(player.game_player_id)
-        for other in self._other_players(player.game_player_id):
-            self.ledger.transfer(
-                payer=player,
-                payee_id=other.game_player_id,
-                amount=amount,
-                txn_type="card_pay_each",
-                turn_id=turn.turn_id,
-            )
-
-    def _effect_go_to_jail(self, player, turn):
-        start_idx = player.current_space_id
-        jail_idx = JAIL_SPACE_ID  # Already a board_index (10 = Visit Jail)
-        player.current_space_id = jail_idx
-        player.in_jail = True
-        player.jail_turns = 0
-        self._log_movement(player, start_idx, jail_idx, turn, "card", passed_start=False)
-
-    def _effect_move_to(self, player, params, turn):
-        target_space_id = params.get("space_id")
-        if not target_space_id:
-            return
-        allow_pass_bonus = params.get("allow_pass_bonus", False)
-        collect_on_land = params.get("collect_on_land")
-        space = self._move_player_to_space(player, target_space_id, turn, allow_pass_bonus)
-
-        if collect_on_land:
-            self.ledger.record_bank_reward(player, collect_on_land, "card_bonus", turn.turn_id)
-
-        self._resolve_post_move(space, player, params, turn)
-
-    def _effect_move_back(self, player, params, turn):
-        steps = params.get("steps", -3)
-        current_idx = player.current_space_id
-        # Simple modulo arithmetic with 0-based indexing (board uses indices 0-39)
-        new_idx = (current_idx + steps) % BOARD_SIZE
-        passed_start = steps > 0 and (current_idx + steps) >= BOARD_SIZE
-
-        player.current_space_id = new_idx
-        player.in_jail = False
-
-        self._log_movement(player, current_idx, new_idx, turn, "card", passed_start)
-
-        # After moving, reuse space resolver logic (buy/rent, etc.)
-        space = self._space_by_board_index(new_idx)
-        self._resolve_post_move(space, player, params, turn)
-
-    def _effect_advance_nearest(self, player, space_type, params, turn):
-        target_space_id = self._nearest_space_id(player.current_space_id, space_type)
-        if target_space_id is None:
-            return
-        space = self._move_player_to_space(player, target_space_id, turn, allow_pass_bonus=True)
-        self._resolve_post_move(space, player, params, turn)
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-    def _move_player_to_space(self, player, space_id: int, turn, allow_pass_bonus: bool):
-        target = self._space_by_id(space_id)
-        current_idx = player.current_space_id
-        target_idx = target.board_index
-
-        passed_start = self._passed_start(current_idx, target_idx)
-        player.current_space_id = target_idx
-        player.in_jail = False
-        player.jail_turns = 0
-
-        self._log_movement(player, current_idx, target_idx, turn, "card", passed_start)
-
-        if passed_start and allow_pass_bonus:
-            self.ledger.record_pass_start_bonus(player, turn.turn_id)
-
-        return target
-
-    def _move_player_relative(self, player, steps: int, turn):
-        current_idx = player.current_space_id
-        # Simple modulo arithmetic with 0-based indexing (board uses indices 0-39)
-        new_idx = (current_idx + steps) % BOARD_SIZE
-        passed_start = steps > 0 and (current_idx + steps) >= BOARD_SIZE
-
-        player.current_space_id = new_idx
-        player.in_jail = False
-
-        self._log_movement(player, current_idx, new_idx, turn, "card", passed_start)
-
-    def _resolve_post_move(self, space, player, params, turn):
-        rent_multiplier = params.get("rent_multiplier")
-        skip_cards = params.get("skip_card_draw", True)
-
-        # Use SpaceResolver to apply property/utility logic with temporary rules
-        self.space_resolver.resolve_from_card(
-            player=player,
-            space=space,
-            turn=turn,
-            passed_start=False,
-            rent_multiplier=rent_multiplier,
-            skip_cards=skip_cards,
-        )
-
-    def _log_movement(self, player, start_idx, end_idx, turn, movement_type, passed_start):
-        distance = (end_idx - start_idx) % BOARD_SIZE
-        # Convert board_index to space_id for FK constraints
-        start_space = self._space_by_board_index(start_idx)
-        end_space = self._space_by_board_index(end_idx)
-        movement = models.Movement(
-            turn_id=turn.turn_id if turn else None,
-            game_player_id=player.game_player_id,
-            start_space_id=start_space.space_id,
-            end_space_id=end_space.space_id,
-            movement_type=movement_type,
-            distance=distance,
-            passed_start=1 if passed_start else 0,
-        )
-        self.session.add(movement)
-
-    def _passed_start(self, start_idx, end_idx) -> bool:
-        return end_idx < start_idx
-
-    def _space_by_id(self, space_id: int) -> models.Space:
-        space = self.session.query(models.Space).filter_by(space_id=space_id).first()
-        if space is None:
-            raise ValueError(f"No space found for space_id={space_id}")
-        return space
-
-    def _space_by_board_index(self, board_index: int) -> models.Space:
-        space = (
-            self.session.query(models.Space)
-            .filter(models.Space.board_index == board_index)
+            .order_by(models.CardDraw.draw_order.desc())
             .first()
         )
-        if space is None:
-            raise ValueError(f"No space found for board_index={board_index}")
-        return space
+        if draw:
+            draw.kept_by_player_id = player.game_player_id
+            self.session.flush()
 
-    def _to_board_index(self, space_id: int) -> int:
-        space = self._space_by_id(space_id)
-        return space.board_index
+    # ── Effect Handlers ─────────────────────────────────────────────────
 
-    def _nearest_space_id(self, current_idx: int, space_type: str) -> Optional[int]:
-        spaces = (
+    def _effect_collect(self, player, params, turn_id):
+        amount = params["amount"]
+        self.ledger.receive_from_bank(player, amount, "card_collect", turn_id)
+        return {"collected": amount}
+
+    def _effect_fire_damage(self, player, params, turn_id):
+        cost = params["cost"]
+        protection = params.get("protection_card")
+        has_protection = self._has_retained_card(player, protection) if protection else False
+
+        if has_protection:
+            return {"protected": True, "card": protection}
+
+        self.ledger.pay_bank(player, cost, "fire_damage", turn_id)
+
+        if player.has_haystack:
+            player.has_haystack = False
+            player.haystack_used = False
+            self.session.flush()
+            return {"cost": cost, "haystack_lost": True}
+
+        return {"cost": cost, "haystack_lost": False}
+
+    def _effect_income_tax(self, player, params, turn_id):
+        pid = player.game_player_id
+        paddocks = self.station.get_paddocks(pid)
+        balance = self.ledger.get_balance(pid)
+
+        natural_count = sum(1 for p in paddocks if p.paddock_type == "natural")
+        improved_count = sum(1 for p in paddocks if p.paddock_type == "improved")
+        irrigated_count = sum(1 for p in paddocks if p.paddock_type == "irrigated")
+        total_pens = sum(p.sheep_pens for p in paddocks)
+        cash_thousands = (balance + 500) // 1000  # rounded to nearest $1000
+
+        total_tax = (
+            natural_count * params["per_natural_paddock"]
+            + improved_count * params["per_improved_paddock"]
+            + irrigated_count * params["per_irrigated_paddock"]
+            + total_pens * params["per_pen"]
+            + cash_thousands * params["per_1000_cash"]
+        )
+
+        if total_tax > 0:
+            self.ledger.pay_bank(player, total_tax, "income_tax", turn_id)
+
+        return {"total_tax": total_tax}
+
+    def _effect_move_to_wool_sale(self, player, params, turn_id):
+        if params.get("breaks_drought") and player.is_in_drought:
+            self.drought.break_drought(player, source="card")
+        # Move to Wool Sale (space 0)
+        player.current_space_id = 0
+        self.session.flush()
+
+        # Pay wool cheque
+        cheque = self.station.calculate_wool_cheque(player.game_player_id)
+        wool_cheque_amount = cheque["total"]
+        if wool_cheque_amount > 0:
+            notes = f"Wool Cheque ({cheque['total_pens']} pens, {cheque['stud_rams']} ram)"
+            self.ledger.record_wool_cheque(player, wool_cheque_amount, turn_id, notes=notes)
+        # Reset card bonuses after use
+        if player.wool_cheque_bonus > 0:
+            player.wool_cheque_bonus = 0
+        # Pay mortgage interest
+        interest = self.station.calculate_mortgage_interest(player.game_player_id)
+        if interest > 0:
+            self.ledger.record_mortgage_interest(player, interest, turn_id)
+        self.session.flush()
+
+        return {
+            "moved_to": "Wool Sale",
+            "drought_broken": params.get("breaks_drought", False),
+            "wool_cheque": wool_cheque_amount,
+            "mortgage_interest": interest,
+        }
+
+    def _effect_lucerne_flea(self, player, params, turn_id):
+        protection = params.get("protection_card")
+        if protection and self._has_retained_card(player, protection):
+            return {"protected": True, "card": protection}
+
+        fraction = params["sell_fraction"]
+        sell_price = params["sell_price_per_pen"]
+        pens_sold = self.station.sell_fraction_stock(player.game_player_id, fraction)
+        if pens_sold > 0:
+            income = pens_sold * sell_price
+            self.ledger.receive_from_bank(player, income, "card_stock_sale", turn_id)
+
+        if params.get("restock_blocked"):
+            from app.constants import BOARD_SIZE
+            player.restock_blocked_until_circuit = True
+            player.restock_block_spaces_remaining = BOARD_SIZE
+            self.session.flush()
+
+        return {"pens_sold": pens_sold, "income": pens_sold * sell_price if pens_sold > 0 else 0}
+
+    def _effect_fire_fighting_equipment(self, player, params, turn_id):
+        # This is a retainable card with purchase option
+        # The decision to buy is handled by the pending action / decision service
+        return {"purchase_price": params["purchase_price"], "retainable": True}
+
+    def _effect_general_rain(self, player, params, turn_id):
+        self.drought.break_all_droughts()
+        return {"all_droughts_broken": True}
+
+    def _effect_miss_turns(self, player, params, turn_id):
+        player.visiting_town_turns = params["turns"]
+        self.session.flush()
+        return {"turns_to_miss": params["turns"]}
+
+    def _effect_worm_infestation(self, player, params, turn_id):
+        protection = params.get("protection_card")
+        if protection and self._has_retained_card(player, protection):
+            return {"protected": True, "card": protection}
+
+        fraction = params["sell_fraction"]
+        sell_price = params["sell_price_per_pen"]
+        pens_sold = self.station.sell_fraction_stock(player.game_player_id, fraction)
+        if pens_sold > 0:
+            income = pens_sold * sell_price
+            self.ledger.receive_from_bank(player, income, "card_stock_sale", turn_id)
+        return {"pens_sold": pens_sold, "income": pens_sold * sell_price if pens_sold > 0 else 0}
+
+    def _effect_local_rain(self, player, params, turn_id):
+        was_in_drought = player.is_in_drought
+        if was_in_drought:
+            self.drought.break_drought(player, source="card_local_rain")
+        return {"drought_broken": was_in_drought}
+
+    def _effect_successful_lambing(self, player, params, turn_id):
+        pens = params["pens"]
+        cash_if_full = params["cash_if_full"]
+        if self.station.is_fully_stocked(player.game_player_id):
+            self.ledger.receive_from_bank(player, cash_if_full, "card_collect", turn_id)
+            return {"cash_received": cash_if_full, "fully_stocked": True}
+        else:
+            added = self.station.buy_sheep(player.game_player_id, pens)
+            self.station.declare_winner_if_eligible(player.game_player_id, turn_id)
+            return {"pens_received": added, "fully_stocked": False}
+
+    def _effect_receive_pens_and_bonus(self, player, params, turn_id):
+        pens = params["pens"]
+        cash_if_full = params["cash_if_full"]
+        wool_bonus = params.get("wool_cheque_bonus", 0)
+
+        if self.station.is_fully_stocked(player.game_player_id):
+            self.ledger.receive_from_bank(player, cash_if_full, "card_collect", turn_id)
+            result = {"cash_received": cash_if_full}
+        else:
+            added = self.station.buy_sheep(player.game_player_id, pens)
+            self.station.declare_winner_if_eligible(player.game_player_id, turn_id)
+            result = {"pens_received": added}
+
+        if wool_bonus > 0:
+            player.wool_cheque_bonus += wool_bonus
+            self.session.flush()
+            result["wool_cheque_bonus"] = wool_bonus
+
+        return result
+
+    def _effect_sustainable_water(self, player, params, turn_id):
+        player.next_drought_halved = True
+        self.session.flush()
+        return {"next_drought_halved": True, "spaces": params["drought_halved_spaces"]}
+
+    def _effect_grass_fire(self, player, params, turn_id):
+        protection = params.get("protection_card")
+        if protection and self._has_retained_card(player, protection):
+            return {"protected": True, "card": protection}
+
+        fraction = params["sell_fraction"]
+        breakdown = self.station.sell_fraction_stock(
+            player.game_player_id, fraction, return_breakdown=True
+        )
+        pens_sold = breakdown["total"]
+        by_type = breakdown["by_type"]
+
+        # Rule: "Sell half of all stock owned at Market price." Market price is
+        # determined by drawing a Stock Sale card and applying its per-tier
+        # selling prices to the pens removed from each pasture type.
+        income = 0
+        stock_card_used = None
+        if pens_sold > 0:
+            card = self.stock_sale.draw_stock_card(turn_id)
+            income = (
+                by_type["natural"] * card.sell_price_natural
+                + by_type["improved"] * card.sell_price_improved_irrigated
+                + by_type["irrigated"] * card.sell_price_improved_irrigated
+            )
+            self.ledger.receive_from_bank(
+                player, income, "card_stock_sale", turn_id,
+                notes=f"Grass Fire: sold {pens_sold} pens at Stock Sale prices",
+            )
+            stock_card_used = {
+                "buy_price_per_pen": card.buy_price_per_pen,
+                "sell_price_natural": card.sell_price_natural,
+                "sell_price_improved_irrigated": card.sell_price_improved_irrigated,
+            }
+
+        if params.get("restock_blocked"):
+            from app.constants import BOARD_SIZE
+            player.restock_blocked_until_circuit = True
+            player.restock_block_spaces_remaining = BOARD_SIZE
+            self.session.flush()
+
+        return {
+            "pens_sold": pens_sold,
+            "income": income,
+            "by_type": by_type,
+            "stock_card_used": stock_card_used,
+        }
+
+    def _effect_blowfly_wave(self, player, params, turn_id):
+        # Wool cheque reduces by 10% unless player lands on Jet Sheep before next cheque
+        # For now, set a flag
+        reduction_pct = params["wool_reduction_pct"]
+        player.wool_cheque_bonus -= int(self.station.get_total_pens(player.game_player_id)
+                                        * 250 * reduction_pct / 100)
+        self.session.flush()
+        return {"wool_reduction_pct": reduction_pct}
+
+    def _effect_high_stock_prices(self, player, params, turn_id):
+        # Retainable: player keeps the card until they elect to apply +N%
+        # to either buy or sell at a future Stock Sale.
+        return {"price_modifier_pct": params["price_modifier_pct"], "retainable": True}
+
+    def _effect_eradicate_footrot(self, player, params, turn_id):
+        player.footrot_immune = True
+        self.session.flush()
+        return {"footrot_immune": True}
+
+    def _effect_move_to_stock_sale(self, player, params, turn_id):
+        # Find the next stock sale space after current position
+        current = player.current_space_id
+        stock_sales = (
             self.session.query(models.Space)
-            .filter(models.Space.space_type == space_type)
+            .filter(models.Space.space_type == "stock_sale")
             .order_by(models.Space.board_index)
             .all()
         )
-        if not spaces:
-            return None
-        for space in spaces:
-            if space.board_index > current_idx:
-                return space.space_id
-        return spaces[0].space_id  # wrap around
+        next_sale = None
+        for s in stock_sales:
+            if s.board_index > current:
+                next_sale = s
+                break
+        if next_sale is None and stock_sales:
+            next_sale = stock_sales[0]  # wrap around
 
-    def _count_buildings(self, game_player_id: int):
-        houses = (
-            self.session.query(func.coalesce(func.sum(models.AssetState.improvement_level), 0))
-            .filter(
-                models.AssetState.game_id == self.game_id,
-                models.AssetState.owner_game_player_id == game_player_id,
-            )
-            .scalar()
-        )
-        hotels = (
-            self.session.query(func.coalesce(func.sum(literal(1)), 0))
-            .filter(
-                models.AssetState.game_id == self.game_id,
-                models.AssetState.owner_game_player_id == game_player_id,
-                models.AssetState.has_hotel == True,
-            )
-            .scalar()
-        )
-        return houses or 0, hotels or 0
+        if next_sale:
+            player.current_space_id = next_sale.board_index
+            self.session.flush()
+            return {"moved_to": next_sale.name, "board_index": next_sale.board_index}
+        return {"moved_to": None}
 
-    def _other_players(self, exclude_game_player_id: int):
-        return (
-            self.session.query(models.GamePlayer)
+    def _effect_stud_ram_insurance(self, player, params, turn_id):
+        # Retainable card — handled by retain_card
+        return {"refund": params["refund"], "retainable": True}
+
+    def _effect_agistment_fees(self, player, params, turn_id):
+        if not self.station.is_fully_stocked(player.game_player_id):
+            amount = params["amount"]
+            self.ledger.receive_from_bank(player, amount, "agistment_fees", turn_id)
+            return {"received": amount}
+        return {"received": 0, "fully_stocked": True}
+
+    def _effect_superfine_wool(self, player, params, turn_id):
+        bonus = params["wool_cheque_bonus"]
+        player.wool_cheque_bonus += bonus
+        self.session.flush()
+        return {"wool_cheque_bonus": bonus}
+
+    # ── Helpers ──────────────────────────────────────────────────────────
+
+    def _has_retained_card(self, player, card_name: str) -> bool:
+        if not player or not card_name:
+            return False
+        draw = (
+            self.session.query(models.CardDraw)
+            .join(models.Card)
             .filter(
-                models.GamePlayer.game_id == self.game_id,
-                models.GamePlayer.game_player_id != exclude_game_player_id,
-                models.GamePlayer.is_active == True,
+                models.CardDraw.game_id == self.game_id,
+                models.CardDraw.kept_by_player_id == player.game_player_id,
+                models.Card.title == card_name,
+                models.CardDraw.discarded_at.is_(None),
             )
-            .all()
+            .first()
         )
+        return draw is not None

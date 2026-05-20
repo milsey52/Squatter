@@ -22,7 +22,7 @@ config = context.config
 # Set database URL from environment variable
 config.set_main_option(
     "sqlalchemy.url",
-    os.environ.get("DATABASE_URL", "sqlite:///./MonopolyPerth.db")
+    os.environ.get("DATABASE_URL", "postgresql:///squatter")
 )
 
 fileConfig(config.config_file_name)

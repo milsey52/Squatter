@@ -1,3 +1,4 @@
+# app/api/routes/cards.py
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.api.deps import get_session
@@ -5,9 +6,10 @@ from app import models
 
 router = APIRouter()
 
+
 @router.get("/games/{game_id}/players/{player_id}/retained-cards")
 def get_retained_cards(game_id: int, player_id: int, session: Session = Depends(get_session)):
-    # Get all retained (not discarded) cards for the player in the game
+    """Get all retained (not discarded) Tucker Bag cards for the player."""
     draws = (
         session.query(models.CardDraw)
         .join(models.Card, models.CardDraw.card_id == models.Card.card_id)
@@ -18,7 +20,6 @@ def get_retained_cards(game_id: int, player_id: int, session: Session = Depends(
         )
         .all()
     )
-    # Return card info
     return [
         {
             "card_draw_id": d.card_draw_id,
@@ -33,8 +34,7 @@ def get_retained_cards(game_id: int, player_id: int, session: Session = Depends(
 
 @router.get("/games/{game_id}/player_retained_cards")
 def get_all_player_retained_cards(game_id: int, session: Session = Depends(get_session)):
-    """Get all retained cards for all players in a game, keyed by player_id"""
-    # Get all retained (not discarded) cards for all players in the game
+    """Get all retained cards for all players in a game, keyed by player_id."""
     draws = (
         session.query(models.CardDraw)
         .join(models.Card, models.CardDraw.card_id == models.Card.card_id)
@@ -46,7 +46,6 @@ def get_all_player_retained_cards(game_id: int, session: Session = Depends(get_s
         .all()
     )
 
-    # Group by player_id
     result = {}
     for draw in draws:
         player_id = draw.kept_by_player_id
@@ -63,28 +62,25 @@ def get_all_player_retained_cards(game_id: int, session: Session = Depends(get_s
     return result
 
 
-@router.get("/games/{game_id}/last_drawn_cards")
-def get_last_drawn_cards(game_id: int, session: Session = Depends(get_session)):
-    """Get the most recently drawn card for each deck type (CHANCE, WELFARE)"""
-    result = {"CHANCE": None, "WELFARE": None}
-
-    for deck_type in ["chance", "welfare"]:
-        draw = (
-            session.query(models.CardDraw)
-            .join(models.Card, models.CardDraw.card_id == models.Card.card_id)
-            .filter(
-                models.CardDraw.game_id == game_id,
-                models.CardDraw.deck_type == deck_type
-            )
-            .order_by(models.CardDraw.draw_order.desc())
-            .first()
+@router.get("/games/{game_id}/last_drawn_card")
+def get_last_drawn_card(game_id: int, session: Session = Depends(get_session)):
+    """Get the most recently drawn Tucker Bag card."""
+    draw = (
+        session.query(models.CardDraw)
+        .join(models.Card, models.CardDraw.card_id == models.Card.card_id)
+        .filter(
+            models.CardDraw.game_id == game_id,
+            models.CardDraw.deck_type == "tucker_bag"
         )
+        .order_by(models.CardDraw.draw_order.desc())
+        .first()
+    )
 
-        if draw:
-            result[deck_type.upper()] = {
-                "title": draw.card.title,
-                "body_text": draw.card.body_text,
-                "draw_order": draw.draw_order,
-            }
+    if draw:
+        return {
+            "title": draw.card.title,
+            "body_text": draw.card.body_text,
+            "draw_order": draw.draw_order,
+        }
 
-    return result
+    return None

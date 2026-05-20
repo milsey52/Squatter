@@ -1,287 +1,180 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1310" height="1244" viewBox="0 0 1310 1244">
-<rect x="205" y="184" width="900" height="900" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="1105" y="1084" width="145" height="100" fill="#E8F5E9" stroke="#333" stroke-width="2"/>
-<text x="1133" y="1116" font-family="Arial" font-size="12" fill="#111">
-<tspan x="1133" y="1116">0</tspan>
-<tspan x="1133" y="1130">Start/Payday</tspan>
-<tspan x="1133" y="1144">Collect $2000</tspan>
-</text>
-<rect x="1005" y="1084" width="100" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="1005" y="1084" width="100" height="18" fill="#8B4513" stroke="#333" stroke-width="2"/>
-<text x="1013" y="1116" font-family="Arial" font-size="12" fill="#111">
-<tspan x="1013" y="1116">1</tspan>
-<tspan x="1013" y="1130">Belvue House</tspan>
-<tspan x="1013" y="1144">Buy $600</tspan>
-<tspan x="1013" y="1158">Rent $36</tspan>
-</text>
-<rect x="905" y="1084" width="100" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="905" y="1084" width="100" height="18" fill="#8B4513" stroke="#333" stroke-width="2"/>
-<text x="913" y="1116" font-family="Arial" font-size="12" fill="#111">
-<tspan x="913" y="1116">2</tspan>
-<tspan x="913" y="1130">Balga Inn</tspan>
-<tspan x="913" y="1144">Buy $600</tspan>
-<tspan x="913" y="1158">Rent $36</tspan>
-</text>
-<rect x="805" y="1084" width="100" height="100" fill="#E6FCF5" stroke="#333" stroke-width="2"/>
-<text x="813" y="1116" font-family="Arial" font-size="12" fill="#111">
-<tspan x="813" y="1116">3</tspan>
-<tspan x="813" y="1130">Welfare Centre</tspan>
-</text>
-<rect x="705" y="1084" width="100" height="100" fill="#FFE3E3" stroke="#333" stroke-width="2"/>
-<text x="713" y="1116" font-family="Arial" font-size="12" fill="#111">
-<tspan x="713" y="1116">4</tspan>
-<tspan x="713" y="1130">Income Tax</tspan>
-<tspan x="713" y="1144">Pay $2000</tspan>
-</text>
-<rect x="605" y="1084" width="100" height="100" fill="#F3F0FF" stroke="#333" stroke-width="2"/>
-<text x="613" y="1116" font-family="Arial" font-size="12" fill="#111">
-<tspan x="613" y="1116">5</tspan>
-<tspan x="613" y="1130">TransPerth</tspan>
-<tspan x="613" y="1144">Buy $2000</tspan>
-<tspan x="613" y="1158">Rent $250</tspan>
-</text>
-<rect x="505" y="1084" width="100" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="505" y="1084" width="100" height="18" fill="#87CEEB" stroke="#333" stroke-width="2"/>
-<text x="513" y="1116" font-family="Arial" font-size="12" fill="#111">
-<tspan x="513" y="1116">6</tspan>
-<tspan x="513" y="1130">Ascot Waters</tspan>
-<tspan x="513" y="1144">Buy $1000</tspan>
-<tspan x="513" y="1158">Rent $70</tspan>
-</text>
-<rect x="405" y="1084" width="100" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="405" y="1084" width="100" height="18" fill="#87CEEB" stroke="#333" stroke-width="2"/>
-<text x="413" y="1116" font-family="Arial" font-size="12" fill="#111">
-<tspan x="413" y="1116">7</tspan>
-<tspan x="413" y="1130">Midland</tspan>
-<tspan x="413" y="1144">Buy $1000</tspan>
-<tspan x="413" y="1158">Rent $70</tspan>
-</text>
-<rect x="305" y="1084" width="100" height="100" fill="#FFF7CC" stroke="#333" stroke-width="2"/>
-<text x="313" y="1116" font-family="Arial" font-size="12" fill="#111">
-<tspan x="313" y="1116">8</tspan>
-<tspan x="313" y="1130">Chance</tspan>
-</text>
-<rect x="205" y="1084" width="100" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="205" y="1084" width="100" height="18" fill="#87CEEB" stroke="#333" stroke-width="2"/>
-<text x="213" y="1116" font-family="Arial" font-size="12" fill="#111">
-<tspan x="213" y="1116">9</tspan>
-<tspan x="213" y="1130">Swan Vinyard</tspan>
-<tspan x="213" y="1144">Buy $1200</tspan>
-<tspan x="213" y="1158">Rent $84</tspan>
-</text>
-<rect x="60" y="1084" width="145" height="100" fill="#F1F3F5" stroke="#333" stroke-width="2"/>
-<text x="68" y="1116" font-family="Arial" font-size="12" fill="#111">
-<tspan x="68" y="1116">10</tspan>
-<tspan x="68" y="1130">Visit Jail</tspan>
-</text>
-<rect x="60" y="984" width="145" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="187" y="984" width="18" height="100" fill="#FF1493" stroke="#333" stroke-width="2"/>
-<text x="68" y="1016" font-family="Arial" font-size="12" fill="#111">
-<tspan x="68" y="1016">11</tspan>
-<tspan x="68" y="1030">Optus Stadiium</tspan>
-<tspan x="68" y="1044">Buy $1400</tspan>
-<tspan x="68" y="1058">Rent $112</tspan>
-</text>
-<rect x="60" y="884" width="145" height="100" fill="#E7F5FF" stroke="#333" stroke-width="2"/>
-<text x="68" y="916" font-family="Arial" font-size="12" fill="#111">
-<tspan x="68" y="916">12</tspan>
-<tspan x="68" y="930">Synergy</tspan>
-<tspan x="68" y="944">Buy $1500</tspan>
-<tspan x="68" y="958">Rent $5</tspan>
-</text>
-<rect x="60" y="784" width="145" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="187" y="784" width="18" height="100" fill="#FF1493" stroke="#333" stroke-width="2"/>
-<text x="68" y="816" font-family="Arial" font-size="12" fill="#111">
-<tspan x="68" y="816">13</tspan>
-<tspan x="68" y="830">WACA</tspan>
-<tspan x="68" y="844">Buy $1400</tspan>
-<tspan x="68" y="858">Rent $112</tspan>
-</text>
-<rect x="60" y="684" width="145" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="187" y="684" width="18" height="100" fill="#FF1493" stroke="#333" stroke-width="2"/>
-<text x="68" y="716" font-family="Arial" font-size="12" fill="#111">
-<tspan x="68" y="716">14</tspan>
-<tspan x="68" y="730">Perth Arena</tspan>
-<tspan x="68" y="744">Buy $1600</tspan>
-<tspan x="68" y="758">Rent $128</tspan>
-</text>
-<rect x="60" y="584" width="145" height="100" fill="#F3F0FF" stroke="#333" stroke-width="2"/>
-<text x="68" y="616" font-family="Arial" font-size="12" fill="#111">
-<tspan x="68" y="616">15</tspan>
-<tspan x="68" y="630">Warwick Train Station</tspan>
-<tspan x="68" y="644">Buy $2000</tspan>
-<tspan x="68" y="658">Rent $250</tspan>
-</text>
-<rect x="60" y="484" width="145" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="187" y="484" width="18" height="100" fill="#FFA500" stroke="#333" stroke-width="2"/>
-<text x="68" y="516" font-family="Arial" font-size="12" fill="#111">
-<tspan x="68" y="516">16</tspan>
-<tspan x="68" y="530">Hilliarys Boat Harbour</tspan>
-<tspan x="68" y="544">Buy $1800</tspan>
-<tspan x="68" y="558">Rent $144</tspan>
-</text>
-<rect x="60" y="384" width="145" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="187" y="384" width="18" height="100" fill="#FFA500" stroke="#333" stroke-width="2"/>
-<text x="68" y="416" font-family="Arial" font-size="12" fill="#111">
-<tspan x="68" y="416">17</tspan>
-<tspan x="68" y="430">Water World</tspan>
-<tspan x="68" y="444">Buy $1800</tspan>
-<tspan x="68" y="458">Rent $144</tspan>
-</text>
-<rect x="60" y="284" width="145" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="187" y="284" width="18" height="100" fill="#FFA500" stroke="#333" stroke-width="2"/>
-<text x="68" y="316" font-family="Arial" font-size="12" fill="#111">
-<tspan x="68" y="316">18</tspan>
-<tspan x="68" y="330">Adventure World</tspan>
-<tspan x="68" y="344">Buy $2000</tspan>
-<tspan x="68" y="358">Rent $160</tspan>
-</text>
-<rect x="60" y="184" width="145" height="100" fill="#E6FCF5" stroke="#333" stroke-width="2"/>
-<text x="68" y="216" font-family="Arial" font-size="12" fill="#111">
-<tspan x="68" y="216">19</tspan>
-<tspan x="68" y="230">Welfare Centre</tspan>
-</text>
-<rect x="60" y="60" width="145" height="124" fill="#F1F3F5" stroke="#333" stroke-width="2"/>
-<text x="68" y="92" font-family="Arial" font-size="12" fill="#111">
-<tspan x="68" y="92">20</tspan>
-<tspan x="68" y="106">Salvo Rest Home</tspan>
-</text>
-<rect x="205" y="60" width="100" height="124" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="205" y="166" width="100" height="18" fill="#FF0000" stroke="#333" stroke-width="2"/>
-<text x="213" y="92" font-family="Arial" font-size="12" fill="#111">
-<tspan x="213" y="92">21</tspan>
-<tspan x="213" y="106">Whitfords Shopping</tspan>
-<tspan x="213" y="120">Centre</tspan>
-<tspan x="213" y="134">Buy $2200</tspan>
-<tspan x="213" y="148">Rent $180</tspan>
-</text>
-<rect x="305" y="60" width="100" height="124" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="305" y="166" width="100" height="18" fill="#FF0000" stroke="#333" stroke-width="2"/>
-<text x="313" y="92" font-family="Arial" font-size="12" fill="#111">
-<tspan x="313" y="92">22</tspan>
-<tspan x="313" y="106">Cannington</tspan>
-<tspan x="313" y="120">Shopping Centre</tspan>
-<tspan x="313" y="134">Buy $2200</tspan>
-<tspan x="313" y="148">Rent $180</tspan>
-</text>
-<rect x="405" y="60" width="100" height="124" fill="#FFF7CC" stroke="#333" stroke-width="2"/>
-<text x="413" y="92" font-family="Arial" font-size="12" fill="#111">
-<tspan x="413" y="92">23</tspan>
-<tspan x="413" y="106">Chance</tspan>
-</text>
-<rect x="505" y="60" width="100" height="124" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="505" y="166" width="100" height="18" fill="#FF0000" stroke="#333" stroke-width="2"/>
-<text x="513" y="92" font-family="Arial" font-size="12" fill="#111">
-<tspan x="513" y="92">24</tspan>
-<tspan x="513" y="106">Carrilon City</tspan>
-<tspan x="513" y="120">Buy $2400</tspan>
-<tspan x="513" y="134">Rent $196</tspan>
-</text>
-<rect x="605" y="60" width="100" height="124" fill="#F3F0FF" stroke="#333" stroke-width="2"/>
-<text x="613" y="92" font-family="Arial" font-size="12" fill="#111">
-<tspan x="613" y="92">25</tspan>
-<tspan x="613" y="106">Rottnest Express</tspan>
-<tspan x="613" y="120">Buy $2000</tspan>
-<tspan x="613" y="134">Rent $250</tspan>
-</text>
-<rect x="705" y="60" width="100" height="124" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="705" y="166" width="100" height="18" fill="#FFFF00" stroke="#333" stroke-width="2"/>
-<text x="713" y="92" font-family="Arial" font-size="12" fill="#111">
-<tspan x="713" y="92">26</tspan>
-<tspan x="713" y="106">Rottnest Island</tspan>
-<tspan x="713" y="120">Buy $2600</tspan>
-<tspan x="713" y="134">Rent $221</tspan>
-</text>
-<rect x="805" y="60" width="100" height="124" fill="#E7F5FF" stroke="#333" stroke-width="2"/>
-<text x="813" y="92" font-family="Arial" font-size="12" fill="#111">
-<tspan x="813" y="92">27</tspan>
-<tspan x="813" y="106">Alinta Gas</tspan>
-<tspan x="813" y="120">Buy $1500</tspan>
-<tspan x="813" y="134">Rent $5</tspan>
-</text>
-<rect x="905" y="60" width="100" height="124" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="905" y="166" width="100" height="18" fill="#FFFF00" stroke="#333" stroke-width="2"/>
-<text x="913" y="92" font-family="Arial" font-size="12" fill="#111">
-<tspan x="913" y="92">28</tspan>
-<tspan x="913" y="106">City Beach</tspan>
-<tspan x="913" y="120">Buy $2600</tspan>
-<tspan x="913" y="134">Rent $221</tspan>
-</text>
-<rect x="1005" y="60" width="100" height="124" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="1005" y="166" width="100" height="18" fill="#FFFF00" stroke="#333" stroke-width="2"/>
-<text x="1013" y="92" font-family="Arial" font-size="12" fill="#111">
-<tspan x="1013" y="92">29</tspan>
-<tspan x="1013" y="106">Yanchep Beach</tspan>
-<tspan x="1013" y="120">Buy $2800</tspan>
-<tspan x="1013" y="134">Rent $238</tspan>
-</text>
-<rect x="1105" y="60" width="145" height="124" fill="#FFE3E3" stroke="#333" stroke-width="2"/>
-<text x="1133" y="92" font-family="Arial" font-size="12" fill="#111">
-<tspan x="1133" y="92">30</tspan>
-<tspan x="1133" y="106">Police Arrest –</tspan>
-<tspan x="1133" y="120">Imprisonment</tspan>
-</text>
-<rect x="1105" y="184" width="145" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="1105" y="184" width="18" height="100" fill="#00FF00" stroke="#333" stroke-width="2"/>
-<text x="1133" y="216" font-family="Arial" font-size="12" fill="#111">
-<tspan x="1133" y="216">31</tspan>
-<tspan x="1133" y="230">Perth Zoo</tspan>
-<tspan x="1133" y="244">Buy $3000</tspan>
-<tspan x="1133" y="258">Rent $261</tspan>
-</text>
-<rect x="1105" y="284" width="145" height="100" fill="#E6FCF5" stroke="#333" stroke-width="2"/>
-<text x="1133" y="316" font-family="Arial" font-size="12" fill="#111">
-<tspan x="1133" y="316">32</tspan>
-<tspan x="1133" y="330">Welfare Centre</tspan>
-</text>
-<rect x="1105" y="384" width="145" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="1105" y="384" width="18" height="100" fill="#00FF00" stroke="#333" stroke-width="2"/>
-<text x="1133" y="416" font-family="Arial" font-size="12" fill="#111">
-<tspan x="1133" y="416">33</tspan>
-<tspan x="1133" y="430">Curtin Uni</tspan>
-<tspan x="1133" y="444">Buy $3000</tspan>
-<tspan x="1133" y="458">Rent $261</tspan>
-</text>
-<rect x="1105" y="484" width="145" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="1105" y="484" width="18" height="100" fill="#00FF00" stroke="#333" stroke-width="2"/>
-<text x="1133" y="516" font-family="Arial" font-size="12" fill="#111">
-<tspan x="1133" y="516">34</tspan>
-<tspan x="1133" y="530">The Casino</tspan>
-<tspan x="1133" y="544">Buy $3200</tspan>
-<tspan x="1133" y="558">Rent $278</tspan>
-</text>
-<rect x="1105" y="584" width="145" height="100" fill="#F3F0FF" stroke="#333" stroke-width="2"/>
-<text x="1133" y="616" font-family="Arial" font-size="12" fill="#111">
-<tspan x="1133" y="616">35</tspan>
-<tspan x="1133" y="630">Perth Airport</tspan>
-<tspan x="1133" y="644">Buy $2000</tspan>
-<tspan x="1133" y="658">Rent $250</tspan>
-</text>
-<rect x="1105" y="684" width="145" height="100" fill="#FFF7CC" stroke="#333" stroke-width="2"/>
-<text x="1133" y="716" font-family="Arial" font-size="12" fill="#111">
-<tspan x="1133" y="716">36</tspan>
-<tspan x="1133" y="730">Chance</tspan>
-</text>
-<rect x="1105" y="784" width="145" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="1105" y="784" width="18" height="100" fill="#00008B" stroke="#333" stroke-width="2"/>
-<text x="1133" y="816" font-family="Arial" font-size="12" fill="#111">
-<tspan x="1133" y="816">37</tspan>
-<tspan x="1133" y="830">Nedlands</tspan>
-<tspan x="1133" y="844">Buy $4000</tspan>
-<tspan x="1133" y="858">Rent $464</tspan>
-</text>
-<rect x="1105" y="884" width="145" height="100" fill="#FFE3E3" stroke="#333" stroke-width="2"/>
-<text x="1133" y="916" font-family="Arial" font-size="12" fill="#111">
-<tspan x="1133" y="916">38</tspan>
-<tspan x="1133" y="930">Mortgage Payment</tspan>
-<tspan x="1133" y="944">Pay $1000</tspan>
-</text>
-<rect x="1105" y="984" width="145" height="100" fill="#FFFFFF" stroke="#333" stroke-width="2"/>
-<rect x="1105" y="984" width="18" height="100" fill="#00008B" stroke="#333" stroke-width="2"/>
-<text x="1133" y="1016" font-family="Arial" font-size="12" fill="#111">
-<tspan x="1133" y="1016">39</tspan>
-<tspan x="1133" y="1030">Kings Park</tspan>
-<tspan x="1133" y="1044">Buy $5000</tspan>
-<tspan x="1133" y="1058">Rent $625</tspan>
-</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1130" height="1130" viewBox="0 0 1130 1130">
+<rect width="1130" height="1130" fill="#F5F0E8"/>
+<rect x="140" y="140" width="900" height="900" fill="#E8F5E9" stroke="#2E7D32" stroke-width="2"/>
+<text x="565" y="525" font-family="Georgia, serif" font-size="38" font-weight="bold" fill="#2d5016" text-anchor="middle">SQUATTER</text>
+<text x="565" y="555" font-family="Georgia, serif" font-size="16" fill="#4a7c23" text-anchor="middle">The Australian Sheep Station Game</text>
+<text x="565" y="1035" font-family="Arial" font-size="22" font-weight="bold" fill="#795548" text-anchor="middle">AUTUMN</text>
+<text x="210" y="565" font-family="Arial" font-size="22" font-weight="bold" fill="#795548" text-anchor="middle" transform="rotate(-90 210 565)">WINTER</text>
+<text x="565" y="155" font-family="Arial" font-size="22" font-weight="bold" fill="#795548" text-anchor="middle">SPRING</text>
+<text x="920" y="565" font-family="Arial" font-size="22" font-weight="bold" fill="#795548" text-anchor="middle" transform="rotate(90 920 565)">SUMMER</text>
+<rect x="1040" y="1040" width="90" height="90" fill="#E8F5E9" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="1044" y="1051" font-family="Arial" font-size="10" fill="#aaa">0</text>
+<text x="1085" y="1082" font-family="Arial" font-size="13" font-weight="bold" fill="#2E7D32" text-anchor="middle">Start/Wool</text>
+<text x="1085" y="1095" font-family="Arial" font-size="13" font-weight="bold" fill="#2E7D32" text-anchor="middle">Sale</text>
+<rect x="950" y="1040" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="954" y="1051" font-family="Arial" font-size="10" fill="#aaa">1</text>
+<text x="995" y="1088" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
+<rect x="860" y="1040" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="864" y="1051" font-family="Arial" font-size="10" fill="#aaa">2</text>
+<text x="905" y="1082" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Sheep</text>
+<text x="905" y="1095" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Dipping</text>
+<text x="905" y="1124" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$10/pen</text>
+<rect x="770" y="1040" width="90" height="90" fill="#FFF8E1" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="774" y="1051" font-family="Arial" font-size="10" fill="#aaa">3</text>
+<text x="815" y="1088" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">Elmsford</text>
+<text x="815" y="1124" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">Buy $500</text>
+<rect x="680" y="1040" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="684" y="1051" font-family="Arial" font-size="10" fill="#aaa">4</text>
+<text x="725" y="1088" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
+<rect x="590" y="1040" width="90" height="90" fill="#EFEBE9" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="594" y="1051" font-family="Arial" font-size="10" fill="#aaa">5</text>
+<text x="635" y="1082" font-family="Arial" font-size="13" font-weight="bold" fill="#4E342E" text-anchor="middle">Bore Dries</text>
+<text x="635" y="1095" font-family="Arial" font-size="13" font-weight="bold" fill="#4E342E" text-anchor="middle">Up</text>
+<rect x="500" y="1040" width="90" height="90" fill="#E3F2FD" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="504" y="1051" font-family="Arial" font-size="10" fill="#aaa">6</text>
+<text x="545" y="1082" font-family="Arial" font-size="13" font-weight="bold" fill="#1565C0" text-anchor="middle">Visiting</text>
+<text x="545" y="1095" font-family="Arial" font-size="13" font-weight="bold" fill="#1565C0" text-anchor="middle">Town</text>
+<rect x="410" y="1040" width="90" height="90" fill="#E3F2FD" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="414" y="1051" font-family="Arial" font-size="10" fill="#aaa">7</text>
+<text x="455" y="1082" font-family="Arial" font-size="13" font-weight="bold" fill="#1565C0" text-anchor="middle">Visiting</text>
+<text x="455" y="1095" font-family="Arial" font-size="13" font-weight="bold" fill="#1565C0" text-anchor="middle">Town</text>
+<rect x="320" y="1040" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="324" y="1051" font-family="Arial" font-size="10" fill="#aaa">8</text>
+<text x="365" y="1088" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Worm Drench</text>
+<text x="365" y="1124" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$10/pen</text>
+<rect x="230" y="1040" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="234" y="1051" font-family="Arial" font-size="10" fill="#aaa">9</text>
+<text x="275" y="1088" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
+<rect x="140" y="1040" width="90" height="90" fill="#E8EAF6" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="144" y="1051" font-family="Arial" font-size="10" fill="#aaa">10</text>
+<text x="185" y="1082" font-family="Arial" font-size="13" font-weight="bold" fill="#283593" text-anchor="middle">Flood</text>
+<text x="185" y="1095" font-family="Arial" font-size="13" font-weight="bold" fill="#283593" text-anchor="middle">Damage</text>
+<rect x="50" y="1040" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="54" y="1051" font-family="Arial" font-size="10" fill="#aaa">11</text>
+<text x="95" y="1088" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
+<rect x="50" y="950" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="54" y="961" font-family="Arial" font-size="10" fill="#aaa">12</text>
+<text x="95" y="998" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
+<rect x="50" y="860" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="54" y="871" font-family="Arial" font-size="10" fill="#aaa">13</text>
+<text x="95" y="902" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Fly Strike</text>
+<text x="95" y="915" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Dip</text>
+<text x="95" y="944" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$5/pen</text>
+<rect x="50" y="770" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="54" y="781" font-family="Arial" font-size="10" fill="#aaa">14</text>
+<text x="95" y="812" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Vermin</text>
+<text x="95" y="825" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Control</text>
+<text x="95" y="854" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$50</text>
+<rect x="50" y="680" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="54" y="691" font-family="Arial" font-size="10" fill="#aaa">15</text>
+<text x="95" y="728" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
+<rect x="50" y="590" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="54" y="601" font-family="Arial" font-size="10" fill="#aaa">16</text>
+<text x="95" y="638" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Footrot</text>
+<text x="95" y="674" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$20/pen</text>
+<rect x="50" y="500" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="54" y="511" font-family="Arial" font-size="10" fill="#aaa">17</text>
+<text x="95" y="548" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
+<rect x="50" y="410" width="90" height="90" fill="#FFF8E1" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="54" y="421" font-family="Arial" font-size="10" fill="#aaa">18</text>
+<text x="95" y="458" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">Lachlan Lad</text>
+<text x="95" y="494" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">Buy $500</text>
+<rect x="50" y="320" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="54" y="331" font-family="Arial" font-size="10" fill="#aaa">19</text>
+<text x="95" y="368" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
+<rect x="50" y="230" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="54" y="241" font-family="Arial" font-size="10" fill="#aaa">20</text>
+<text x="95" y="272" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Fencing</text>
+<text x="95" y="285" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Repairs</text>
+<text x="95" y="314" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$500</text>
+<rect x="50" y="140" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="54" y="151" font-family="Arial" font-size="10" fill="#aaa">21</text>
+<text x="95" y="188" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Spray Weeds</text>
+<rect x="50" y="50" width="90" height="90" fill="#FBE9E7" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="54" y="61" font-family="Arial" font-size="10" fill="#aaa">22</text>
+<text x="95" y="92" font-family="Arial" font-size="13" font-weight="bold" fill="#BF360C" text-anchor="middle">Local</text>
+<text x="95" y="105" font-family="Arial" font-size="13" font-weight="bold" fill="#BF360C" text-anchor="middle">Drought</text>
+<rect x="140" y="50" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="144" y="61" font-family="Arial" font-size="10" fill="#aaa">23</text>
+<text x="185" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Liver Fluke</text>
+<text x="185" y="134" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$10/pen</text>
+<rect x="230" y="50" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="234" y="61" font-family="Arial" font-size="10" fill="#aaa">24</text>
+<text x="275" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
+<rect x="320" y="50" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="324" y="61" font-family="Arial" font-size="10" fill="#aaa">25</text>
+<text x="365" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
+<rect x="410" y="50" width="90" height="90" fill="#FFF8E1" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="414" y="61" font-family="Arial" font-size="10" fill="#aaa">26</text>
+<text x="455" y="92" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">King of</text>
+<text x="455" y="105" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">Warramboo</text>
+<text x="455" y="134" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">Buy $500</text>
+<rect x="500" y="50" width="90" height="90" fill="#E0F7FA" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="504" y="61" font-family="Arial" font-size="10" fill="#aaa">27</text>
+<text x="545" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#00695C" text-anchor="middle">Local Rain</text>
+<rect x="590" y="50" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="594" y="61" font-family="Arial" font-size="10" fill="#aaa">28</text>
+<text x="635" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
+<rect x="680" y="50" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="684" y="61" font-family="Arial" font-size="10" fill="#aaa">29</text>
+<text x="725" y="92" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Pulpy</text>
+<text x="725" y="105" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Kidney</text>
+<text x="725" y="134" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$20/pen</text>
+<rect x="770" y="50" width="90" height="90" fill="#FFF8E1" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="774" y="61" font-family="Arial" font-size="10" fill="#aaa">30</text>
+<text x="815" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">Winton Boy</text>
+<text x="815" y="134" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">Buy $500</text>
+<rect x="860" y="50" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="864" y="61" font-family="Arial" font-size="10" fill="#aaa">31</text>
+<text x="905" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
+<rect x="950" y="50" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="954" y="61" font-family="Arial" font-size="10" fill="#aaa">32</text>
+<text x="995" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
+<rect x="1040" y="50" width="90" height="90" fill="#FCE4EC" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="1044" y="61" font-family="Arial" font-size="10" fill="#aaa">33</text>
+<text x="1085" y="92" font-family="Arial" font-size="13" font-weight="bold" fill="#880E4F" text-anchor="middle">Stud Ram</text>
+<text x="1085" y="105" font-family="Arial" font-size="13" font-weight="bold" fill="#880E4F" text-anchor="middle">Dies</text>
+<rect x="1040" y="140" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="1044" y="151" font-family="Arial" font-size="10" fill="#aaa">34</text>
+<text x="1085" y="182" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Water</text>
+<text x="1085" y="195" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Drilling</text>
+<text x="1085" y="224" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$300</text>
+<rect x="1040" y="230" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="1044" y="241" font-family="Arial" font-size="10" fill="#aaa">35</text>
+<text x="1085" y="278" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
+<rect x="1040" y="320" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="1044" y="331" font-family="Arial" font-size="10" fill="#aaa">36</text>
+<text x="1085" y="368" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
+<rect x="1040" y="410" width="90" height="90" fill="#F1F8E9" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<rect x="1040" y="410" width="90" height="7" fill="#7CB342" rx="3" ry="0"/>
+<text x="1044" y="421" font-family="Arial" font-size="10" fill="#aaa">37</text>
+<text x="1085" y="452" font-family="Arial" font-size="13" font-weight="bold" fill="#33691E" text-anchor="middle">Fertilising</text>
+<text x="1085" y="465" font-family="Arial" font-size="13" font-weight="bold" fill="#33691E" text-anchor="middle">Pasture</text>
+<rect x="1040" y="500" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<rect x="1040" y="500" width="90" height="7" fill="#7CB342" rx="3" ry="0"/>
+<text x="1044" y="511" font-family="Arial" font-size="10" fill="#aaa">38</text>
+<text x="1085" y="548" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
+<rect x="1040" y="590" width="90" height="90" fill="#FFF8E1" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<rect x="1040" y="590" width="90" height="7" fill="#7CB342" rx="3" ry="0"/>
+<text x="1044" y="601" font-family="Arial" font-size="10" fill="#aaa">39</text>
+<text x="1085" y="632" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">Mitchell’s</text>
+<text x="1085" y="645" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">Pride</text>
+<text x="1085" y="674" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">Buy $500</text>
+<rect x="1040" y="680" width="90" height="90" fill="#F1F8E9" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<rect x="1040" y="680" width="90" height="7" fill="#7CB342" rx="3" ry="0"/>
+<text x="1044" y="691" font-family="Arial" font-size="10" fill="#aaa">40</text>
+<text x="1085" y="728" font-family="Arial" font-size="13" font-weight="bold" fill="#33691E" text-anchor="middle">Shearing</text>
+<text x="1085" y="764" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$20/pen</text>
+<rect x="1040" y="770" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<rect x="1040" y="770" width="90" height="7" fill="#7CB342" rx="3" ry="0"/>
+<text x="1044" y="781" font-family="Arial" font-size="10" fill="#aaa">41</text>
+<text x="1085" y="818" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
+<rect x="1040" y="860" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<rect x="1040" y="860" width="90" height="7" fill="#7CB342" rx="3" ry="0"/>
+<text x="1044" y="871" font-family="Arial" font-size="10" fill="#aaa">42</text>
+<text x="1085" y="908" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
+<rect x="1040" y="950" width="90" height="90" fill="#FBE9E7" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<text x="1044" y="961" font-family="Arial" font-size="10" fill="#aaa">43</text>
+<text x="1085" y="992" font-family="Arial" font-size="13" font-weight="bold" fill="#BF360C" text-anchor="middle">Local</text>
+<text x="1085" y="1005" font-family="Arial" font-size="13" font-weight="bold" fill="#BF360C" text-anchor="middle">Drought</text>
 </svg>

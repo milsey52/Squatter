@@ -65,9 +65,21 @@ export function useGameEvents(gameId, sessionToken, onEvent) {
       }
     };
 
+    // Defensive JSON.parse — if a payload is malformed, log it and return null
+    // instead of throwing. Prevents one bad event from flooding the console.
+    const safeParse = (raw, eventName) => {
+      try {
+        return JSON.parse(raw);
+      } catch (err) {
+        console.warn(`[SSE] Bad JSON for ${eventName}:`, err.message, '— payload:', raw);
+        return null;
+      }
+    };
+
     // Event: connected
     eventSource.addEventListener('connected', (e) => {
-      const data = JSON.parse(e.data);
+      const data = safeParse(e.data, 'connected');
+      if (data === null) return;
       console.log('[SSE] Connected:', data);
       setConnectionState('connected');
       reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
@@ -80,126 +92,90 @@ export function useGameEvents(gameId, sessionToken, onEvent) {
 
     // Event: player_joined
     eventSource.addEventListener('player_joined', (e) => {
-      const data = JSON.parse(e.data);
+      const data = safeParse(e.data, 'player_joined');
+      if (data === null) return;
       console.log('[SSE] Player joined:', data);
       callOnEvent('player_joined', data);
     });
 
     // Event: player_ready
     eventSource.addEventListener('player_ready', (e) => {
-      const data = JSON.parse(e.data);
+      const data = safeParse(e.data, 'player_ready');
+      if (data === null) return;
       console.log('[SSE] Player ready:', data);
       callOnEvent('player_ready', data);
     });
 
     // Event: game_started
     eventSource.addEventListener('game_started', (e) => {
-      const data = JSON.parse(e.data);
+      const data = safeParse(e.data, 'game_started');
+      if (data === null) return;
       console.log('[SSE] Game started:', data);
       callOnEvent('game_started', data);
     });
 
     // Event: turn_played
     eventSource.addEventListener('turn_played', (e) => {
-      const data = JSON.parse(e.data);
+      const data = safeParse(e.data, 'turn_played');
+      if (data === null) return;
       console.log('[SSE] Turn played:', data);
       callOnEvent('turn_played', data);
     });
 
-    // Event: purchase_decision
-    eventSource.addEventListener('purchase_decision', (e) => {
-      const data = JSON.parse(e.data);
-      console.log('[SSE] Purchase decision:', data);
-      callOnEvent('purchase_decision', data);
-    });
-
-    // Event: auction_started
-    eventSource.addEventListener('auction_started', (e) => {
-      const data = JSON.parse(e.data);
-      console.log('[SSE] Auction started:', data);
-      callOnEvent('auction_started', data);
-    });
-
-    // Event: auction_bid
-    eventSource.addEventListener('auction_bid', (e) => {
-      const data = JSON.parse(e.data);
-      console.log('[SSE] Auction bid:', data);
-      callOnEvent('auction_bid', data);
-    });
-
-    // Event: auction_pass
-    eventSource.addEventListener('auction_pass', (e) => {
-      const data = JSON.parse(e.data);
-      console.log('[SSE] Auction pass:', data);
-      callOnEvent('auction_pass', data);
-    });
-
-    // Event: auction_resolved
-    eventSource.addEventListener('auction_resolved', (e) => {
-      const data = JSON.parse(e.data);
-      console.log('[SSE] Auction resolved:', data);
-      callOnEvent('auction_resolved', data);
-    });
-
     // Event: game_state_changed
     eventSource.addEventListener('game_state_changed', (e) => {
-      const data = JSON.parse(e.data);
+      const data = safeParse(e.data, 'game_state_changed');
+      if (data === null) return;
       console.log('[SSE] Game state changed:', data);
       callOnEvent('game_state_changed', data);
     });
 
     // Trade events
     eventSource.addEventListener('trade_initiated', (e) => {
-      const data = JSON.parse(e.data);
+      const data = safeParse(e.data, 'trade_initiated');
+      if (data === null) return;
       console.log('[SSE] Trade initiated:', data);
       callOnEvent('trade_initiated', data);
     });
 
     eventSource.addEventListener('trade_status_changed', (e) => {
-      const data = JSON.parse(e.data);
+      const data = safeParse(e.data, 'trade_status_changed');
+      if (data === null) return;
       console.log('[SSE] Trade status changed:', data);
       callOnEvent('trade_status_changed', data);
     });
 
     eventSource.addEventListener('trade_offer_updated', (e) => {
-      const data = JSON.parse(e.data);
+      const data = safeParse(e.data, 'trade_offer_updated');
+      if (data === null) return;
       console.log('[SSE] Trade offer updated:', data);
       callOnEvent('trade_offer_updated', data);
     });
 
     eventSource.addEventListener('trade_accepted', (e) => {
-      const data = JSON.parse(e.data);
+      const data = safeParse(e.data, 'trade_accepted');
+      if (data === null) return;
       console.log('[SSE] Trade accepted:', data);
       callOnEvent('trade_accepted', data);
     });
 
     eventSource.addEventListener('trade_executed', (e) => {
-      const data = JSON.parse(e.data);
+      const data = safeParse(e.data, 'trade_executed');
+      if (data === null) return;
       console.log('[SSE] Trade executed:', data);
       callOnEvent('trade_executed', data);
     });
 
     eventSource.addEventListener('trade_cancelled', (e) => {
-      const data = JSON.parse(e.data);
+      const data = safeParse(e.data, 'trade_cancelled');
+      if (data === null) return;
       console.log('[SSE] Trade cancelled:', data);
       callOnEvent('trade_cancelled', data);
     });
 
-    // Bankruptcy events
-    eventSource.addEventListener('player_resigned', (e) => {
-      const data = JSON.parse(e.data);
-      console.log('[SSE] Player resigned:', data);
-      callOnEvent('player_resigned', data);
-    });
-
-    eventSource.addEventListener('debt_resolved', (e) => {
-      const data = JSON.parse(e.data);
-      console.log('[SSE] Debt resolved:', data);
-      callOnEvent('debt_resolved', data);
-    });
-
     eventSource.addEventListener('game_over', (e) => {
-      const data = JSON.parse(e.data);
+      const data = safeParse(e.data, 'game_over');
+      if (data === null) return;
       console.log('[SSE] Game over:', data);
       callOnEvent('game_over', data);
     });

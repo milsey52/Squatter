@@ -1,73 +1,38 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Board from "./Board";
-import PurchaseModal from "./PurchaseModal";
-import AuctionModal from "./AuctionModal";
-import CardModal from "./components/CardModal";
-import RentPaymentModal from "./components/RentPaymentModal";
-import JailModal from "./components/JailModal";
-import RetainedCardPopup from "./components/RetainedCardPopup";
 import GameSelector from "./components/GameSelector";
 import GameLobby from "./components/GameLobby";
 import SuspendedGameNotice from "./components/SuspendedGameNotice";
-import JailTurnOptions from "./components/JailTurnOptions";
+import RetainedCardPopup from "./components/RetainedCardPopup";
+import HoldingsPanel from "./components/HoldingsPanel";
 import TradingBoard from "./components/TradingBoard";
-import PropertyManagement from "./components/PropertyManagement";
-import PropertyLedger from "./components/PropertyLedger";
-import WorthModal from "./components/WorthModal";
-import BankruptcyModal from "./components/BankruptcyModal";
+import StationPanel from "./components/StationPanel";
+import PendingActionModal from "./components/PendingActionModal";
 import { useGameEvents } from "./hooks/useGameEvents";
 import { Z_INDEX } from "./constants/zIndex";
 
-const API_BASE = import.meta.env.VITE_API_BASE || '';                                                                                                             
-const SPACE_LABELS = [                                                                                                                                                                 
-  "Start/Payday",                                                                                                                                                                      
-  "Belvue House",                                                                                                                                                                      
-  "Balga Inn",                                                                                                                                                                         
-  "Welfare Centre",                                                                                                                                                                    
-  "Income Tax",                                                                                                                                                                        
-  "Transperth",                                                                                                                                                                        
-  "Ascot Waters",                                                                                                                                                                      
-  "Midland",                                                                                                                                                                           
-  "Chance",                                                                                                                                                                            
-  "Swan Vineyard",                                                                                                                                                                     
-  "Visit Jail",                                                                                                                                                                        
-  "Optus Stadium",                                                                                                                                                                     
-  "Synergy",                                                                                                                                                                           
-  "WACA",                                                                                                                                                                              
-  "Perth Arena",                                                                                                                                                                       
-  "Warwick Train Station",                                                                                                                                                             
-  "Hillarys Boat Harbour",                                                                                                                                                             
-  "Water World",                                                                                                                                                                       
-  "Adventure World",                                                                                                                                                                   
-  "Welfare Centre",                                                                                                                                                                    
-  "Salvo Rest Home",                                                                                                                                                                   
-  "Whitfords Shopping Centre",                                                                                                                                                         
-  "Cannington Shopping Centre",                                                                                                                                                        
-  "Chance",                                                                                                                                                                            
-  "Carrillon City",                                                                                                                                                                    
-  "Rottnest Express",                                                                                                                                                                  
-  "Rottnest Island",                                                                                                                                                                   
-  "Alinta Gas",                                                                                                                                                                        
-  "City Beach",                                                                                                                                                                        
-  "Yanchep Beach",                                                                                                                                                                     
-  "Police Arrest – Imprisonment",                                                                                                                                                      
-  "Perth Zoo",                                                                                                                                                                         
-  "Welfare Centre",                                                                                                                                                                    
-  "Curtin Uni",                                                                                                                                                                        
-  "The Casino",                                                                                                                                                                        
-  "Perth Airport",                                                                                                                                                                     
-  "Chance",                                                                                                                                                                            
-  "Nedlands",                                                                                                                                                                          
-  "Mortgage Payment",                                                                                                                                                                  
-  "Kings Park",                                                                                                                                                                        
-];                                                                                                                                                                                     
-                                                                                                                                                                                       
+const API_BASE = import.meta.env.VITE_API_BASE || '';
+
+const SPACE_LABELS = [
+  "Start/Wool Sale", "Stock Sale", "Sheep Dipping", "Stud Ram – Elmsford",
+  "Tucker Bag", "Bore Dries Up", "Visiting Town", "Visiting Town",
+  "Drench Sheep for Worms", "Tucker Bag", "Flood Damage", "Tucker Bag",
+  "Stock Sale", "Fly Strike Dip", "Control of Vermin", "Stock Sale",
+  "Footrot Treatment", "Stock Sale", "Stud Ram – Lachlan Lad", "Tucker Bag",
+  "Fencing Repairs", "Spray for Weeds & Insects", "Local Drought", "Liver Fluke Drench",
+  "Tucker Bag", "Stock Sale", "Stud Ram – King of Warramboo", "Local Rain",
+  "Stock Sale", "Pulpy Kidney Vaccine", "Stud Ram – Winton Boy", "Tucker Bag",
+  "Stock Sale", "Stud Ram Dies", "Water Drilling", "Tucker Bag",
+  "Stock Sale", "Fertilising Pasture", "Stock Sale", "Stud Ram – Mitchell's Pride",
+  "Shearing Costs", "Tucker Bag", "Stock Sale", "Local Drought"
+];
+
 function App() {
   // Routing and session state
-  const [screen, setScreen] = useState('selector'); // 'selector', 'lobby', 'game'
+  const [screen, setScreen] = useState('selector');
   const [gameId, setGameId] = useState(null);
   const [gameCode, setGameCode] = useState(null);
-  const [sessionToken, setSessionToken] = useState(localStorage.getItem('monopoly_session_token'));
+  const [sessionToken, setSessionToken] = useState(localStorage.getItem('squatter_session_token'));
   const [userId, setUserId] = useState(null);
   const [isHost, setIsHost] = useState(false);
 
@@ -75,168 +40,102 @@ function App() {
   const [game, setGame] = useState(null);
   const [ledger, setLedger] = useState([]);
   const [diceRolls, setDiceRolls] = useState([]);
-  const [jackpot, setJackpot] = useState(null);
-  const [allProperties, setAllProperties] = useState([]);                                                                                                                                        
-  const [playerBalances, setPlayerBalances] = useState({});                                                                                                                            
-  const [allPlayerAssets, setAllPlayerAssets] = useState({});                                                                                                                          
-  const [loading, setLoading] = useState(true);                                                                                                                                        
-  const [error, setError] = useState(null);                                                                                                                                            
-  const [isSubmitting, setIsSubmitting] = useState(false);                                                                                                                             
+  const [playerBalances, setPlayerBalances] = useState({});
+  const [stations, setStations] = useState({});
+  const [studRams, setStudRams] = useState([]);
   const [playerRetainedCards, setPlayerRetainedCards] = useState({});
-  const [lastDrawnCards, setLastDrawnCards] = useState({ CHANCE: null, WELFARE: null });
+  const [lastDrawnCard, setLastDrawnCard] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastDiceRoll, setLastDiceRoll] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
   const [showTradingBoard, setShowTradingBoard] = useState(false);
-  const [tradingBoardPos, setTradingBoardPos] = useState({ x: 200, y: 200 });
+  const [showStationPanel, setShowStationPanel] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [holdingsRefreshKey, setHoldingsRefreshKey] = useState(0);
   const [activeTrade, setActiveTrade] = useState(null);
-  const [showPropertyManagement, setShowPropertyManagement] = useState(false);
-  const [showWorthModal, setShowWorthModal] = useState(false);
-  const [bankruptcyInfo, setBankruptcyInfo] = useState(null);
-  const [showBankruptcyModal, setShowBankruptcyModal] = useState(false);
   const [gameOver, setGameOver] = useState(false);
-  const [jailChoiceMade, setJailChoiceMade] = useState(false);
-  const [rentModalDismissed, setRentModalDismissed] = useState(false);
   const [winner, setWinner] = useState(null);
   const [animatedPositions, setAnimatedPositions] = useState({});
   const [animatingPlayers, setAnimatingPlayers] = useState(new Set());
   const animatingPlayersRef = useRef(new Set());
   const fetchAbortControllerRef = useRef(null);
-
-  // Create a map of board_index -> {improvement_level, has_hotel} for board display
-  const propertyImprovements = useMemo(() => {
-    const improvements = {};
-
-    // Flatten allPlayerAssets into a map keyed by board_index (0-39)
-    Object.values(allPlayerAssets).forEach(playerAssets => {
-      if (Array.isArray(playerAssets)) {
-        playerAssets.forEach(asset => {
-          if (asset.asset_type === 'property' && asset.board_index !== undefined && asset.board_index !== null) {
-            improvements[asset.board_index] = {
-              improvement_level: asset.improvement_level || 0,
-              has_hotel: asset.has_hotel || false
-            };
-          }
-        });
-      }
-    });
-
-    return improvements;
-  }, [allPlayerAssets]);
+  const lastFetchRef = useRef(0);
+  const pendingFetchRef = useRef(false);
+  const fetchGameStateRef = useRef(null);
 
   // Handle game joined from selector
   const handleGameJoined = (data) => {
-    console.log('[App] handleGameJoined called with data:', data);
     setGameId(data.gameId);
     setGameCode(data.gameCode);
     setSessionToken(data.sessionToken);
     setUserId(data.userId);
     setIsHost(data.isHost);
+    localStorage.setItem('squatter_session_token', data.sessionToken);
 
-    // Save session token to localStorage
-    localStorage.setItem('monopoly_session_token', data.sessionToken);
-    console.log('[App] Session token saved. Navigating to lobby...');
-
-    // Navigate based on game status
     if (data.gameStatus === 'in_progress' || data.gameStatus === 'suspended') {
       setScreen('game');
     } else {
-      // lobby or rolling_for_order - stay in lobby
       setScreen('lobby');
     }
   };
 
-  // Handle game started from lobby
-  const handleGameStarted = () => {
-    setScreen('game');
-  };
+  const handleGameStarted = () => setScreen('game');
 
   const handleLogout = async () => {
     if (!gameId || !sessionToken) return;
-
-    const confirmLogout = window.confirm(
-      'Are you sure you want to logout? This will suspend the game for all players until you log back in.'
-    );
-
-    if (!confirmLogout) return;
+    if (!window.confirm('Logout will suspend the game for all players. Continue?')) return;
 
     try {
       const response = await fetch(`${API_BASE}/games/${gameId}/logout`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${sessionToken}`
-        }
+        headers: { 'Authorization': `Bearer ${sessionToken}` }
       });
-
       if (response.ok) {
-        // Don't clear session token - keep it so player can log back in
-        // Just navigate to selector screen
         setScreen('selector');
-        alert('You have been logged out. Visit the game link or enter the game code to log back in.');
-      } else {
-        const error = await response.json();
-        alert(error.detail || 'Failed to logout');
       }
-    } catch (error) {
-      console.error('Error logging out:', error);
-      alert('Failed to logout');
+    } catch (err) {
+      console.error('Logout error:', err);
     }
   };
 
   // Check for existing session on mount
   useEffect(() => {
-    const token = localStorage.getItem('monopoly_session_token');
+    const token = localStorage.getItem('squatter_session_token');
     if (token) {
-      // Validate session token with API
       fetch(`${API_BASE}/games/session/validate`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => {
           if (!res.ok) throw new Error('Invalid session');
           return res.json();
         })
         .then(async data => {
-          // Restore session state
           setSessionToken(token);
           setGameId(data.game_id);
           setGameCode(data.game_code);
           setUserId(data.user_id);
           setIsHost(data.is_host);
 
-          // If game is suspended, automatically log player back in
           if (data.game_status === 'suspended') {
-            try {
-              await fetch(`${API_BASE}/games/${data.game_id}/login`, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${token}`
-                }
-              });
-              console.log('[App] Auto-logged in after returning to suspended game');
-            } catch (err) {
-              console.error('[App] Auto-login failed:', err);
-            }
+            await fetch(`${API_BASE}/games/${data.game_id}/login`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
           }
 
-          // Navigate to appropriate screen
           if (data.game_status === 'lobby' || data.game_status === 'rolling_for_order') {
-            // Keep players in lobby during turn order rolling
             setScreen('lobby');
           } else if (data.game_status === 'in_progress' || data.game_status === 'suspended') {
             setScreen('game');
           } else {
-            // Game ended or invalid status
-            localStorage.removeItem('monopoly_session_token');
+            localStorage.removeItem('squatter_session_token');
             setScreen('selector');
           }
         })
         .catch(() => {
-          // Invalid or expired token
-          localStorage.removeItem('monopoly_session_token');
+          localStorage.removeItem('squatter_session_token');
           setScreen('selector');
         });
     } else {
@@ -244,407 +143,240 @@ function App() {
     }
   }, []);
 
-  const fetchGameLedgerJackpot = useCallback(async () => {
+  const fetchGameState = useCallback(async () => {
     if (!gameId) return;
 
-    // Cancel any in-flight request to prevent race conditions
+    // Coalesce calls fired within 250ms — multiple SSE events + onResolved often
+    // arrive nearly simultaneously and would otherwise restart the in-flight
+    // refresh, costing a round-trip each time.
+    const now = Date.now();
+    if (lastFetchRef.current && now - lastFetchRef.current < 250) {
+      pendingFetchRef.current = true;
+      return;
+    }
+    lastFetchRef.current = now;
+    pendingFetchRef.current = false;
+
     if (fetchAbortControllerRef.current) {
       fetchAbortControllerRef.current.abort();
     }
     const abortController = new AbortController();
     fetchAbortControllerRef.current = abortController;
 
-    const headers = sessionToken ? {
-      'Authorization': `Bearer ${sessionToken}`
-    } : {};
+    const headers = sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {};
 
     try {
-      const [gameRes, ledgerRes, jackpotRes, balancesRes, assetsRes, cardsRes, lastDrawnCardsRes, pendingRes, tradeRes, diceRollsRes, propertiesRes] = await Promise.all([
+      const [gameRes, ledgerRes, balancesRes, stationsRes, ramsRes, cardsRes, lastCardRes, pendingRes, tradeRes, diceRes] = await Promise.all([
         fetch(`${API_BASE}/games/${gameId}`, { headers, signal: abortController.signal }),
         fetch(`${API_BASE}/games/${gameId}/ledger`, { headers, signal: abortController.signal }),
-        fetch(`${API_BASE}/games/${gameId}/jackpot`, { headers, signal: abortController.signal }),
         fetch(`${API_BASE}/games/${gameId}/player_balances`, { headers, signal: abortController.signal }),
-        fetch(`${API_BASE}/games/${gameId}/player_assets`, { headers, signal: abortController.signal }),
+        fetch(`${API_BASE}/games/${gameId}/stations`, { headers, signal: abortController.signal }),
+        fetch(`${API_BASE}/games/${gameId}/stud-rams`, { headers, signal: abortController.signal }),
         fetch(`${API_BASE}/games/${gameId}/player_retained_cards`, { headers, signal: abortController.signal }),
-        fetch(`${API_BASE}/games/${gameId}/last_drawn_cards`, { headers, signal: abortController.signal }),
+        fetch(`${API_BASE}/games/${gameId}/last_drawn_card`, { headers, signal: abortController.signal }),
         fetch(`${API_BASE}/games/${gameId}/pending-action`, { headers, signal: abortController.signal }),
         fetch(`${API_BASE}/games/${gameId}/trades/active`, { headers, signal: abortController.signal }),
         fetch(`${API_BASE}/games/${gameId}/dice_rolls`, { headers, signal: abortController.signal }),
-        fetch(`${API_BASE}/games/${gameId}/properties/all`, { headers, signal: abortController.signal })
       ]);
 
-      if (!gameRes.ok) {
-        throw new Error(`Failed to load game: ${gameRes.status}`);
-      }
-
-      if (!ledgerRes.ok) {
-        throw new Error(`Failed to load ledger: ${ledgerRes.status}`);
-      }
+      if (!gameRes.ok) throw new Error(`Failed to load game: ${gameRes.status}`);
 
       const gameData = await gameRes.json();
-      const ledgerData = await ledgerRes.json();
-      const jackpotData = jackpotRes.ok ? await jackpotRes.json() : { jackpot: null };
+      const ledgerData = ledgerRes.ok ? await ledgerRes.json() : [];
       const balancesData = balancesRes.ok ? await balancesRes.json() : {};
-      const assetsData = assetsRes.ok ? await assetsRes.json() : {};
+      const stationsData = stationsRes.ok ? await stationsRes.json() : {};
+      const ramsData = ramsRes.ok ? await ramsRes.json() : [];
       const cardsData = cardsRes.ok ? await cardsRes.json() : {};
-      const lastDrawnCardsData = lastDrawnCardsRes.ok ? await lastDrawnCardsRes.json() : { CHANCE: null, WELFARE: null };
+      const lastCardData = lastCardRes.ok ? await lastCardRes.json() : null;
       const pendingData = pendingRes.ok ? await pendingRes.json() : { pending_action: null };
       const tradeData = tradeRes.ok ? await tradeRes.json() : { trade: null };
-      const diceRollsData = diceRollsRes.ok ? await diceRollsRes.json() : { rolls: [] };
-      const propertiesData = propertiesRes.ok ? await propertiesRes.json() : { properties: [] };
+      const diceData = diceRes.ok ? await diceRes.json() : { rolls: [] };
 
       setGame(gameData);
       setLedger(Array.isArray(ledgerData) ? ledgerData : []);
-      const rolls = diceRollsData.rolls || [];
-      console.log('[App] Dice rolls fetched:', rolls.length, 'rolls', rolls[0]);
-      setDiceRolls(rolls);
-      // Set lastDiceRoll from most recent roll (first in array since sorted desc)
-      if (rolls.length > 0) {
-        const latestRoll = rolls[0];
-        console.log('[App] Setting lastDiceRoll from fetch:', latestRoll);
-        setLastDiceRoll({
-          dice_roll_1: latestRoll.dice1,
-          dice_roll_2: latestRoll.dice2,
-          total_roll: latestRoll.total,
-          is_double: latestRoll.is_double,
-          player_id: latestRoll.player_id
-        });
-      }
-      setJackpot(jackpotData.jackpot);
       setPlayerBalances(balancesData);
-      setAllPlayerAssets(assetsData);
+      setStations(stationsData);
+      setStudRams(ramsData);
       setPlayerRetainedCards(cardsData);
-      setLastDrawnCards(lastDrawnCardsData);
+      setLastDrawnCard(lastCardData);
       setPendingAction(pendingData.pending_action);
       setActiveTrade(tradeData.trade);
-      setAllProperties(propertiesData.properties || []);
+      setHoldingsRefreshKey((k) => k + 1);
+
+      const rolls = diceData.rolls || [];
+      setDiceRolls(rolls);
+      if (rolls.length > 0) {
+        const latest = rolls[0];
+        setLastDiceRoll({
+          dice_roll_1: latest.dice1,
+          dice_roll_2: latest.dice2,
+          total_roll: latest.total,
+          is_double: latest.is_double,
+          player_id: latest.player_id
+        });
+      }
+
       setError(null);
     } catch (err) {
-      // Ignore abort errors - they're expected when canceling stale requests
-      if (err.name === 'AbortError') {
-        return;
-      }
+      if (err.name === 'AbortError') return;
       throw err;
+    } finally {
+      // If a coalesced fetch was requested while we were running, run one more
+      // to capture the latest state.
+      if (pendingFetchRef.current) {
+        pendingFetchRef.current = false;
+        setTimeout(() => fetchGameStateRef.current && fetchGameStateRef.current(), 50);
+      }
     }
   }, [gameId, sessionToken]);
 
-  // Only fetch game data when on the game screen
+  // Keep a ref to the latest fetchGameState for the coalesce-and-retry path.
+  useEffect(() => { fetchGameStateRef.current = fetchGameState; }, [fetchGameState]);
+
+  // Optimistic-resolution helper: clears the pending modal *immediately* so the
+  // user sees instant feedback after a button press, then triggers a normal
+  // backfill (debounced via fetchGameState).
+  const handleResolved = useCallback(() => {
+    setPendingAction(null);
+    fetchGameState();
+  }, [fetchGameState]);
+
   useEffect(() => {
     if (screen !== 'game' || !gameId) return;
 
     setLoading(true);
-    fetchGameLedgerJackpot()
+    fetchGameState()
       .catch((err) => {
         setError(err.message);
         setGame(null);
-        setLedger([]);
-        setJackpot(null);
-        setAllPlayerAssets({});
-        setPlayerRetainedCards({});
-        setLastDrawnCards({ CHANCE: null, WELFARE: null });
-        setPendingAction(null);
-        setActiveTrade(null);
       })
       .finally(() => setLoading(false));
 
-    // Poll for game state updates every 5 seconds as backup to SSE
-    // But skip polling during token animation to avoid showing modals early
     const pollInterval = setInterval(() => {
       if (animatingPlayersRef.current.size === 0) {
-        fetchGameLedgerJackpot();
+        fetchGameState();
       }
     }, 5000);
 
     return () => clearInterval(pollInterval);
-  }, [screen, gameId, sessionToken, fetchGameLedgerJackpot]);
+  }, [screen, gameId, sessionToken, fetchGameState]);
 
-  // Animate token movement step-by-step
+  // Animate token movement
   const animateTokenMovement = useCallback(async (playerId, startPosition, diceTotal) => {
-    const BOARD_SIZE = 40;
-    const STEP_DELAY = 300; // milliseconds between each space
+    const BOARD_SIZE = 44;
+    const STEP_DELAY = 280;
 
-    console.log('[Animation] Starting animation for player', playerId, 'from', startPosition, 'moving', diceTotal, 'spaces');
-
-    // Track this player as animating
     animatingPlayersRef.current = new Set([...animatingPlayersRef.current, playerId]);
     setAnimatingPlayers(prev => new Set([...prev, playerId]));
 
-    // Animate through each space
     for (let step = 1; step <= diceTotal; step++) {
       await new Promise(resolve => setTimeout(resolve, STEP_DELAY));
       const newPosition = (startPosition + step) % BOARD_SIZE;
-
-      console.log('[Animation] Step', step, '- moving to position', newPosition);
-      setAnimatedPositions(prev => ({
-        ...prev,
-        [playerId]: newPosition
-      }));
+      setAnimatedPositions(prev => ({ ...prev, [playerId]: newPosition }));
     }
 
-    // Remove this player from animating set
     animatingPlayersRef.current = new Set([...animatingPlayersRef.current].filter(id => id !== playerId));
     setAnimatingPlayers(prev => new Set([...prev].filter(id => id !== playerId)));
-
-    // Don't clear animated position here - let it persist until database updates
-    // This prevents the token from jumping back to the old position
   }, []);
 
   // Handle real-time game events
   const handleGameEvent = useCallback((eventType, data) => {
-    console.log('[App] Game event received:', eventType, data);
-
     switch (eventType) {
       case 'turn_played':
-        // Reset jail choice and rent modal dismissed state when a turn is played
-        setJailChoiceMade(false);
-        setRentModalDismissed(false);
-        // Update dice roll display for all players
         if (data.dice_roll && data.dice_roll.length === 2) {
           setLastDiceRoll({
             dice_roll_1: data.dice_roll[0],
             dice_roll_2: data.dice_roll[1],
             total_roll: data.dice_roll[0] + data.dice_roll[1],
             is_double: data.is_double,
-            player_id: data.player_id  // Track who rolled
+            player_id: data.player_id
           });
 
           const diceTotal = data.dice_roll[0] + data.dice_roll[1];
-          const movingPlayerId = data.player_id;
-          const movingPlayer = game?.players?.find(p => p.game_player_id === movingPlayerId);
-
-          console.log('[App] Animation check:', { movingPlayerId, movingPlayer, diceTotal, gamePlayers: game?.players });
+          const movingPlayer = game?.players?.find(p => p.game_player_id === data.player_id);
 
           if (movingPlayer && diceTotal > 0) {
             const startPosition = movingPlayer.current_space_id;
-            console.log('[App] Starting animation from', startPosition, 'for', diceTotal, 'spaces');
-
-            // Animate token movement, then show modals after delay
-            animateTokenMovement(movingPlayerId, startPosition, diceTotal).then(() => {
-              // Apply pending action from SSE immediately (no wait for fetch)
-              if (data.pending_action) {
-                console.log('[App] Applying pending action from SSE:', data.pending_action);
-                setPendingAction(data.pending_action);
+            animateTokenMovement(data.player_id, startPosition, diceTotal).then(() => {
+              if (data.pending_action) setPendingAction(data.pending_action);
+              if (data.new_position !== undefined) {
+                setGame(prev => prev ? {
+                  ...prev,
+                  players: prev.players.map(p =>
+                    p.game_player_id === data.player_id
+                      ? { ...p, current_space_id: data.new_position }
+                      : p
+                  )
+                } : prev);
               }
-
-              // Also update player position from SSE if available
-              if (data.new_position !== undefined && data.new_position !== null) {
-                setGame(prevGame => {
-                  if (!prevGame) return prevGame;
-                  return {
-                    ...prevGame,
-                    players: prevGame.players.map(p =>
-                      p.game_player_id === movingPlayerId
-                        ? { ...p, current_space_id: data.new_position, in_jail: data.in_jail }
-                        : p
-                    )
-                  };
-                });
-              }
-
-              // Clear animated position now that we have real position
               setAnimatedPositions(prev => {
-                const newPositions = { ...prev };
-                delete newPositions[movingPlayerId];
-                return newPositions;
+                const next = { ...prev };
+                delete next[data.player_id];
+                return next;
               });
-
-              // Still fetch full state in background for complete sync
-              // but modals will show immediately from SSE data
-              fetchGameLedgerJackpot();
+              fetchGameState();
             });
           } else {
-            // No animation needed - apply pending action and refresh
-            if (data.pending_action) {
-              setPendingAction(data.pending_action);
-            }
-            fetchGameLedgerJackpot();
+            if (data.pending_action) setPendingAction(data.pending_action);
+            fetchGameState();
           }
         } else {
-          // No dice roll data - apply pending action and refresh
-          if (data.pending_action) {
-            setPendingAction(data.pending_action);
-          }
-          fetchGameLedgerJackpot();
+          if (data.pending_action) setPendingAction(data.pending_action);
+          fetchGameState();
         }
         break;
-      case 'bankruptcy_triggered':
-        console.log('[App] Bankruptcy triggered:', data);
-        // Refresh to show updated state
-        fetchGameLedgerJackpot();
-        break;
-      case 'debt_resolved':
-        console.log('[App] Debt resolved:', data);
-        setBankruptcyInfo(null);
-        setShowBankruptcyModal(false);
-        fetchGameLedgerJackpot();
-        break;
-      case 'player_resigned':
-        console.log('[App] Player resigned:', data);
-        alert(`${data.player_name} has resigned from the game.`);
-        fetchGameLedgerJackpot();
-        break;
-      case 'game_over':
-        console.log('[App] Game over:', data);
-        setGameOver(true);
-        setWinner(data.winner_name);
-        fetchGameLedgerJackpot();
-        break;
       case 'game_state_changed':
-      case 'auction_started':
-      case 'auction_bid':
-      case 'auction_pass':
-      case 'auction_resolved':
       case 'trade_initiated':
       case 'trade_status_changed':
       case 'trade_offer_updated':
       case 'trade_cancelled':
       case 'trade_executed':
-        // Refresh game state when any of these events occur
-        fetchGameLedgerJackpot();
+        fetchGameState();
+        break;
+      case 'game_over':
+        setGameOver(true);
+        setWinner(data.winner_name);
+        fetchGameState();
         break;
       default:
         break;
     }
-  }, [fetchGameLedgerJackpot, game, animateTokenMovement]);
+  }, [fetchGameState, game, animateTokenMovement]);
 
-  // Connect to SSE for real-time updates when in game screen
   useGameEvents(
     screen === 'game' ? gameId : null,
     screen === 'game' ? sessionToken : null,
     handleGameEvent
   );
 
-  // Auto-show trading board when user receives a trade invitation
-  useEffect(() => {
-    if (screen !== 'game' || !game || !activeTrade) return;
-
-    const currentUserPlayer = game.players?.find(p => p.user_id === userId);
-    if (!currentUserPlayer) return;
-
-    // Check if this user is the counterparty and the trade is pending invite
-    const isCounterparty = activeTrade.counterparty_player_id === currentUserPlayer.game_player_id;
-    const isPendingInvite = activeTrade.status === 'pending_invite';
-
-    console.log('[Auto-show trade] isCounterparty:', isCounterparty, 'isPendingInvite:', isPendingInvite, 'showTradingBoard:', showTradingBoard);
-    console.log('[Auto-show trade] activeTrade:', activeTrade);
-    console.log('[Auto-show trade] currentUserPlayer:', currentUserPlayer);
-
-    if (isCounterparty && isPendingInvite && !showTradingBoard) {
-      console.log('[Auto-show trade] OPENING TRADING BOARD');
-      setShowTradingBoard(true);
-    }
-  }, [activeTrade, game, userId, screen, showTradingBoard]);
-
-  // Handle bankruptcy
-  const handleBankruptcy = useCallback((debtData) => {
-    console.log('[App] Bankruptcy triggered with debt data:', debtData);
-    setBankruptcyInfo(debtData);
-    setShowBankruptcyModal(true);
-  }, []);
-
-  const handleBankruptcyLiquidate = useCallback(() => {
-    setShowBankruptcyModal(false);
-    setShowPropertyManagement(true);
-  }, []);
-
-  const handleBankruptcyTrade = useCallback(() => {
-    setShowBankruptcyModal(false);
-    setShowTradingBoard(true);
-  }, []);
-
-  const handleBankruptcyResign = useCallback(() => {
-    fetchGameLedgerJackpot();
-  }, [fetchGameLedgerJackpot]);
-
-  // Keyboard shortcut for trading board (Ctrl+T or Cmd+T)
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 't') {
-        e.preventDefault();
-        setShowTradingBoard(prev => !prev);
-      }
-      // ESC to close trading board
-      if (e.key === 'Escape' && showTradingBoard) {
-        setShowTradingBoard(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showTradingBoard]);
-
-  // Trading board drag handlers
-  const handleTradingBoardMouseDown = (e) => {
-    if (e.target.classList.contains('trading-board-header')) {
-      setIsDragging(true);
-      setDragOffset({
-        x: e.clientX - tradingBoardPos.x,
-        y: e.clientY - tradingBoardPos.y
-      });
-    }
-  };
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (isDragging) {
-        setTradingBoardPos({
-          x: e.clientX - dragOffset.x,
-          y: e.clientY - dragOffset.y
-        });
-      }
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, dragOffset]);
-
   const nextTurn = async () => {
     if (isSubmitting) return;
-
     setIsSubmitting(true);
     try {
-      const headers = sessionToken ? {
-        'Authorization': `Bearer ${sessionToken}`
-      } : {};
-
       const response = await fetch(`${API_BASE}/games/${gameId}/turns`, {
         method: "POST",
-        headers
+        headers: sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {}
       });
       if (!response.ok) {
-        throw new Error(`Failed to execute turn: ${response.status}`);
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || `Failed: ${response.status}`);
       }
-      const turnData = await response.json();
-      // Don't fetch game state here - let SSE handler do it with animation
-      // The turn_played event will trigger animation and delayed state update
     } catch (err) {
       setError(err.message);
     } finally {
       setIsSubmitting(false);
     }
-  };                                                                                                                                                                                   
-                                                                                                                                                                                       
+  };
+
   // Screen routing
   if (screen === 'selector') {
     return <GameSelector onGameJoined={handleGameJoined} />;
   }
 
   if (screen === 'lobby') {
-    // Ensure we have session data before rendering lobby
     if (!gameId || !sessionToken || !userId) {
       return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading lobby...</div>;
     }
-
     return (
       <GameLobby
         gameId={gameId}
@@ -657,815 +389,492 @@ function App() {
     );
   }
 
-  // Game screen - existing game board UI
-  if (loading && !game) return <div>Loading…</div>;
+  // Game screen
+  if (loading && !game) return <div>Loading...</div>;
   if (error) return <div style={{ color: "red" }}>Error: {error}</div>;
   if (!game) return <div>Loading game...</div>;
 
-  // Find the current user's game_player_id
   const currentUserPlayer = game.players?.find(p => p.user_id === userId);
   const isCurrentPlayer = currentUserPlayer && currentUserPlayer.game_player_id === game.current_player_id;
-
-  // Check if current user is part of active trade
-  const isPartOfActiveTrade = activeTrade && currentUserPlayer && (
-    activeTrade.initiator_player_id === currentUserPlayer.game_player_id ||
-    activeTrade.counterparty_player_id === currentUserPlayer.game_player_id
-  );
-
-  // Check if current user has a pending invitation
-  const hasPendingInvitation = activeTrade && currentUserPlayer &&
-    activeTrade.counterparty_player_id === currentUserPlayer.game_player_id &&
-    activeTrade.status === 'pending_invite';
-
-  // Disable Trade button if there's an active trade and user is not part of it
-  const canStartTrade = !activeTrade || isPartOfActiveTrade;
+  const isMissingTurn = isCurrentPlayer && (currentUserPlayer?.visiting_town_turns || 0) > 0;
 
   return (
     <div style={{ padding: "0.5rem 1rem", fontFamily: "sans-serif", position: "relative" }}>
-      {/* Logout Button */}
-      <button
-        onClick={handleLogout}
-        style={{
-          position: "fixed",
-          top: "1rem",
-          right: "1rem",
-          padding: "0.75rem 1.5rem",
-          background: "#dc3545",
-          color: "white",
-          border: "none",
-          borderRadius: "8px",
-          fontSize: "1rem",
-          fontWeight: "bold",
-          cursor: "pointer",
-          zIndex: Z_INDEX.LOGOUT_BUTTON,
-          boxShadow: "0 4px 8px rgba(0,0,0,0.2)"
-        }}
-        onMouseEnter={(e) => e.target.style.background = "#c82333"}
-        onMouseLeave={(e) => e.target.style.background = "#dc3545"}
-      >
-        🚪 Logout
-      </button>
+      {/* Logout */}
+      <button onClick={handleLogout} style={{
+        position: "fixed", top: "1rem", right: "1rem",
+        padding: "0.6rem 1.2rem", background: "#dc3545", color: "white",
+        border: "none", borderRadius: "8px", fontSize: "0.9rem", fontWeight: "bold",
+        cursor: "pointer", zIndex: Z_INDEX.LOGOUT_BUTTON
+      }}>Logout</button>
 
-      {/* Suspended Game Notice */}
-      {game && game.status === 'suspended' && (
-        <SuspendedGameNotice
-          gameId={gameId}
-          sessionToken={sessionToken}
-        />
+      {/* Suspended Notice */}
+      {game.status === 'suspended' && (
+        <SuspendedGameNotice gameId={gameId} sessionToken={sessionToken} />
       )}
 
-      {/* Trade Invitation Banner */}
-      {hasPendingInvitation && !showTradingBoard && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          background: "linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)",
-          color: "#fff",
-          padding: "1rem",
-          textAlign: "center",
-          zIndex: Z_INDEX.TRADE_BANNER,
-          boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-          fontSize: "1.1rem",
-          fontWeight: "bold"
-        }}>
-          🔔 {game.players?.find(p => p.game_player_id === activeTrade.initiator_player_id)?.player_name} has invited you to trade!
-          <button
-            onClick={() => setShowTradingBoard(true)}
-            style={{
-              marginLeft: "1rem",
-              padding: "0.5rem 1.5rem",
-              background: "#fff",
-              color: "#ff6b6b",
-              border: "none",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontWeight: "bold",
-              fontSize: "1rem"
-            }}
-          >
-            View Invitation
-          </button>
-        </div>
-      )}
-      <div
-        style={{
-          display: "flex",
-          gap: "2rem",
-          justifyContent: "center",
-          alignItems: "flex-start",
-          maxWidth: 2200,
-          margin: "0 auto",
-          marginTop: hasPendingInvitation && !showTradingBoard ? "4rem" : "0"
-        }}                                                                                                                                                                             
-      >
-        {/* Left column: board + cards */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          flexShrink: 0,
-          width: 1100
-        }}>
-        {/* Board + floating controls */}
-        <div style={{ position: "relative", width: 1100, height: 1100 }}>
-          {/* Game heading - inside board, below top row of spaces */}
+      <div style={{ display: "flex", gap: "2rem", justifyContent: "center", alignItems: "flex-start", maxWidth: 2000, margin: "0 auto" }}>
+        {/* Left: Board */}
+        <div style={{ flexShrink: 0, position: "relative", width: 1130, height: 1130 }}>
           <h1 style={{
-            position: "absolute",
-            top: "215px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            margin: 0,
-            fontSize: "1.5rem",
-            textAlign: "center",
-            zIndex: 2,
-            color: "#333"
+            position: "absolute", top: "200px", left: "50%", transform: "translateX(-50%)",
+            margin: 0, fontSize: "1.4rem", textAlign: "center", zIndex: 2, color: "#2d5016"
           }}>
-            Game {gameId} - {currentUserPlayer?.player_name || 'Unknown Player'}
+            Squatter - {currentUserPlayer?.player_name || 'Player'}
           </h1>
           <Board
             players={game.players || []}
             currentPlayerId={game.current_player_id}
-            propertyImprovements={propertyImprovements}
             animatedPositions={animatedPositions}
           />
 
-          {/* Jackpot positioned at square 20 (Salvo Rest Home - top-left corner) */}
-          {jackpot !== null && (
+          {/* Last Tucker Bag card */}
+          {lastDrawnCard && (
             <div style={{
-              position: "absolute",
-              top: 140,
-              left: 44,
-              background: "rgba(255,255,255,0.95)",
-              padding: "10px 16px",
-              borderRadius: 8,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-              zIndex: Z_INDEX.BOARD_OVERLAY,
-              fontWeight: "bold",
-              fontSize: "1.2em",
-              color: "#b28500"
+              position: "absolute", top: "250px", left: "50%", transform: "translateX(-50%)",
+              background: "rgba(255,255,255,0.95)", padding: "12px 18px", borderRadius: 8,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.15)", zIndex: 2, maxWidth: 350, textAlign: "center"
             }}>
-              Jackpot: {jackpot}
+              <h4 style={{ margin: "0 0 4px", color: "#6a4c93", fontSize: "0.9rem" }}>Tucker Bag</h4>
+              <p style={{ margin: 0, fontSize: "0.8rem", fontWeight: "bold" }}>{lastDrawnCard.title}</p>
+              <p style={{ margin: "4px 0 0", fontSize: "0.75rem", color: "#555" }}>{lastDrawnCard.body_text}</p>
             </div>
           )}
 
-          {/* Trading Board Overlay */}
-          {showTradingBoard && (
-            <div
-              onMouseDown={handleTradingBoardMouseDown}
-              style={{
-                position: "absolute",
-                top: `${tradingBoardPos.y}px`,
-                left: `${tradingBoardPos.x}px`,
-                width: "900px",
-                height: "850px",
-                background: "#fff",
-                border: "3px solid #6a4c93",
-                borderRadius: "12px",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-                zIndex: bankruptcyInfo ? Z_INDEX.PANEL_BANKRUPTCY : Z_INDEX.PANEL,
-                display: "flex",
-                flexDirection: "column"
+          {/* Stock Sale card overlay — anchored to the board, below "Squatter".
+              Renders for any pending action whose data carries a Stock Sale
+              card snapshot (stock_sale_result, tucker_bag_result with card,
+              drought_effect with haystack-drawn card, etc.). */}
+          {(() => {
+            if (!pendingAction) return null;
+            const sd = pendingAction.action_data || {};
+            const at = pendingAction.action_type;
+            const overlayTypes = ['stock_sale_result', 'tucker_bag_result', 'drought_effect'];
+            const hasCard = !!(sd.card || sd.stock_card_used);
+            if (!overlayTypes.includes(at) || !hasCard) return null;
+
+            const card = sd.card || sd.stock_card_used || {};
+            const isStockResult = at === 'stock_sale_result';
+            const isBuy = sd.action === 'buy';
+            const activeIsMe = (game?.players || []).some(
+              p => p.game_player_id === pendingAction.active_player_id && p.user_id === userId
+            );
+            const activeName = (game?.players || []).find(
+              p => p.game_player_id === pendingAction.active_player_id
+            )?.player_name;
+            const ackUrl = `${API_BASE}/games/${gameId}/decisions/acknowledge`;
+            const onOk = async () => {
+              try {
+                await fetch(ackUrl, {
+                  method: 'POST',
+                  headers: { 'Authorization': `Bearer ${sessionToken}`, 'Content-Type': 'application/json' },
+                });
+                setPendingAction(null);
+                fetchGameState();
+              } catch (e) { /* surfacing handled by next poll */ }
+            };
+            const titleByType = {
+              stock_sale_result: 'Stock Sale — Card Revealed',
+              tucker_bag_result: `${sd.card_title || 'Tucker Bag'} — Stock Sale Card`,
+              drought_effect: 'Local Drought — Stock Sale Card (Haystack)',
+            };
+            return (
+              <div style={{
+                position: "absolute", top: "600px", left: "50%", transform: "translateX(-50%)",
+                background: "#fff", border: "2px solid #1982c4", borderRadius: 10,
+                padding: "14px 18px", boxShadow: "0 4px 12px rgba(0,0,0,0.2)", zIndex: 3,
+                width: 360,
               }}>
-              <div
-                className="trading-board-header"
-                style={{
-                  padding: "1rem 1.5rem",
-                  background: "linear-gradient(135deg, #6a4c93 0%, #8b6fb0 100%)",
-                  borderRadius: "9px 9px 0 0",
-                  cursor: "move",
-                  userSelect: "none"
-                }}
-              >
-                <h2 style={{ margin: 0, color: "#fff", textAlign: "center", fontSize: "1.3rem" }}>Trading Board</h2>
-              </div>
-              <TradingBoard
-                gameId={gameId}
-                sessionToken={sessionToken}
-                userId={userId}
-                game={game}
-                playerBalances={playerBalances}
-                allPlayerAssets={allPlayerAssets}
-                playerRetainedCards={playerRetainedCards}
-                activeTradeFromParent={activeTrade}
-                onClose={() => {
-                  setShowTradingBoard(false);
-                  if (bankruptcyInfo) {
-                    fetchGameLedgerJackpot();
-                    setShowBankruptcyModal(true);
-                  }
-                }}
-              />
-            </div>
-          )}
-
-          {/* Property Management Overlay */}
-          {showPropertyManagement && (
-            <div style={{
-              position: "absolute",
-              top: "150px",
-              left: "100px",
-              width: "800px",
-              height: "700px",
-              background: "#fff",
-              border: bankruptcyInfo ? "3px solid #d32f2f" : "3px solid #4caf50",
-              borderRadius: "12px",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-              zIndex: bankruptcyInfo ? Z_INDEX.PANEL_BANKRUPTCY : Z_INDEX.PANEL,
-              display: "flex",
-              flexDirection: "column"
-            }}>
-              <PropertyManagement
-                gameId={gameId}
-                sessionToken={sessionToken}
-                playerBalance={currentUserPlayer ? (playerBalances[String(currentUserPlayer.game_player_id)] ?? 0) : 0}
-                onClose={() => {
-                  setShowPropertyManagement(false);
-                  if (bankruptcyInfo) {
-                    fetchGameLedgerJackpot();
-                    setShowBankruptcyModal(true);
-                  }
-                }}
-                onUpdate={fetchGameLedgerJackpot}
-                liquidationMode={showBankruptcyModal || bankruptcyInfo !== null}
-              />
-            </div>
-          )}
-
-          {/* Worth Modal */}
-          {showWorthModal && (
-            <WorthModal
-              gameId={gameId}
-              sessionToken={sessionToken}
-              onClose={() => setShowWorthModal(false)}
-            />
-          )}
-        </div>
-
-        {/* Card display section - below board */}
-        <div style={{
-          width: 1100,
-          display: 'flex',
-          gap: '1.5rem',
-          marginTop: '1.5rem',
-          justifyContent: 'center',
-          position: 'relative',
-          left: '100px',
-          top: '-233px',
-          zIndex: Z_INDEX.CARD_SECTION
-        }}>
-          {/* Welfare Centre Card */}
-          <div style={{
-            background: 'linear-gradient(135deg, #fff 0%, #f8f9fa 100%)',
-            border: '2px solid #dee2e6',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            padding: '14px',
-            minHeight: '133px',
-            width: '333px',
-          }}>
-            <h3 style={{ margin: 0, fontSize: '0.95rem', color: '#6a4c93' }}>
-              Welfare Centre
-            </h3>
-            {lastDrawnCards.WELFARE ? (
-              <>
-                <h4 style={{
-                    fontSize: '0.85rem',
-                    fontWeight: 'bold',
-                    color: '#1982c4',
-                    marginTop: '0.5rem',
-                    marginBottom: '0.3rem',
-                }}>
-                    {lastDrawnCards.WELFARE.title}
-                </h4>
-                <p style={{
-                    fontSize: '0.75rem',
-                    lineHeight: '1.4',
-                    color: '#333',
-                    margin: 0,
-                }}>
-                    {lastDrawnCards.WELFARE.body_text}
-                </p>
-              </>
-            ) : (
-              <p style={{ fontStyle: 'italic', color: '#999', marginTop: '0.7rem', fontSize: '0.75rem' }}>
-                No cards drawn yet
-              </p>
-            )}
-          </div>
-
-          {/* Chance Card */}
-          <div style={{
-            background: 'linear-gradient(135deg, #fff 0%, #f8f9fa 100%)',
-            border: '2px solid #dee2e6',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            padding: '14px',
-            minHeight: '133px',
-            width: '333px',
-          }}>
-            <h3 style={{ margin: 0, fontSize: '0.95rem', color: '#ff924c' }}>
-              Chance
-            </h3>
-            {lastDrawnCards.CHANCE ? (
-              <>
-                <h4 style={{
-                    fontSize: '0.85rem',
-                    fontWeight: 'bold',
-                    color: '#1982c4',
-                    marginTop: '0.5rem',
-                    marginBottom: '0.3rem',
-                }}>
-                    {lastDrawnCards.CHANCE.title}
-                </h4>
-                <p style={{
-                    fontSize: '0.75rem',
-                    lineHeight: '1.4',
-                    color: '#333',
-                    margin: 0,
-                }}>
-                    {lastDrawnCards.CHANCE.body_text}
-                </p>
-              </>
-            ) : (
-              <p style={{ fontStyle: 'italic', color: '#999', marginTop: '0.7rem', fontSize: '0.75rem' }}>
-                No cards drawn yet
-              </p>
-            )}
-          </div>
-        </div>
-        </div>
-
-        {/* Right column: player list */}
-        <div
-          style={{
-            flex: 1,
-            minWidth: 450,
-            maxWidth: 550,
-            marginLeft: "10rem",
-            position: "sticky",
-            top: 20,
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-            <h2 style={{ margin: 0 }}>Players</h2>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button
-                onClick={() => setShowPropertyManagement(true)}
-                style={{
-                  padding: "0.5rem 1rem",
-                  background: "#4caf50",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontSize: "1rem",
-                }}
-                title="Manage your properties - buy/sell houses and hotels"
-              >
-                🏠 Properties
-              </button>
-              <button
-                onClick={() => setShowWorthModal(true)}
-                style={{
-                  padding: "0.5rem 1rem",
-                  background: "#667eea",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontSize: "1rem",
-                }}
-                title="View your total net worth"
-              >
-                💰 Worth
-              </button>
-              <button
-                onClick={() => setShowTradingBoard(true)}
-                disabled={!canStartTrade}
-                style={{
-                  padding: "0.5rem 1rem",
-                  background: !canStartTrade ? "#ccc" : hasPendingInvitation ? "#ff6b6b" : "#6a4c93",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: !canStartTrade ? "not-allowed" : "pointer",
-                  fontSize: "1rem",
-                  position: "relative",
-                  animation: hasPendingInvitation ? "pulse 2s infinite" : "none"
-                }}
-                title={!canStartTrade ? "Another trade is in progress" : hasPendingInvitation ? "You have a trade invitation!" : ""}
-              >
-                {hasPendingInvitation ? "Trade Invite! 🔔" : "Trade"}
-              </button>
-              <button
-                onClick={nextTurn}
-                disabled={isSubmitting || pendingAction || !isCurrentPlayer ||
-                         (currentUserPlayer?.in_jail && !jailChoiceMade && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id))}
-                style={{
-                  padding: "0.5rem 1rem",
-                  background: isSubmitting || pendingAction || !isCurrentPlayer ||
-                             (currentUserPlayer?.in_jail && !jailChoiceMade && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id)) ? "#ccc" : "#1982c4",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: isSubmitting || pendingAction || !isCurrentPlayer ||
-                         (currentUserPlayer?.in_jail && !jailChoiceMade && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id)) ? "not-allowed" : "pointer",
-                  fontSize: "1rem",
-                }}
-              >
-                {isSubmitting
-                  ? "Processing..."
-                  : pendingAction
-                  ? "Resolve Action First"
-                  : (currentUserPlayer?.in_jail && !jailChoiceMade && (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id))
-                  ? "Choose Jail Action First"
-                  : !isCurrentPlayer
-                  ? `${game.players?.find(p => p.game_player_id === game.current_player_id)?.player_name || 'Player'}'s Turn`
-                  : `${currentUserPlayer?.player_name || 'Your'} Turn - Roll Dice`}
-              </button>
-            </div>
-          </div>
-
-          {lastDiceRoll && (
-            <div style={{ marginBottom: "1rem", fontSize: "0.95rem", color: "#333", background: "#fff", padding: "12px 16px", borderRadius: 8, border: "2px solid #1982c4", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
-              <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                <span style={{ fontWeight: "bold" }}>Last Roll:</span>
-                <span style={{
-                  background: "#fff",
-                  border: "2px solid #1982c4",
-                  borderRadius: "6px",
-                  padding: "0.4rem 0.6rem",
-                  fontWeight: "bold",
-                  fontSize: "1.1rem"
-                }}>
-                  {lastDiceRoll.dice_roll_1}
-                </span>
-                <span>+</span>
-                <span style={{
-                  background: "#fff",
-                  border: "2px solid #1982c4",
-                  borderRadius: "6px",
-                  padding: "0.4rem 0.6rem",
-                  fontWeight: "bold",
-                  fontSize: "1.1rem"
-                }}>
-                  {lastDiceRoll.dice_roll_2}
-                </span>
-                <span>=</span>
-                <span style={{ fontWeight: "bold", fontSize: "1.1rem", color: "#1982c4" }}>
-                  {lastDiceRoll.total_roll}
-                </span>
-                {lastDiceRoll.is_double && (
-                  <span style={{
-                    marginLeft: "0.5rem",
-                    color: "#ff6b6b",
-                    fontWeight: "bold",
-                    fontSize: "0.9rem"
-                  }}>
-                    DOUBLE!
-                  </span>
+                <h3 style={{ margin: "0 0 8px", color: "#1982c4", fontSize: "1rem", textAlign: "center" }}>
+                  {titleByType[at] || 'Stock Sale Card'}
+                </h3>
+                <div style={{ padding: "8px", background: "#E3F2FD", borderRadius: 6, fontSize: "0.85rem" }}>
+                  <table style={{ width: "100%" }}>
+                    <tbody>
+                      {card.buy_price_per_pen !== undefined && (
+                        <tr><td>Buy</td><td style={{ textAlign: "right" }}><strong>${card.buy_price_per_pen}/pen</strong></td></tr>
+                      )}
+                      <tr><td>Sell — Natural</td><td style={{ textAlign: "right" }}><strong>${card.sell_price_natural}/pen</strong></td></tr>
+                      <tr><td>Sell — Improved/Irrigated</td><td style={{ textAlign: "right" }}><strong>${card.sell_price_improved_irrigated}/pen</strong></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ marginTop: 8, padding: "8px", background: "#F1F8E9", borderRadius: 6, fontSize: "0.85rem" }}>
+                  {isStockResult ? (
+                    isBuy ? (
+                      <>Bought <strong>{sd.pens}</strong> pens at <strong>${sd.buy_price}/pen</strong> = <strong>${sd.total_cost}</strong></>
+                    ) : (
+                      <>Sold <strong>{sd.pens}</strong> pens for <strong>${sd.total_income}</strong>
+                        {Array.isArray(sd.tiers) && sd.tiers.some(([, n]) => n > 0) && (
+                          <div style={{ fontSize: "0.78rem", color: "#666", marginTop: 4 }}>
+                            {sd.tiers.filter(([, n]) => n > 0).map(([t, n]) => `${n} ${t}`).join(', ')}
+                          </div>
+                        )}
+                      </>
+                    )
+                  ) : (
+                    <>Sold <strong>{sd.pens_sold}</strong> pens for <strong>${sd.income}</strong>
+                      {sd.by_type && (
+                        <div style={{ fontSize: "0.78rem", color: "#666", marginTop: 4 }}>
+                          {Object.entries(sd.by_type).filter(([, n]) => n > 0).map(([t, n]) => `${n} ${t}`).join(', ')}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                {activeIsMe && (
+                  <div style={{ textAlign: "center", marginTop: 10 }}>
+                    <button onClick={onOk} style={{
+                      padding: "0.5rem 1.2rem", background: "#1982c4", color: "#fff",
+                      border: "none", borderRadius: 6, cursor: "pointer", fontWeight: "bold"
+                    }}>OK</button>
+                  </div>
+                )}
+                {!activeIsMe && (
+                  <p style={{ fontSize: "0.78rem", color: "#666", textAlign: "center", margin: "8px 0 0", fontStyle: "italic" }}>
+                    Waiting for {activeName}...
+                  </p>
                 )}
               </div>
+            );
+          })()}
+
+          {/* Tucker Bag draw — anchored to the board, below "Squatter" */}
+          {pendingAction && pendingAction.action_type === 'tucker_bag_drawn' && (() => {
+            const sd = pendingAction.action_data || {};
+            const activeIsMe = (game?.players || []).some(
+              p => p.game_player_id === pendingAction.active_player_id && p.user_id === userId
+            );
+            const activeName = (game?.players || []).find(
+              p => p.game_player_id === pendingAction.active_player_id
+            )?.player_name;
+            const tbUrl = `${API_BASE}/games/${gameId}/decisions/tucker-bag`;
+            const buyHsUrl = `${API_BASE}/games/${gameId}/station/buy-haystack`;
+            const post = async (url, body) => {
+              try {
+                await fetch(url, {
+                  method: 'POST',
+                  headers: { 'Authorization': `Bearer ${sessionToken}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify(body || {}),
+                });
+                setPendingAction(null);
+                fetchGameState();
+              } catch (e) { /* surfacing handled by next poll */ }
+            };
+            return (
+              <div style={{
+                position: "absolute", top: "600px", left: "50%", transform: "translateX(-50%)",
+                background: "#fff", border: "2px solid #6a4c93", borderRadius: 10,
+                padding: "14px 18px", boxShadow: "0 4px 12px rgba(0,0,0,0.2)", zIndex: 3,
+                width: 380,
+              }}>
+                <h3 style={{ margin: "0 0 4px", color: "#6a4c93", fontSize: "1rem", textAlign: "center" }}>
+                  Tucker Bag
+                </h3>
+                <h4 style={{ margin: "0 0 6px", textAlign: "center" }}>{sd.title}</h4>
+                <p style={{ color: "#555", lineHeight: 1.4, fontSize: "0.85rem", margin: 0 }}>{sd.body_text}</p>
+                {sd.tax_breakdown && (
+                  <div style={{ marginTop: "0.6rem", padding: "0.6rem", background: "#f5f5f5", borderRadius: 6, border: "1px solid #ddd" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+                      <tbody>
+                        {sd.tax_breakdown.lines.map((line, i) => (
+                          <tr key={i}>
+                            <td style={{ padding: "0.2rem 0" }}>{line.label}</td>
+                            <td style={{ padding: "0.2rem 0.5rem", color: "#666", textAlign: "right" }}>
+                              {line.rate_label || `@ $${line.rate}`}
+                            </td>
+                            <td style={{ padding: "0.2rem 0", textAlign: "right", fontWeight: 500 }}>${line.amount.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                        <tr style={{ borderTop: "2px solid #999" }}>
+                          <td colSpan={2} style={{ padding: "0.3rem 0", fontWeight: "bold" }}>Total Tax</td>
+                          <td style={{ padding: "0.3rem 0", textAlign: "right", fontWeight: "bold", color: "#d32f2f" }}>
+                            ${sd.tax_breakdown.total.toLocaleString()}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {sd.is_retainable && (
+                  <p style={{ color: "#4caf50", fontWeight: "bold", fontSize: "0.85rem", marginTop: "0.5rem" }}>
+                    This card can be kept!
+                  </p>
+                )}
+                {sd.haystack_available && (
+                  <div style={{ marginTop: "0.5rem", padding: "0.6rem", background: "#F1F8E9", border: "1px solid #7CB342", borderRadius: 6, fontSize: "0.82rem", display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <div style={{ flex: 1 }}>
+                      <strong style={{ color: "#33691E" }}>Haymaking Season!</strong>{" "}
+                      Haystack available for ${sd.haystack_cost}
+                      {sd.haystack_drought_premium && (
+                        <span style={{ marginLeft: 6, color: "#b71c1c", fontSize: "0.78rem" }}>(drought premium)</span>
+                      )}
+                    </div>
+                    {activeIsMe && (
+                      <button onClick={() => post(buyHsUrl, {})} style={{
+                        padding: "0.4rem 0.9rem", background: "#7CB342", color: "#fff",
+                        border: "none", borderRadius: 6, cursor: "pointer", fontWeight: "bold", fontSize: "0.82rem"
+                      }}>Buy Haystack (${sd.haystack_cost})</button>
+                    )}
+                  </div>
+                )}
+                {activeIsMe && (
+                  <div style={{ display: "flex", gap: "0.5rem", marginTop: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                    {sd.is_retainable && sd.purchase_price > 0 ? (
+                      <>
+                        <button onClick={() => post(tbUrl, { buy_card: true })} style={{
+                          padding: "0.5rem 1.2rem", background: "#4caf50", color: "#fff",
+                          border: "none", borderRadius: 6, cursor: "pointer", fontWeight: "bold"
+                        }}>Buy (${sd.purchase_price})</button>
+                        <button onClick={() => post(tbUrl, { buy_card: false })} style={{
+                          padding: "0.5rem 1.2rem", background: "#666", color: "#fff",
+                          border: "none", borderRadius: 6, cursor: "pointer", fontWeight: "bold"
+                        }}>Decline</button>
+                      </>
+                    ) : (
+                      <button onClick={() => post(tbUrl, { buy_card: !!sd.is_retainable })} style={{
+                        padding: "0.5rem 1.2rem", background: "#6a4c93", color: "#fff",
+                        border: "none", borderRadius: 6, cursor: "pointer", fontWeight: "bold"
+                      }}>{sd.is_retainable ? 'Keep Card' : 'OK'}</button>
+                    )}
+                  </div>
+                )}
+                {!activeIsMe && (
+                  <p style={{ fontSize: "0.78rem", color: "#666", textAlign: "center", margin: "8px 0 0", fontStyle: "italic" }}>
+                    Waiting for {activeName}...
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* Right: Controls and player info */}
+        <div style={{ flex: 1, minWidth: 420, maxWidth: 550, position: "sticky", top: 20 }}>
+          {/* Action buttons */}
+          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+            <button onClick={() => setShowStationPanel(true)} style={{
+              padding: "0.5rem 1rem", background: "#4caf50", color: "#fff",
+              border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.9rem"
+            }}>Station</button>
+            <button onClick={() => setShowTradingBoard(true)} style={{
+              padding: "0.5rem 1rem", background: "#6a4c93", color: "#fff",
+              border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.9rem"
+            }}>Trade</button>
+            <button onClick={nextTurn} disabled={isSubmitting || pendingAction || !isCurrentPlayer} style={{
+              padding: "0.5rem 1rem",
+              background: (isSubmitting || pendingAction || !isCurrentPlayer) ? "#ccc" : "#1982c4",
+              color: "#fff", border: "none", borderRadius: "6px",
+              cursor: (isSubmitting || pendingAction || !isCurrentPlayer) ? "not-allowed" : "pointer",
+              fontSize: "0.9rem"
+            }}>
+              {isSubmitting ? (isMissingTurn ? "Missing Turn..." : "Rolling...") : pendingAction ? "Resolve Action" : !isCurrentPlayer
+                ? `${game.players?.find(p => p.game_player_id === game.current_player_id)?.player_name || ''}'s Turn`
+                : isMissingTurn ? "Miss Turn" : "Roll Dice"}
+            </button>
+          </div>
+
+          {/* Dice display */}
+          {lastDiceRoll && (
+            <div style={{ marginBottom: "1rem", padding: "10px 14px", background: "#fff", borderRadius: 8, border: "2px solid #1982c4" }}>
+              <span style={{ fontWeight: "bold" }}>Last Roll: </span>
+              <span style={{ fontSize: "1.1rem", fontWeight: "bold" }}>{lastDiceRoll.dice_roll_1}</span>
+              <span> + </span>
+              <span style={{ fontSize: "1.1rem", fontWeight: "bold" }}>{lastDiceRoll.dice_roll_2}</span>
+              <span> = </span>
+              <span style={{ fontSize: "1.1rem", fontWeight: "bold", color: "#1982c4" }}>{lastDiceRoll.total_roll}</span>
+              {lastDiceRoll.is_double && <span style={{ marginLeft: "0.5rem", color: "#ff6b6b", fontWeight: "bold" }}>DOUBLE!</span>}
             </div>
           )}
 
-          <ul style={{ paddingLeft: "1rem" }}>
+          {/* Player list */}
+          <h2 style={{ margin: "0 0 0.5rem" }}>Players</h2>
+          <ul style={{ paddingLeft: "1rem", listStyle: "none" }}>
             {game.players?.map((p) => {
-              // With 0-based indexing, current_space_id is already the array index
-              const idx = p.current_space_id ?? 0;
-              const spaceLabel = SPACE_LABELS[idx];
+              const spaceLabel = SPACE_LABELS[p.current_space_id] || `Space ${p.current_space_id}`;
               const cash = playerBalances[String(p.game_player_id)] ?? "?";
-              const assets = allPlayerAssets[p.game_player_id] || allPlayerAssets[String(p.game_player_id)] || [];
+              const station = stations[String(p.game_player_id)] || stations[p.game_player_id];
+              const totalPens = station?.total_pens ?? "?";
               const retained = playerRetainedCards[p.game_player_id] || [];
               const isCurrent = p.game_player_id === game.current_player_id;
 
-              // Calculate next player based on turn_order
-              // Don't show "next" if current player rolled a double (they get another turn)
-              const currentPlayer = game.players.find(pl => pl.game_player_id === game.current_player_id);
-              const nextTurnOrder = currentPlayer ? ((currentPlayer.turn_order % game.players.length) + 1) : 1;
-              const rolledDouble = lastDiceRoll?.is_double && !currentPlayer?.in_jail;
-              const isNext = p.turn_order === nextTurnOrder && !isCurrent && !rolledDouble;
               return (
                 <li key={p.game_player_id} style={{
-                  marginBottom: 12,
-                  padding: "12px",
-                  borderRadius: "8px",
-                  background: isCurrent ? "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)" : "transparent",
-                  border: isCurrent ? "3px solid #1982c4" : isNext ? "2px dashed #ff924c" : "1px solid #e0e0e0",
-                  position: "relative",
-                  boxShadow: isCurrent ? "0 2px 8px rgba(25, 130, 196, 0.3)" : "none"
+                  marginBottom: 10, padding: "10px", borderRadius: "8px",
+                  background: isCurrent ? "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)" : "transparent",
+                  border: isCurrent ? "2px solid #4caf50" : "1px solid #e0e0e0"
                 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
-                      <strong style={{ fontSize: "1.1rem", color: "#333" }}>{p.player_name}</strong>
-                      <span style={{ fontSize: "0.9rem", color: "#555" }}>
-                        📍 {p.in_jail ? "In Jail" : spaceLabel}
-                      </span>
-                      <span style={{ fontSize: "0.9rem", color: "#1982c4" }}>
-                        💰 <b>${cash}</b>
-                      </span>
-                    </div>
-                    {isCurrent && rolledDouble && (
-                      <span style={{
-                        background: "#ff6b6b",
-                        color: "#fff",
-                        padding: "6px 14px",
-                        borderRadius: "6px",
-                        fontSize: "0.9rem",
-                        fontWeight: "bold",
-                        letterSpacing: "0.5px",
-                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
-                      }}>
-                        ROLL AGAIN!
-                      </span>
-                    )}
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
+                    <strong>{p.player_name}</strong>
+                    <span style={{ fontSize: "0.85rem", color: "#555" }}>{spaceLabel}</span>
+                    <span style={{ fontSize: "0.85rem", color: "#1982c4" }}>${cash}</span>
+                    <span style={{ fontSize: "0.85rem", color: "#4caf50" }}>{totalPens} pens</span>
+                    {p.is_in_drought && <span style={{ fontSize: "0.8rem", color: "#d32f2f" }}>DROUGHT</span>}
+                    {p.visiting_town_turns > 0 && <span style={{ fontSize: "0.8rem", color: "#ff9800" }}>Town ({p.visiting_town_turns})</span>}
+                    {p.has_haystack && <span style={{ fontSize: "0.8rem", color: "#795548" }}>Haystack</span>}
                   </div>
                   {retained.length > 0 && (
-                    <div style={{ fontSize: "0.9em", color: "#6a4c93", marginTop: "4px" }}>
-                      🃏 {retained.map((card, i) => (
-                        <span key={i}>
-                          <button
-                            onClick={() => setSelectedCard(card)}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: '#6a4c93',
-                              textDecoration: 'underline',
-                              cursor: 'pointer',
-                              padding: 0,
-                              font: 'inherit',
-                              marginRight: 4
-                            }}
-                            title="Click to view full card details"
-                          >
-                            {card.title || card.name || 'Card'}
-                          </button>
-                          {i < retained.length - 1 ? ", " : ""}
-                        </span>
+                    <div style={{ fontSize: "0.8rem", color: "#6a4c93", marginTop: "4px" }}>
+                      Cards: {retained.map((card, i) => (
+                        <button key={i} onClick={() => setSelectedCard(card)} style={{
+                          background: 'none', border: 'none', color: '#6a4c93',
+                          textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit'
+                        }}>{card.title}{i < retained.length - 1 ? ", " : ""}</button>
                       ))}
                     </div>
-                  )}                                                                                                                                                                   
-                </li>                                                                                                                                                                  
-              );                                                                                                                                                                       
-            })}                                                                                                                                                                        
+                  )}
+                </li>
+              );
+            })}
           </ul>
 
-          {/* Ledger section below Players */}
-          <div style={{
-            marginTop: "2rem",
-            background: "rgba(255,255,255,0.95)",
-            padding: "12px 16px",
-            borderRadius: 8,
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-            maxHeight: 400,
-            overflowY: "auto"
-          }}>
-            <h3 style={{ margin: "0 0 8px 0", fontSize: "1.1rem", color: "#333" }}>Ledger (latest)</h3>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+          {/* Stud Rams */}
+          {studRams.length > 0 && (
+            <div style={{ marginTop: "1rem", background: "#fff", padding: "10px", borderRadius: 8, border: "1px solid #ddd" }}>
+              <h3 style={{ margin: "0 0 6px", fontSize: "1rem" }}>Stud Rams</h3>
+              {studRams.map(ram => (
+                <div key={ram.space_id} style={{ fontSize: "0.8rem", marginBottom: 3 }}>
+                  <span style={{ fontWeight: "bold" }}>{ram.space_name}</span>
+                  {" - "}
+                  {ram.owner_game_player_id
+                    ? <span style={{ color: "#4caf50" }}>{game.players?.find(p => p.game_player_id === ram.owner_game_player_id)?.player_name}</span>
+                    : <span style={{ color: "#999" }}>Available (${ram.purchase_price})</span>
+                  }
+                  <span style={{ color: "#666" }}> Fee: ${ram.stud_fee}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Ledger */}
+          <div style={{ marginTop: "1.5rem", background: "#fff", padding: "10px", borderRadius: 8, border: "1px solid #ddd", maxHeight: 300, overflowY: "auto" }}>
+            <h3 style={{ margin: "0 0 6px", fontSize: "1rem" }}>Ledger</h3>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid #ccc" }}>
-                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>Type</th>
-                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>Amount</th>
-                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>Asset</th>
-                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>From</th>
-                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>To</th>
+                  <th align="left">Type</th><th align="left">Amount</th><th align="left">From</th><th align="left">To</th>
                 </tr>
               </thead>
               <tbody>
-                {ledger.slice(0, 7).map((txn) => (
+                {ledger.slice(0, 10).map((txn) => (
                   <tr key={txn.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ color: "#555", padding: "6px 4px" }}>{txn.type}</td>
-                    <td style={{ color: "#555", padding: "6px 4px" }}>${txn.amount}</td>
-                    <td style={{ fontSize: "0.8rem", color: "#666", padding: "6px 4px" }}>{txn.asset_name || "-"}</td>
-                    <td style={{ color: "#555", padding: "6px 4px" }}>{txn.from ?? "BANK"}</td>
-                    <td style={{ color: "#555", padding: "6px 4px" }}>{txn.to ?? "BANK"}</td>
+                    <td style={{ padding: "4px 2px" }}>{txn.type}</td>
+                    <td style={{ padding: "4px 2px" }}>${txn.amount}</td>
+                    <td style={{ padding: "4px 2px" }}>{txn.from}</td>
+                    <td style={{ padding: "4px 2px" }}>{txn.to}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* Dice Rolls Register */}
-          <div style={{
-            marginTop: "2rem",
-            background: "rgba(255,255,255,0.95)",
-            padding: "12px 16px",
-            borderRadius: 8,
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-            maxHeight: 400,
-            overflowY: "auto"
-          }}>
-            <h3 style={{ margin: "0 0 8px 0", fontSize: "1.1rem", color: "#333" }}>Dice Roll Register</h3>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+          {/* Dice Roll Register */}
+          <div style={{ marginTop: "1rem", background: "#fff", padding: "10px", borderRadius: 8, border: "1px solid #ddd", maxHeight: 250, overflowY: "auto" }}>
+            <h3 style={{ margin: "0 0 6px", fontSize: "1rem" }}>Dice Rolls</h3>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid #ccc" }}>
-                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>Roll #</th>
-                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>Who</th>
-                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>Dice</th>
-                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>From</th>
-                  <th align="left" style={{ color: "#333", padding: "6px 4px" }}>To</th>
+                  <th align="left">#</th><th align="left">Who</th><th align="left">Dice</th><th align="left">To</th>
                 </tr>
               </thead>
               <tbody>
                 {diceRolls.map((roll) => (
                   <tr key={roll.roll_number} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ color: "#555", padding: "6px 4px" }}>{roll.roll_number}</td>
-                    <td style={{ color: "#555", padding: "6px 4px" }}>{roll.player}</td>
-                    <td style={{ color: "#555", padding: "6px 4px" }}>
-                      {roll.dice1} + {roll.dice2} = {roll.total}
-                    </td>
-                    <td style={{ fontSize: "0.8rem", color: "#666", padding: "6px 4px" }}>{roll.from_location || "—"}</td>
-                    <td style={{ fontSize: "0.8rem", color: "#666", padding: "6px 4px" }}>{roll.to_location || "—"}</td>
+                    <td style={{ padding: "4px 2px" }}>{roll.roll_number}</td>
+                    <td style={{ padding: "4px 2px" }}>{roll.player}</td>
+                    <td style={{ padding: "4px 2px" }}>{roll.dice1}+{roll.dice2}={roll.total}</td>
+                    <td style={{ padding: "4px 2px" }}>{roll.to_location ?? "-"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-
         </div>
 
-        {/* Third column: Property Ledger */}
-        <div style={{
-          minWidth: 400,
-          maxWidth: 480,
-          marginLeft: "2rem",
-          flexShrink: 0,
-          position: "sticky",
-          top: 20,
-        }}>
-          <PropertyLedger
-            properties={allProperties}
+        {/* Far right: Holdings (cards + stud rams + status) */}
+        {currentUserPlayer && (
+          <HoldingsPanel
+            gameId={gameId}
+            playerId={currentUserPlayer.game_player_id}
+            refreshKey={holdingsRefreshKey}
+            onCardClick={(card) => setSelectedCard(card)}
           />
-        </div>
+        )}
       </div>
 
-      {/* Purchase/Auction Modals - wait for animation to complete */}
-      {animatingPlayers.size === 0 && pendingAction && pendingAction.action_type === "purchase_decision" && (
-        <PurchaseModal
+      {/* Pending Action Modal */}
+      {animatingPlayers.size === 0 && pendingAction && (
+        <PendingActionModal
           gameId={gameId}
           sessionToken={sessionToken}
           userId={userId}
           pendingAction={pendingAction}
-          playerBalances={playerBalances}
-          players={game.players}
-          onResolved={fetchGameLedgerJackpot}
+          players={game.players || []}
+          onResolved={handleResolved}
+          activePlayerHasHighStockPrices={
+            (playerRetainedCards[pendingAction.active_player_id] || [])
+              .some(c => c.title === 'High Stock Prices')
+          }
         />
       )}
 
-      {animatingPlayers.size === 0 && pendingAction && pendingAction.action_type === "auction" && (
-        <AuctionModal
+      {/* Station Panel */}
+      {showStationPanel && (
+        <StationPanel
           gameId={gameId}
           sessionToken={sessionToken}
-          userId={userId}
-          pendingAction={pendingAction}
-          playerBalances={playerBalances}
-          players={game.players}
-          onResolved={fetchGameLedgerJackpot}
+          onClose={() => setShowStationPanel(false)}
+          onUpdate={fetchGameState}
+          isMyTurn={isCurrentPlayer}
         />
       )}
 
-      {/* Card Modal for Chance/Welfare */}
-      {animatingPlayers.size === 0 && pendingAction && pendingAction.action_type === "card_drawn" && (
-        <CardModal
-          gameId={gameId}
-          sessionToken={sessionToken}
-          userId={userId}
-          pendingAction={pendingAction}
-          players={game?.players || []}
-          onResolved={fetchGameLedgerJackpot}
-        />
+      {/* Trading Board */}
+      {showTradingBoard && (
+        <div style={{
+          position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+          width: "800px", maxHeight: "80vh", overflowY: "auto",
+          background: "#fff", border: "3px solid #6a4c93", borderRadius: "12px",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.3)", zIndex: Z_INDEX.PANEL
+        }}>
+          <TradingBoard
+            gameId={gameId}
+            sessionToken={sessionToken}
+            userId={userId}
+            game={game}
+            playerBalances={playerBalances}
+            allPlayerAssets={{}}
+            playerRetainedCards={playerRetainedCards}
+            activeTradeFromParent={activeTrade}
+            onClose={() => setShowTradingBoard(false)}
+          />
+        </div>
       )}
 
-      {/* Rent Payment Modal - hide during bankruptcy flow or if creditor dismissed it */}
-      {animatingPlayers.size === 0 && pendingAction && pendingAction.action_type === "rent_payment" && !bankruptcyInfo && !showBankruptcyModal && !rentModalDismissed && (
-        <RentPaymentModal
-          gameId={gameId}
-          sessionToken={sessionToken}
-          pendingAction={pendingAction}
-          playerBalances={playerBalances}
-          onResolved={fetchGameLedgerJackpot}
-          onBankruptcy={handleBankruptcy}
-          userId={userId}
-          players={game?.players || []}
-          onDismiss={() => setRentModalDismissed(true)}
-        />
-      )}
-
-      {/* Jail Turn Options - Show when it's jailed player's turn */}
-      {isCurrentPlayer && currentUserPlayer && currentUserPlayer.in_jail &&
-       (!lastDiceRoll || lastDiceRoll.player_id !== currentUserPlayer.game_player_id) &&
-       !pendingAction && !jailChoiceMade && (
-        <JailTurnOptions
-          gameId={gameId}
-          sessionToken={sessionToken}
-          onAction={() => {
-            setJailChoiceMade(true);
-            fetchGameLedgerJackpot();
-          }}
-        />
-      )}
-
-      {/* Jail Notification Modal */}
-      {animatingPlayers.size === 0 && pendingAction && pendingAction.action_type === "jail_notification" && (
-        <JailModal
-          gameId={gameId}
-          sessionToken={sessionToken}
-          userId={userId}
-          pendingAction={pendingAction}
-          players={game?.players || []}
-          onResolved={fetchGameLedgerJackpot}
-        />
-      )}
-
-      {/* Retained Card Details Popup */}
+      {/* Retained Card Popup */}
       {selectedCard && (
-        <RetainedCardPopup
-          card={selectedCard}
-          onClose={() => setSelectedCard(null)}
-        />
+        <RetainedCardPopup card={selectedCard} onClose={() => setSelectedCard(null)} />
       )}
 
-      {/* Bankruptcy Modal */}
-      {showBankruptcyModal && bankruptcyInfo && (
-        <BankruptcyModal
-          gameId={gameId}
-          debtInfo={bankruptcyInfo}
-          playerId={currentUserPlayer?.game_player_id}
-          onClose={() => {
-            setShowBankruptcyModal(false);
-            setBankruptcyInfo(null);
-            fetchGameLedgerJackpot();
-          }}
-          onLiquidate={handleBankruptcyLiquidate}
-          onTrade={handleBankruptcyTrade}
-          onResign={handleBankruptcyResign}
-          sessionToken={sessionToken}
-        />
-      )}
-
-      {/* Game Over Screen */}
+      {/* Game Over */}
       {gameOver && winner && (
         <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.9)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: Z_INDEX.GAME_OVER
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', zIndex: Z_INDEX.GAME_OVER
         }}>
           <div style={{
-            background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',
-            borderRadius: '20px',
-            padding: '3rem',
-            textAlign: 'center',
-            maxWidth: '600px',
-            boxShadow: '0 10px 50px rgba(255, 215, 0, 0.5)'
+            background: 'linear-gradient(135deg, #4caf50 0%, #81c784 100%)',
+            borderRadius: '20px', padding: '3rem', textAlign: 'center', maxWidth: '600px'
           }}>
-            <h1 style={{
-              fontSize: '3rem',
-              margin: '0 0 1rem 0',
-              color: '#333'
-            }}>
-              🏆 GAME OVER 🏆
-            </h1>
-            <h2 style={{
-              fontSize: '2rem',
-              margin: '0 0 2rem 0',
-              color: '#555'
-            }}>
-              {winner} Wins!
-            </h2>
-            <p style={{
-              fontSize: '1.2rem',
-              color: '#666',
-              marginBottom: '2rem'
-            }}>
-              Congratulations on monopolizing Perth!
+            <h1 style={{ fontSize: '2.5rem', margin: '0 0 1rem', color: '#fff' }}>GAME WON!</h1>
+            <h2 style={{ fontSize: '1.8rem', margin: '0 0 1rem', color: '#fff' }}>{winner} wins!</h2>
+            <p style={{ fontSize: '1.1rem', color: '#e8f5e9', marginBottom: '2rem' }}>
+              6,000 sheep on a fully irrigated farm!
             </p>
-            <button
-              onClick={() => {
-                setGameOver(false);
-                setWinner(null);
-                setScreen('selector');
-              }}
-              style={{
-                padding: '1rem 2rem',
-                background: '#4caf50',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '10px',
-                fontSize: '1.2rem',
-                fontWeight: 'bold',
-                cursor: 'pointer'
-              }}
-            >
-              Return to Lobby
+            <button onClick={() => { setGameOver(false); setWinner(null); setScreen('selector'); }}
+              style={{ padding: '1rem 2rem', background: '#fff', color: '#4caf50', border: 'none', borderRadius: '10px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}>
+              Return to Menu
             </button>
           </div>
         </div>
@@ -1474,4 +883,4 @@ function App() {
   );
 }
 
-export default App;       
+export default App;

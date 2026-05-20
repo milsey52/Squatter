@@ -12,8 +12,8 @@ from datetime import datetime, timedelta
 
 # Set DATABASE_URL to PostgreSQL by default if not already set
 if "DATABASE_URL" not in os.environ:
-    os.environ["DATABASE_URL"] = "postgresql:///monopolyperth"
-    print("Using default PostgreSQL database: postgresql:///monopolyperth")
+    os.environ["DATABASE_URL"] = "postgresql:///squatter"
+    print("Using default PostgreSQL database: postgresql:///squatter")
     print("Set DATABASE_URL environment variable to override.\n")
 
 from app.db import SessionLocal
@@ -417,7 +417,7 @@ def show_sessions(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="MonopolyPerth Game CLI")
+    parser = argparse.ArgumentParser(description="Squatter Game CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     p_start = subparsers.add_parser("start-game", help="Start a new game (first player is host)")

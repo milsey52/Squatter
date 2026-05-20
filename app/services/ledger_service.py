@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app import models
 
-BANK_PLAYER_ID = None  # use None to represent the bank in transactions
+BANK_PLAYER_ID = None  # None represents the bank in transactions
 
 
 class LedgerService:
@@ -12,7 +12,8 @@ class LedgerService:
         self.session = session
         self.game_id = game_id
 
-    # ----- public helpers -----
+    # ── Public helpers ──────────────────────────────────────────────────
+
     def transfer(
         self,
         payer: models.GamePlayer,
@@ -20,7 +21,6 @@ class LedgerService:
         amount: int,
         txn_type: str,
         turn_id: Optional[int],
-        asset_id: Optional[int] = None,
         space_id: Optional[int] = None,
         card_id: Optional[int] = None,
         notes: Optional[str] = None,
@@ -37,7 +37,6 @@ class LedgerService:
             player_to_id=payee_id,
             amount=amount,
             transaction_type=txn_type,
-            asset_id=asset_id,
             space_id=space_id,
             card_id=card_id,
             notes=notes,
@@ -50,12 +49,11 @@ class LedgerService:
         return self.transfer(player, BANK_PLAYER_ID, amount, txn_type, turn_id, **kwargs)
 
     def pay_player(self, from_player, to_player, amount, txn_type, turn_id, **kwargs):
-        """Transfer money from one player to another."""
         return self.transfer(from_player, to_player.game_player_id, amount, txn_type, turn_id, **kwargs)
 
     def receive_from_bank(self, player, amount, txn_type, turn_id, **kwargs):
         return self.transfer(
-            payer=models.GamePlayer(game_player_id=None),  # placeholder not used
+            payer=models.GamePlayer(game_player_id=None),
             payee_id=player.game_player_id,
             amount=amount,
             txn_type=txn_type,
@@ -63,16 +61,18 @@ class LedgerService:
             **kwargs,
         )
 
-    def record_pass_start_bonus(self, player, turn_id=None):
-        from_game = self.transfer(
-            payer=models.GamePlayer(game_player_id=None),
-            payee_id=player.game_player_id,
-            amount=self._house_rules().pass_start_bonus,
-            txn_type="pass_start",
-            turn_id=turn_id,
-            notes="Pass Start bonus",
+    def record_wool_cheque(self, player, amount, turn_id=None, notes="Wool Cheque"):
+        return self.receive_from_bank(
+            player, amount, "wool_cheque", turn_id,
+            notes=notes,
         )
-        return from_game
+
+    def record_mortgage_interest(self, player, amount, turn_id=None):
+        if amount > 0:
+            return self.pay_bank(
+                player, amount, "mortgage_interest", turn_id,
+                notes="Mortgage interest payment",
+            )
 
     def record_bank_payment(self, player, amount, txn_type, turn_id=None):
         return self.pay_bank(player, amount, txn_type, turn_id)
@@ -97,14 +97,14 @@ class LedgerService:
             )
             .scalar()
         )
-        starting_cash = self._house_rules().starting_cash
+        starting_cash = self._game_rules().starting_cash
         return starting_cash + incoming - outgoing
 
-    # Alias for convenience
     def get_balance(self, player_id: int) -> int:
         return self.player_balance(player_id)
 
-    # ----- internal helpers -----
+    # ── Internal helpers ────────────────────────────────────────────────
+
     def _next_sequence(self, turn_id):
         if turn_id is None:
             return None
@@ -115,12 +115,12 @@ class LedgerService:
         )
         return (seq or 0) + 1
 
-    def _house_rules(self):
+    def _game_rules(self):
         rules = (
-            self.session.query(models.HouseRule)
-            .filter(models.HouseRule.game_id == self.game_id)
+            self.session.query(models.GameRule)
+            .filter(models.GameRule.game_id == self.game_id)
             .first()
         )
         if rules is None:
-            raise ValueError(f"No house rules found for game_id={self.game_id}")
+            raise ValueError(f"No game rules found for game_id={self.game_id}")
         return rules

@@ -1,8 +1,9 @@
-"""Seed static data (spaces, assets, cards, property_groups) if tables are empty.
+"""Seed static data (spaces, stock_cards, tucker_bag cards) from CSV files.
 
-Run this on startup to ensure Railway PostgreSQL has the required game data.
-v2 - fixed property_groups column name
+Run on startup to ensure the database has the required game data.
 """
+import csv
+import json
 import sys
 from pathlib import Path
 
@@ -12,30 +13,44 @@ sys.path.insert(0, str(ROOT))
 from sqlalchemy import text
 from app.db import SessionLocal
 
+DATA_DIR = ROOT / "data"
 
-def seed_property_groups(session):
-    count = session.execute(text("SELECT COUNT(*) FROM property_groups")).scalar()
-    if count > 0:
-        print(f"  property_groups already has {count} rows, skipping.")
-        return
 
-    groups = [
-        (1, 'Dark Blue', '#00008B', 500, 500),
-        (2, 'Brown', '#8B4513', 500, 500),
-        (3, 'Light Blue', '#87CEEB', 500, 500),
-        (4, 'Pink', '#FF1493', 500, 500),
-        (5, 'Orange', '#FFA500', 500, 500),
-        (6, 'Red', '#FF0000', 500, 500),
-        (7, 'Yellow', '#FFFF00', 500, 500),
-        (8, 'Green', '#00FF00', 500, 500),
-    ]
-    for g in groups:
-        session.execute(text(
-            "INSERT INTO property_groups (group_id, group_name, color_hex, house_cost, hotel_cost) "
-            "VALUES (:gid, :name, :color, :house, :hotel)"
-        ), {"gid": g[0], "name": g[1], "color": g[2], "house": g[3], "hotel": g[4]})
-    session.commit()
-    print(f"  Seeded {len(groups)} property groups.")
+def _parse_dollar(val):
+    """Parse a dollar string like '$500.00' or '$20/pen' into an integer."""
+    if not val or not val.strip():
+        return None
+    val = val.strip().replace("$", "").replace(",", "")
+    if "/pen" in val.lower():
+        val = val.lower().replace("/pen", "")
+    try:
+        return int(float(val))
+    except ValueError:
+        return None
+
+
+def _action_to_space_type(action, name, season, purchase_price):
+    """Map the Action column from CSV to a space_type value."""
+    if purchase_price:
+        return "stud_ram"
+
+    action_map = {
+        "Wool Cheque": "wool_sale",
+        "Stock Sale": "stock_sale",
+        "Tucker Bag": "tucker_bag",
+        "Miss Two Turns": "visiting_town",
+        "Bore Dries Up": "bore_dries_up",
+        "Local Drought": "local_drought",
+        "Local Rain": "local_rain",
+        "Flood Damage": "flood_damage",
+        "Stud Ram Dies": "stud_ram_dies",
+    }
+
+    if action in action_map:
+        return action_map[action]
+
+    # Expense spaces (have costs or card benefit costs)
+    return "expense"
 
 
 def seed_spaces(session):
@@ -44,192 +59,391 @@ def seed_spaces(session):
         print(f"  spaces already has {count} rows, skipping.")
         return
 
-    # (space_id, board_index, name, space_type, group_id_or_None)
-    spaces = [
-        (1, 0, 'Start/Payday', 'start', None),
-        (2, 1, 'Belvue House', 'property', 2),
-        (3, 2, 'Balga Inn', 'property', 2),
-        (4, 3, 'Welfare Centre', 'welfare', None),
-        (5, 4, 'Income Tax', 'penalty', None),
-        (6, 5, 'TransPerth', 'transport', None),
-        (7, 6, 'Ascot Waters', 'property', 3),
-        (8, 7, 'Midland', 'property', 3),
-        (9, 8, 'Chance', 'chance', None),
-        (10, 9, 'Swan Vinyard', 'property', 3),
-        (11, 10, 'Visit Jail', 'rest', None),
-        (12, 11, 'Optus Stadiium', 'property', 4),
-        (13, 12, 'Synergy', 'utility', None),
-        (14, 13, 'WACA', 'property', 4),
-        (15, 14, 'Perth Arena', 'property', 4),
-        (16, 15, 'Warwick Train Station', 'transport', None),
-        (17, 16, 'Hilliarys Boat Harbour', 'property', 5),
-        (18, 17, 'Water World', 'property', 5),
-        (19, 18, 'Adventure World', 'property', 5),
-        (20, 19, 'Welfare Centre', 'welfare', None),
-        (21, 20, 'Salvo Rest Home', 'rest', None),
-        (22, 21, 'Whitfords Shopping Centre', 'property', 6),
-        (23, 22, 'Cannington Shopping Centre', 'property', 6),
-        (24, 23, 'Chance', 'chance', None),
-        (25, 24, 'Carrilon City', 'property', 6),
-        (26, 25, 'Rottnest Express', 'transport', None),
-        (27, 26, 'Rottnest Island', 'property', 7),
-        (28, 27, 'Alinta Gas', 'utility', None),
-        (29, 28, 'City Beach', 'property', 7),
-        (30, 29, 'Yanchep Beach', 'property', 7),
-        (31, 30, 'Police Arrest \u2013 Imprisonment', 'penalty', None),
-        (32, 31, 'Perth Zoo', 'property', 8),
-        (33, 32, 'Welfare Centre', 'welfare', None),
-        (34, 33, 'Curtin Uni', 'property', 8),
-        (35, 34, 'The Casino', 'property', 8),
-        (36, 35, 'Perth Airport', 'transport', None),
-        (37, 36, 'Chance', 'chance', None),
-        (38, 37, 'Nedlands', 'property', 1),
-        (39, 38, 'Mortgage Payment', 'penalty', None),
-        (40, 39, 'Kings Park', 'property', 1),
-    ]
+    csv_path = DATA_DIR / "Properties.csv"
+    with open(csv_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        spaces = []
+        for row in reader:
+            idx = int(row["Index"])
+            name = row["Space Name"].strip()
+            season = row["Season"].strip() if row["Season"].strip() else None
+            action = row["Action"].strip() if row["Action"].strip() else None
+
+            cost_per_pen = _parse_dollar(row.get("No Card – Rate per Pen", ""))
+            cost_flat = _parse_dollar(row.get("No Card – Single Payment", ""))
+            cost_per_pen_with_card = _parse_dollar(row.get("Card Benefit – Rate per Pen", ""))
+            cost_flat_with_card = _parse_dollar(row.get("Card Benefit – Single Payment", ""))
+            relevant_card_name = row.get("Card", "").strip() or None
+
+            # Spaces 21 and 37: the "Card Benefit" cost IS the mandatory cost;
+            # holding the card grants immunity (pay nothing)
+            if idx in (21, 37) and not cost_flat and cost_flat_with_card:
+                cost_flat = cost_flat_with_card
+                cost_flat_with_card = None
+
+            purchase_price = _parse_dollar(row.get("Purchase", ""))
+            sell_back_price = _parse_dollar(row.get("Mortgage", ""))
+            stud_fee = _parse_dollar(row.get("Rent", ""))
+
+            space_type = _action_to_space_type(action, name, season, purchase_price)
+
+            spaces.append({
+                "space_id": idx + 1,
+                "board_index": idx,
+                "name": name,
+                "space_type": space_type,
+                "season": season,
+                "cost_per_pen": cost_per_pen,
+                "cost_flat": cost_flat,
+                "cost_per_pen_with_card": cost_per_pen_with_card,
+                "cost_flat_with_card": cost_flat_with_card,
+                "relevant_card_name": relevant_card_name,
+                "purchase_price": purchase_price,
+                "sell_back_price": sell_back_price,
+                "stud_fee": stud_fee,
+            })
+
     for s in spaces:
         session.execute(text(
-            "INSERT INTO spaces (space_id, board_index, name, space_type, group_id) "
-            "VALUES (:sid, :bidx, :name, :stype, :gid)"
-        ), {"sid": s[0], "bidx": s[1], "name": s[2], "stype": s[3], "gid": s[4]})
+            "INSERT INTO spaces (space_id, board_index, name, space_type, season, "
+            "cost_per_pen, cost_flat, cost_per_pen_with_card, cost_flat_with_card, "
+            "relevant_card_name, purchase_price, sell_back_price, stud_fee) "
+            "VALUES (:space_id, :board_index, :name, :space_type, :season, "
+            ":cost_per_pen, :cost_flat, :cost_per_pen_with_card, :cost_flat_with_card, "
+            ":relevant_card_name, :purchase_price, :sell_back_price, :stud_fee)"
+        ), s)
 
-    # Reset the sequence for PostgreSQL so next auto-generated id is correct
-    session.execute(text("SELECT setval('spaces_space_id_seq', (SELECT MAX(space_id) FROM spaces))"))
+    # Reset sequence
+    session.execute(text(
+        "SELECT setval('spaces_space_id_seq', (SELECT MAX(space_id) FROM spaces))"
+    ))
     session.commit()
     print(f"  Seeded {len(spaces)} spaces.")
 
 
-def seed_assets(session):
-    count = session.execute(text("SELECT COUNT(*) FROM assets")).scalar()
+def seed_stock_cards(session):
+    count = session.execute(text("SELECT COUNT(*) FROM stock_cards")).scalar()
     if count > 0:
-        print(f"  assets already has {count} rows, skipping.")
+        print(f"  stock_cards already has {count} rows, skipping.")
         return
 
-    # (asset_id, space_id, asset_type, purchase_price, mortgage_value,
-    #  rent_base, rent_group, rent_house_1, rent_house_2, rent_house_3, rent_house_4, rent_hotel,
-    #  rent_tier_2, rent_tier_3, rent_tier_4, utility_mult_single, utility_mult_double)
-    assets = [
-        (1, 1, 'start', 2000, 0, None, None, None, None, None, None, None, None, None, None, None, None),
-        (2, 2, 'property', 600, 300, 36, 72, 180, 540, 1620, 3240, 4500, None, None, None, None, None),
-        (3, 3, 'property', 600, 300, 36, 72, 180, 540, 1620, 3240, 4500, None, None, None, None, None),
-        (4, 5, 'penalty', -2000, -1000, None, None, None, None, None, None, None, None, None, None, None, None),
-        (5, 6, 'transport', 2000, 1000, 250, 500, None, None, None, None, None, 500, 1000, 2000, None, None),
-        (6, 7, 'property', 1000, 500, 70, 140, 350, 1050, 3150, 6300, 8750, None, None, None, None, None),
-        (7, 8, 'property', 1000, 500, 70, 140, 350, 1050, 3150, 6300, 8750, None, None, None, None, None),
-        (8, 10, 'property', 1200, 600, 84, 168, 420, 1260, 3780, 7560, 10500, None, None, None, None, None),
-        (9, 12, 'property', 1400, 700, 112, 224, 560, 1680, 5040, 10080, 14000, None, None, None, None, None),
-        (10, 13, 'utility', 1500, 750, 5, 15, None, None, None, None, None, None, None, None, 5, 15),
-        (11, 14, 'property', 1400, 700, 112, 224, 560, 1680, 5040, 10080, 14000, None, None, None, None, None),
-        (12, 15, 'property', 1600, 800, 128, 256, 640, 1920, 5760, 11520, 16000, None, None, None, None, None),
-        (13, 16, 'transport', 2000, 1000, 250, 500, None, None, None, None, None, 500, 1000, 2000, None, None),
-        (14, 17, 'property', 1800, 900, 144, 288, 720, 2160, 6480, 12960, 18000, None, None, None, None, None),
-        (15, 18, 'property', 1800, 900, 144, 288, 720, 2160, 6480, 12960, 18000, None, None, None, None, None),
-        (16, 19, 'property', 2000, 1000, 160, 320, 800, 2400, 7200, 14400, 20000, None, None, None, None, None),
-        (17, 22, 'property', 2200, 1100, 180, 360, 902, 2706, 8118, 16236, 22550, None, None, None, None, None),
-        (18, 23, 'property', 2200, 1100, 180, 360, 902, 2706, 8118, 16236, 22550, None, None, None, None, None),
-        (19, 25, 'property', 2400, 1200, 196, 392, 984, 2952, 8856, 17712, 24600, None, None, None, None, None),
-        (20, 26, 'transport', 2000, 1000, 250, 500, None, None, None, None, None, 500, 1000, 2000, None, None),
-        (21, 27, 'property', 2600, 1300, 221, 442, 1105, 3315, 9945, 19890, 27625, None, None, None, None, None),
-        (22, 28, 'utility', 1500, 750, 5, 15, None, None, None, None, None, None, None, None, 5, 15),
-        (23, 29, 'property', 2600, 1300, 221, 442, 1105, 3315, 9945, 19890, 27625, None, None, None, None, None),
-        (24, 30, 'property', 2800, 1400, 238, 476, 1190, 3570, 10710, 21420, 29750, None, None, None, None, None),
-        (25, 32, 'property', 3000, 1500, 261, 522, 1305, 3915, 11745, 23490, 32625, None, None, None, None, None),
-        (26, 34, 'property', 3000, 1500, 261, 522, 1305, 3915, 11745, 23490, 32625, None, None, None, None, None),
-        (27, 35, 'property', 3200, 1600, 278, 556, 1392, 4176, 12528, 25056, 34800, None, None, None, None, None),
-        (28, 36, 'transport', 2000, 1000, 250, 500, None, None, None, None, None, 500, 1000, 2000, None, None),
-        (29, 38, 'property', 4000, 2000, 464, 928, 2320, 6960, 20880, 41760, 58000, None, None, None, None, None),
-        (30, 39, 'penalty', -1000, -500, None, None, None, None, None, None, None, None, None, None, None, None),
-        (31, 40, 'property', 5000, 2500, 625, 1250, 3125, 9375, 28125, 56250, 78125, None, None, None, None, None),
-    ]
-    for a in assets:
+    csv_path = DATA_DIR / "Stock Cards.csv"
+    cards = []
+    with open(csv_path, newline="", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        # Skip header rows (3 rows: header, sub-header, blank)
+        next(reader)  # "Buyer (price per pen),Seller (price per pen,"
+        next(reader)  # ",Natural Pasture,Improved and Irrigated Pasture"
+        next(reader)  # blank row
+
+        card_id = 1
+        for row in reader:
+            if not row or not row[0].strip() or row[0].strip().lower() == "reg":
+                continue
+            try:
+                buy_price = int(row[0].strip())
+                sell_natural = int(row[1].strip())
+                sell_improved = int(row[2].strip())
+            except (ValueError, IndexError):
+                continue
+
+            cards.append({
+                "stock_card_id": card_id,
+                "buy_price_per_pen": buy_price,
+                "sell_price_natural": sell_natural,
+                "sell_price_improved_irrigated": sell_improved,
+            })
+            card_id += 1
+
+    for c in cards:
         session.execute(text(
-            "INSERT INTO assets (asset_id, space_id, asset_type, purchase_price, mortgage_value, "
-            "rent_base, rent_group, rent_house_1, rent_house_2, rent_house_3, rent_house_4, rent_hotel, "
-            "rent_tier_2, rent_tier_3, rent_tier_4, utility_mult_single, utility_mult_double) "
-            "VALUES (:aid, :sid, :atype, :pprice, :mval, :rb, :rg, :rh1, :rh2, :rh3, :rh4, :rht, "
-            ":rt2, :rt3, :rt4, :ums, :umd)"
-        ), {
-            "aid": a[0], "sid": a[1], "atype": a[2], "pprice": a[3], "mval": a[4],
-            "rb": a[5], "rg": a[6], "rh1": a[7], "rh2": a[8], "rh3": a[9], "rh4": a[10], "rht": a[11],
-            "rt2": a[12], "rt3": a[13], "rt4": a[14], "ums": a[15], "umd": a[16],
-        })
+            "INSERT INTO stock_cards (stock_card_id, buy_price_per_pen, "
+            "sell_price_natural, sell_price_improved_irrigated) "
+            "VALUES (:stock_card_id, :buy_price_per_pen, "
+            ":sell_price_natural, :sell_price_improved_irrigated)"
+        ), c)
 
-    session.execute(text("SELECT setval('assets_asset_id_seq', (SELECT MAX(asset_id) FROM assets))"))
+    session.execute(text(
+        "SELECT setval('stock_cards_stock_card_id_seq', (SELECT MAX(stock_card_id) FROM stock_cards))"
+    ))
     session.commit()
-    print(f"  Seeded {len(assets)} assets.")
+    print(f"  Seeded {len(cards)} stock cards.")
 
 
-def seed_cards(session):
+def seed_tucker_bag_cards(session):
     count = session.execute(text("SELECT COUNT(*) FROM cards")).scalar()
     if count > 0:
         print(f"  cards already has {count} rows, skipping.")
         return
 
-    # (card_id, deck_type, title, body_text, is_retainable, effect_code, effect_params)
-    cards = [
-        (1, 'welfare', 'You have been offered a free room upgrad', 'You have been offered a free room upgrade in a swanky hotel.  Collect $2000', 0, 'COLLECT', '{"amount": 2000}'),
-        (2, 'welfare', 'Go to Jail directly.  You do not pass Sa', 'Go to Jail directly.  You do not pass Salary point nor do you collect $2000', 0, 'GO_TO_JAIL', None),
-        (3, 'welfare', 'Tax Time.  You are Tax Assessment follow', 'Tax Time.  You are Tax Assessment follows: $500 per house and $1200 per hotel', 0, 'PAY_REPAIRS', '{"per_house": 500, "per_hotel": 1200}'),
-        (4, 'welfare', 'Treat family to cruise along Swan River.', 'Treat family to cruise along Swan River.  Collect $250', 0, 'COLLECT', '{"amount": 250}'),
-        (5, 'welfare', 'You received a complimentary overnight s', 'You received a complimentary overnight stay at the Samphire Lodge  - receive $1000', 0, 'COLLECT', '{"amount": 1000}'),
-        (6, 'welfare', 'You make a charitable donation to Perth ', 'You make a charitable donation to Perth Zoo.  Pay $500 after a great day out.', 0, 'PAY_BANK', '{"amount": 500}'),
-        (7, 'welfare', 'You have been caught trying to  sneak ba', 'You have been caught trying to  sneak backstage at a concert \u2013 pay $500 fine', 0, 'PAY_BANK', '{"amount": 500}'),
-        (8, 'welfare', 'You are caught littering in St Georges T', 'You are caught littering in St Georges Terrace \u2013 Pay $1000', 0, 'PAY_BANK', '{"amount": 1000}'),
-        (9, 'welfare', 'Visit Bell Tower and collect $1000 gift ', 'Visit Bell Tower and collect $1000 gift voucher', 0, 'COLLECT', '{"amount": 1000}'),
-        (10, 'welfare', 'You come 2nd in surfing  competion at Tr', 'You come 2nd in surfing  competion at Trigg \u2013 Collect $200', 0, 'COLLECT', '{"amount": 200}'),
-        (11, 'welfare', 'Bank dividend \u2013 collect $2000', 'Bank dividend \u2013 collect $2000', 0, 'COLLECT', '{"amount": 2000}'),
-        (12, 'welfare', 'Get out of Jail \u2013 retain until need or t', 'Get out of Jail \u2013 retain until need or traded', 1, 'GET_OUT_OF_JAIL', None),
-        (13, 'welfare', 'Ice-cream treat voucher \u2013 collect $100', 'Ice-cream treat voucher \u2013 collect $100', 0, 'COLLECT', '{"amount": 100}'),
-        (14, 'welfare', 'You have won an award at the UWA arts fe', 'You have won an award at the UWA arts festival \u2013 collect $2000', 0, 'COLLECT', '{"amount": 2000}'),
-        (15, 'welfare', 'You visit Fremantle Prison and win a pri', 'You visit Fremantle Prison and win a prize \u2013 collect $500', 0, 'COLLECT', '{"amount": 500}'),
-        (16, 'welfare', 'Your friends treat you to a meal \u2013 colle', 'Your friends treat you to a meal \u2013 collect $100 from every player', 0, 'COLLECT_FROM_EACH_PLAYER', '{"amount": 100}'),
-        (17, 'chance', 'Advance to nearest travel square \u2013 if un', 'Advance to nearest travel square \u2013 if unowned you may purchase and if owned pay owner twice normal rental', 0, 'ADVANCE_NEAREST_TRANSPORT', '{"rent_multiplier": 2}'),
-        (18, 'chance', 'Get out of Jail free \u2013 This card may be ', 'Get out of Jail free \u2013 This card may be kept until needed or sold', 1, 'GET_OUT_OF_JAIL', None),
-        (19, 'chance', 'You win a competion in Kings Park \u2013 Coll', 'You win a competion in Kings Park \u2013 Collect $500', 0, 'COLLECT', '{"amount": 500}'),
-        (20, 'chance', 'Tax Time \u2013 General Repairs \u2013 Pay $250 fo', 'Tax Time \u2013 General Repairs \u2013 Pay $250 for each house and $1250 for each hotel', 0, 'PAY_REPAIRS', '{"per_house": 250, "per_hotel": 1250}'),
-        (21, 'chance', 'Take you family and friends for a ride t', 'Take you family and friends for a ride to Kings Park', 0, 'MOVE_TO', '{"space_id": 40}'),
-        (22, 'chance', 'Advance to nearest Utility \u2013 if unowned ', 'Advance to nearest Utility \u2013 if unowned you may purchase and if owned pay owner ten times normal rental', 0, 'ADVANCE_NEAREST_UTILITY', '{"rent_multiplier": 10}'),
-        (23, 'chance', 'You have won tickets to Adventure World ', 'You have won tickets to Adventure World \u2013 advance to Adventure World \u2013 if you pass Payday then collect $2000', 0, 'MOVE_TO', '{"space_id": 19, "allow_pass_bonus": true}'),
-        (24, 'chance', 'Go back three spaces', 'Go back three spaces', 0, 'MOVE_BACK', '{"steps": -3}'),
-        (25, 'chance', 'Advance to nearest travel square \u2013 if un', 'Advance to nearest travel square \u2013 if unowned you may purchase and if owned pay owner twice normal rental', 0, 'ADVANCE_NEAREST_TRANSPORT', '{"rent_multiplier": 2}'),
-        (26, 'chance', 'Take a trip to Transperth \u2013 if you pass ', 'Take a trip to Transperth \u2013 if you pass Payday then collect $2000', 0, 'MOVE_TO', '{"space_id": 6, "allow_pass_bonus": true}'),
-        (27, 'chance', 'You have won a shopping spree.  Go to Ca', 'You have won a shopping spree.  Go to Carrillion City and  if you pass Payday then collect $2000', 0, 'MOVE_TO', '{"space_id": 25, "allow_pass_bonus": true}'),
-        (28, 'chance', 'Bank pays you a dividend of $500', 'Bank pays you a dividend of $500', 0, 'COLLECT', '{"amount": 500}'),
-        (29, 'chance', 'You go shopping at Freo Markets and pick', 'You go shopping at Freo Markets and pick ukp a bargain \u2013 pay $150', 0, 'PAY_BANK', '{"amount": 150}'),
-        (30, 'chance', 'You have been elected loser of the year ', 'You have been elected loser of the year \u2013 pay each player $500 to keep the results quiet.', 0, 'PAY_EACH_PLAYER', '{"amount": 500}'),
-        (31, 'chance', 'Advance to Start \u2013 Collect $2000', 'Advance to Start \u2013 Collect $2000', 0, 'MOVE_TO', '{"space_id": 1, "collect_on_land": 2000}'),
-        (32, 'chance', 'Go to Jail \u2013 Do not pass Start/Payday or', 'Go to Jail \u2013 Do not pass Start/Payday or collect $2000', 0, 'GO_TO_JAIL', None),
+    csv_path = DATA_DIR / "Tucker Bag.csv"
+    with open(csv_path, newline="", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        lines = [row[0].strip() for row in reader if row and row[0].strip()]
+
+    # Map each card to effect_code and effect_params
+    card_defs = [
+        {
+            "title": "Fire Destroys Haystack",
+            "effect_code": "FIRE_DAMAGE",
+            "effect_params": {"cost": 500, "protection_card": "Fire Fighting Equipment"},
+            "is_retainable": False,
+        },
+        {
+            "title": "Income Tax Assessment",
+            "effect_code": "INCOME_TAX",
+            "effect_params": {
+                "per_natural_paddock": 50,
+                "per_improved_paddock": 200,
+                "per_irrigated_paddock": 500,
+                "per_pen": 100,
+                "per_1000_cash": 200,
+            },
+            "is_retainable": False,
+        },
+        {
+            "title": "Good Autumn and Spring Rains",
+            "effect_code": "MOVE_TO_WOOL_SALE",
+            "effect_params": {"breaks_drought": True},
+            "is_retainable": False,
+        },
+        {
+            "title": "Lucerne Flea Infestation",
+            "effect_code": "LUCERNE_FLEA",
+            "effect_params": {
+                "sell_fraction": 0.333,
+                "sell_price_per_pen": 500,
+                "restock_blocked": True,
+                "protection_card": "Control of Weeds and Insects",
+            },
+            "is_retainable": False,
+        },
+        {
+            "title": "Fire Fighting Equipment",
+            "effect_code": "FIRE_FIGHTING_EQUIPMENT",
+            "effect_params": {"purchase_price": 350},
+            "is_retainable": True,
+        },
+        {
+            "title": "General Rain",
+            "effect_code": "GENERAL_RAIN",
+            "effect_params": {},
+            "is_retainable": False,
+        },
+        {
+            "title": "Soil Conservation Trophy",
+            "effect_code": "COLLECT",
+            "effect_params": {"amount": 600},
+            "is_retainable": False,
+        },
+        {
+            "title": "Tractor Injury",
+            "effect_code": "MISS_TURNS",
+            "effect_params": {"turns": 2},
+            "is_retainable": False,
+        },
+        {
+            "title": "Worm Infestation",
+            "effect_code": "WORM_INFESTATION",
+            "effect_params": {
+                "sell_fraction": 0.5,
+                "sell_price_per_pen": 500,
+                "protection_card": "Worm Control Program",
+            },
+            "is_retainable": False,
+        },
+        {
+            "title": "Local Rain",
+            "effect_code": "LOCAL_RAIN",
+            "effect_params": {},
+            "is_retainable": False,
+        },
+        {
+            "title": "Successful Lambing Season",
+            "effect_code": "SUCCESSFUL_LAMBING",
+            "effect_params": {"pens": 3, "cash_if_full": 1800},
+            "is_retainable": False,
+        },
+        {
+            "title": "Fire-Safe Award",
+            "effect_code": "COLLECT",
+            "effect_params": {"amount": 400},
+            "is_retainable": False,
+        },
+        {
+            "title": "Sustainable Grazing Prize",
+            "effect_code": "COLLECT",
+            "effect_params": {"amount": 300},
+            "is_retainable": False,
+        },
+        {
+            "title": "Stud Ewe National Award",
+            "effect_code": "COLLECT",
+            "effect_params": {"amount": 500},
+            "is_retainable": False,
+        },
+        {
+            "title": "Landcare and Tree Planting",
+            "effect_code": "RECEIVE_PENS_AND_BONUS",
+            "effect_params": {"pens": 2, "cash_if_full": 1200, "wool_cheque_bonus": 1000},
+            "is_retainable": False,
+        },
+        {
+            "title": "Sustainable Water Management",
+            "effect_code": "SUSTAINABLE_WATER",
+            "effect_params": {"drought_halved_spaces": 22},
+            "is_retainable": False,
+        },
+        {
+            "title": "Grass Fire",
+            "effect_code": "GRASS_FIRE",
+            "effect_params": {
+                "sell_fraction": 0.5,
+                "restock_blocked": True,
+                "protection_card": "Fire Fighting Equipment",
+            },
+            "is_retainable": False,
+        },
+        {
+            "title": "Blowfly Wave",
+            "effect_code": "BLOWFLY_WAVE",
+            "effect_params": {"wool_reduction_pct": 10, "protection_space": "Jet Sheep"},
+            "is_retainable": False,
+        },
+        {
+            "title": "Fat Lamb Sale",
+            "effect_code": "COLLECT",
+            "effect_params": {"amount": 500},
+            "is_retainable": False,
+        },
+        {
+            "title": "High Stock Prices",
+            "effect_code": "HIGH_STOCK_PRICES",
+            "effect_params": {"price_modifier_pct": 20},
+            "is_retainable": False,
+        },
+        {
+            "title": "Eradicate Footrot",
+            "effect_code": "ERADICATE_FOOTROT",
+            "effect_params": {},
+            "is_retainable": False,
+        },
+        {
+            "title": "Special Sheep Sale",
+            "effect_code": "MOVE_TO_STOCK_SALE",
+            "effect_params": {},
+            "is_retainable": False,
+        },
+        {
+            "title": "Stud Ram Insurance",
+            "effect_code": "STUD_RAM_INSURANCE",
+            "effect_params": {"refund": 500},
+            "is_retainable": True,
+        },
+        {
+            "title": "Agistment Fees",
+            "effect_code": "AGISTMENT_FEES",
+            "effect_params": {"amount": 600},
+            "is_retainable": False,
+        },
+        {
+            "title": "Superfine Wool",
+            "effect_code": "SUPERFINE_WOOL",
+            "effect_params": {"wool_cheque_bonus": 3000},
+            "is_retainable": False,
+        },
     ]
-    for c in cards:
+
+    if len(card_defs) != len(lines):
+        print(f"  WARNING: {len(card_defs)} card definitions but {len(lines)} CSV lines")
+
+    for i, (card_def, body_text) in enumerate(zip(card_defs, lines), start=1):
         session.execute(text(
-            "INSERT INTO cards (card_id, deck_type, title, body_text, is_retainable, effect_code, effect_params) "
-            "VALUES (:cid, :dtype, :title, :body, CAST(:retain AS boolean), :ecode, :eparams)"
+            "INSERT INTO cards (card_id, deck_type, title, body_text, "
+            "is_retainable, effect_code, effect_params) "
+            "VALUES (:card_id, :deck_type, :title, :body_text, "
+            ":is_retainable, :effect_code, :effect_params)"
         ), {
-            "cid": c[0], "dtype": c[1], "title": c[2], "body": c[3],
-            "retain": c[4], "ecode": c[5], "eparams": c[6],
+            "card_id": i,
+            "deck_type": "tucker_bag",
+            "title": card_def["title"],
+            "body_text": body_text,
+            "is_retainable": card_def["is_retainable"],
+            "effect_code": card_def["effect_code"],
+            "effect_params": json.dumps(card_def["effect_params"]),
         })
 
-    session.execute(text("SELECT setval('cards_card_id_seq', (SELECT MAX(card_id) FROM cards))"))
+    session.execute(text(
+        "SELECT setval('cards_card_id_seq', (SELECT MAX(card_id) FROM cards))"
+    ))
     session.commit()
-    print(f"  Seeded {len(cards)} cards.")
+    print(f"  Seeded {len(card_defs)} Tucker Bag cards.")
 
 
-def main():
-    print("Checking static data...")
-    session = SessionLocal()
-    try:
-        seed_property_groups(session)
-        seed_spaces(session)
-        seed_assets(session)
-        seed_cards(session)
-        print("Static data check complete.")
-    except Exception as e:
-        session.rollback()
-        print(f"Error seeding data: {e}")
-        raise
-    finally:
-        session.close()
+def seed_expense_cards(session):
+    """Seed purchasable expense-immunity cards (not part of Tucker Bag deck)."""
+    # These cards can only be obtained by paying extra at certain expense spaces.
+    # They grant immunity from future landings on the same space.
+    expense_cards = [
+        {
+            "title": "Worm Control Program",
+            "body_text": "Immunity from Drench Sheep for Worms expense.",
+            "effect_code": "EXPENSE_IMMUNITY",
+            "effect_params": json.dumps({"immune_space": "Drench Sheep for Worms"}),
+        },
+        {
+            "title": "Control of Weeds and Insects",
+            "body_text": "Immunity from Spray for Weeds & Insects expense.",
+            "effect_code": "EXPENSE_IMMUNITY",
+            "effect_params": json.dumps({"immune_space": "Spray for Weeds & Insects"}),
+        },
+        {
+            "title": "Fertilised Pasture",
+            "body_text": "Immunity from Fertilising Pasture expense.",
+            "effect_code": "EXPENSE_IMMUNITY",
+            "effect_params": json.dumps({"immune_space": "Fertilising Pasture"}),
+        },
+    ]
+
+    existing = session.execute(
+        text("SELECT title FROM cards WHERE deck_type = 'expense_immunity'")
+    ).fetchall()
+    existing_titles = {r[0] for r in existing}
+
+    added = 0
+    for card_def in expense_cards:
+        if card_def["title"] in existing_titles:
+            continue
+        session.execute(text(
+            "INSERT INTO cards (deck_type, title, body_text, "
+            "is_retainable, effect_code, effect_params) "
+            "VALUES (:deck_type, :title, :body_text, "
+            ":is_retainable, :effect_code, :effect_params)"
+        ), {
+            "deck_type": "expense_immunity",
+            "title": card_def["title"],
+            "body_text": card_def["body_text"],
+            "is_retainable": True,
+            "effect_code": card_def["effect_code"],
+            "effect_params": card_def["effect_params"],
+        })
+        added += 1
+
+    if added > 0:
+        session.commit()
+        print(f"  Seeded {added} expense immunity cards.")
+    else:
+        print("  Expense immunity cards already exist, skipping.")
 
 
 if __name__ == "__main__":
-    main()
+    session = SessionLocal()
+    try:
+        print("Seeding static data...")
+        seed_spaces(session)
+        seed_stock_cards(session)
+        seed_tucker_bag_cards(session)
+        seed_expense_cards(session)
+        print("Done.")
+    finally:
+        session.close()
