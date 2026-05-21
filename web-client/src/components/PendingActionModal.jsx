@@ -517,7 +517,23 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
         <p style={{ color: '#388e3c', fontWeight: 'bold' }}>{data.reason || 'No effect.'}</p>
       )}
       {data.total_cost !== undefined && <p>Cost: <strong>${data.total_cost}</strong></p>}
-      {data.pens_sold !== undefined && data.pens_sold > 0 && <p>Pens sold: <strong>{data.pens_sold}</strong></p>}
+      {data.pens_sold !== undefined && data.pens_sold > 0 && (
+        <>
+          <p>Pens sold: <strong>{data.pens_sold}</strong>
+            {data.no_haystack_price_per_pen && !data.stock_card_used && (
+              <span style={{ color: '#666', fontSize: '0.85rem' }}> × ${data.no_haystack_price_per_pen}/pen</span>
+            )}
+          </p>
+          {data.by_type && Object.values(data.by_type).some(n => n > 0) && (
+            <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '-0.5rem' }}>
+              {Object.entries(data.by_type)
+                .filter(([, n]) => n > 0)
+                .map(([t, n]) => `${n} ${t}`)
+                .join(', ')}
+            </p>
+          )}
+        </>
+      )}
       {data.income !== undefined && data.income > 0 && <p>Income: <strong>${data.income}</strong></p>}
       {data.stock_card_used && (
         <div style={{ marginTop: '0.5rem', padding: '0.6rem', background: '#E3F2FD', border: '1px solid #1982c4', borderRadius: 6 }}>

@@ -322,6 +322,7 @@ class SpaceResolver:
         total_income = 0
         had_haystack = bool(player.has_haystack)
         stock_card_drawn = None
+        by_type = {"natural": 0, "improved": 0, "irrigated": 0}
 
         if not already_in_drought:
             # Sell half non-irrigated stock. If already in drought, extending the
@@ -367,6 +368,8 @@ class SpaceResolver:
             "drought_spaces": player.drought_spaces_remaining,
             "had_haystack": had_haystack,
             "extended": already_in_drought,
+            "by_type": by_type,
+            "no_haystack_price_per_pen": DROUGHT_SELL_PRICE_NO_HAYSTACK,
             "stock_card_used": (
                 {
                     "buy_price_per_pen": stock_card_drawn.buy_price_per_pen,
