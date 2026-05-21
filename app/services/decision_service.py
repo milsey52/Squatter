@@ -22,13 +22,18 @@ class DecisionService:
         self.drought = DroughtService(session, game_id)
 
     def get_pending_action(self) -> Optional[models.PendingAction]:
-        """Get current unresolved pending action for the game."""
+        """Get current unresolved pending action for the game.
+
+        Oldest first so multi-pending turns (e.g. pass-through wool cheque +
+        destination-space action) surface in the order they were created.
+        """
         return (
             self.session.query(models.PendingAction)
             .filter(
                 models.PendingAction.game_id == self.game_id,
                 models.PendingAction.resolved_at.is_(None),
             )
+            .order_by(models.PendingAction.pending_action_id.asc())
             .first()
         )
 

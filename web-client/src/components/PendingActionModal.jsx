@@ -404,7 +404,9 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
       <div style={modalStyle}>
         <h2 style={{ margin: '0 0 0.5rem', color: '#1982c4' }}>Wool Sale</h2>
         <p style={{ margin: '0 0 0.75rem', color: '#555', fontSize: '0.9rem' }}>
-          {data.trigger === 'card' ? 'Moved to Wool Sale by card.' : 'Landed on Wool Sale.'}
+          {data.trigger === 'card' ? 'Moved to Wool Sale by card.'
+            : data.trigger === 'passed' ? 'Passed Wool Sale.'
+            : 'Landed on Wool Sale.'}
         </p>
         <table style={{ width: '100%', fontSize: '0.9rem', borderCollapse: 'collapse' }}>
           <tbody>

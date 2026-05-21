@@ -26,7 +26,14 @@ class SpaceResolver:
         won_on_pass = False
         # Handle wool cheque when passing Wool Sale (without landing on it)
         if passed_start and space.board_index != 0:
-            self._pay_wool_cheque(player, turn)
+            cheque = self._pay_wool_cheque(player, turn)
+            # Show breakdown via a pending action created BEFORE the destination
+            # space handler runs, so it's surfaced first (oldest pending wins).
+            self._create_pending_action(turn, player, "wool_cheque_paid", {
+                "space_name": "Start/Wool Sale",
+                "trigger": "passed",
+                **cheque,
+            })
             won_on_pass = self.station.declare_winner_if_eligible(
                 player.game_player_id, turn.turn_id
             )
