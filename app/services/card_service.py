@@ -176,9 +176,11 @@ class CardService:
         if wool_cheque_amount > 0:
             notes = f"Wool Cheque ({cheque['total_pens']} pens, {cheque['stud_rams']} ram)"
             self.ledger.record_wool_cheque(player, wool_cheque_amount, turn_id, notes=notes)
-        # Reset card bonuses after use
-        if player.wool_cheque_bonus > 0:
+        # Reset single-use card effects after use
+        if player.wool_cheque_bonus:
             player.wool_cheque_bonus = 0
+        if player.wool_cheque_blowfly_pct:
+            player.wool_cheque_blowfly_pct = 0
         # Pay mortgage interest
         interest = self.station.calculate_mortgage_interest(player.game_player_id)
         if interest > 0:
@@ -350,11 +352,11 @@ class CardService:
         }
 
     def _effect_blowfly_wave(self, player, params, turn_id):
-        # Wool cheque reduces by 10% unless player lands on Jet Sheep before next cheque
-        # For now, set a flag
+        # Wool cheque reduces by N% on the next wool cheque (applied to
+        # base + ram_bonus in calculate_wool_cheque), unless cleared by
+        # landing on Jet Sheep first.
         reduction_pct = params["wool_reduction_pct"]
-        player.wool_cheque_bonus -= int(self.station.get_total_pens(player.game_player_id)
-                                        * 250 * reduction_pct / 100)
+        player.wool_cheque_blowfly_pct = reduction_pct
         self.session.flush()
         return {"wool_reduction_pct": reduction_pct}
 

@@ -419,10 +419,10 @@ class StationService:
         player = self.session.query(models.GamePlayer).get(game_player_id)
         extra_bonus = player.wool_cheque_bonus if player else 0
 
-        # Blowfly penalty
-        blowfly_reduction = 0
-        if player and player.wool_cheque_blowfly_penalty if hasattr(player, 'wool_cheque_blowfly_penalty') else False:
-            blowfly_reduction = int((base + ram_bonus) * 0.10)
+        # Blowfly penalty: percentage off (base + ram_bonus). Reset after use
+        # by the caller that records the cheque.
+        blowfly_pct = (player.wool_cheque_blowfly_pct or 0) if player else 0
+        blowfly_reduction = int((base + ram_bonus) * blowfly_pct / 100) if blowfly_pct else 0
 
         total = base + ram_bonus + extra_bonus - blowfly_reduction
 

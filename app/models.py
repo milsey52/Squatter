@@ -88,6 +88,7 @@ class GamePlayer(Base):
     next_sell_price_modifier = Column(Integer, nullable=False, default=0)
     footrot_immune = Column(Boolean, nullable=False, default=False)
     next_drought_halved = Column(Boolean, nullable=False, default=False)
+    wool_cheque_blowfly_pct = Column(Integer, nullable=False, default=0)
 
     game = relationship("Game", back_populates="players", foreign_keys=[game_id])
     user = relationship("User", back_populates="players")

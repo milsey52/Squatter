@@ -17,6 +17,11 @@ STATEMENTS = [
     "ADD COLUMN IF NOT EXISTS restock_block_spaces_remaining INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE cards "
     "ADD COLUMN IF NOT EXISTS one_time BOOLEAN NOT NULL DEFAULT false",
+    "ALTER TABLE game_players "
+    "ADD COLUMN IF NOT EXISTS wool_cheque_blowfly_pct INTEGER NOT NULL DEFAULT 0",
+    # Reset any stale negative wool_cheque_bonus values caused by the old
+    # blowfly bug (decremented bonus instead of using a dedicated flag).
+    "UPDATE game_players SET wool_cheque_bonus = 0 WHERE wool_cheque_bonus < 0",
 ]
 
 

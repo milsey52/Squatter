@@ -100,9 +100,11 @@ class SpaceResolver:
         if cheque["total"] > 0:
             notes = f"Wool Cheque ({cheque['total_pens']} pens, {cheque['stud_rams']} ram)"
             self.ledger.record_wool_cheque(player, cheque["total"], turn.turn_id, notes=notes)
-        # Reset card bonuses after use
-        if player.wool_cheque_bonus > 0:
+        # Reset single-use card effects after use
+        if player.wool_cheque_bonus:
             player.wool_cheque_bonus = 0
+        if player.wool_cheque_blowfly_pct:
+            player.wool_cheque_blowfly_pct = 0
         # Pay mortgage interest
         interest = self.station.calculate_mortgage_interest(player.game_player_id)
         if interest > 0:
