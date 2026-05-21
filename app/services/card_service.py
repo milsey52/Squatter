@@ -163,6 +163,7 @@ class CardService:
         return {"total_tax": total_tax}
 
     def _effect_move_to_wool_sale(self, player, params, turn_id):
+        from app.constants import WOOL_CHEQUE_PER_PEN, STUD_RAM_WOOL_BONUS_PER_PEN
         if params.get("breaks_drought") and player.is_in_drought:
             self.drought.break_drought(player, source="card")
         # Move to Wool Sale (space 0)
@@ -182,6 +183,27 @@ class CardService:
         interest = self.station.calculate_mortgage_interest(player.game_player_id)
         if interest > 0:
             self.ledger.record_mortgage_interest(player, interest, turn_id)
+        self.session.flush()
+
+        # Show the cheque breakdown to the player (popup acknowledged via
+        # /decisions/acknowledge). The previous pending action — the Tucker Bag
+        # draw that triggered this effect — is resolved by the caller right
+        # after apply_effect returns, so this new pending becomes the active
+        # one on the next poll.
+        self.session.add(models.PendingAction(
+            game_id=self.game_id,
+            turn_id=turn_id,
+            action_type="wool_cheque_paid",
+            active_player_id=player.game_player_id,
+            action_data=json.dumps({
+                "space_name": "Start/Wool Sale",
+                "trigger": "card",
+                **cheque,
+                "mortgage_interest": interest,
+                "per_pen_rate": WOOL_CHEQUE_PER_PEN,
+                "per_pen_per_ram_rate": STUD_RAM_WOOL_BONUS_PER_PEN,
+            }),
+        ))
         self.session.flush()
 
         return {

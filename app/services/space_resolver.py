@@ -78,10 +78,17 @@ class SpaceResolver:
     # ── Wool Sale (Start) ────────────────────────────────────────────────
 
     def _handle_wool_sale(self, player, space, turn, passed_start):
-        self._pay_wool_cheque(player, turn)
+        cheque = self._pay_wool_cheque(player, turn)
+        self._create_pending_action(turn, player, "wool_cheque_paid", {
+            "space_name": space.name,
+            "trigger": "landed",
+            **cheque,
+        })
         self.station.declare_winner_if_eligible(player.game_player_id, turn.turn_id)
 
     def _pay_wool_cheque(self, player, turn):
+        """Pay wool cheque + any mortgage interest. Returns breakdown for UI."""
+        from app.constants import WOOL_CHEQUE_PER_PEN, STUD_RAM_WOOL_BONUS_PER_PEN
         cheque = self.station.calculate_wool_cheque(player.game_player_id)
         if cheque["total"] > 0:
             notes = f"Wool Cheque ({cheque['total_pens']} pens, {cheque['stud_rams']} ram)"
@@ -94,6 +101,12 @@ class SpaceResolver:
         if interest > 0:
             self.ledger.record_mortgage_interest(player, interest, turn.turn_id)
         self.session.flush()
+        return {
+            **cheque,
+            "mortgage_interest": interest,
+            "per_pen_rate": WOOL_CHEQUE_PER_PEN,
+            "per_pen_per_ram_rate": STUD_RAM_WOOL_BONUS_PER_PEN,
+        }
 
     # ── Stock Sale ───────────────────────────────────────────────────────
 
