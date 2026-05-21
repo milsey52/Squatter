@@ -22,6 +22,21 @@ STATEMENTS = [
     # Reset any stale negative wool_cheque_bonus values caused by the old
     # blowfly bug (decremented bonus instead of using a dedicated flag).
     "UPDATE game_players SET wool_cheque_bonus = 0 WHERE wool_cheque_bonus < 0",
+    # One-off retroactive credit: Jim (game 2, player 3) was shorted $375
+    # on each of three wool cheques (ids 6, 22, 28) by the Blowfly Wave bug.
+    # Idempotent via the unique notes string.
+    """
+    INSERT INTO transactions (
+        game_id, player_from_id, player_to_id, amount,
+        transaction_type, notes, created_at
+    )
+    SELECT 2, NULL, 3, 1125, 'wool_cheque_correction',
+           'Retroactive ram bonus correction (Blowfly Wave bug)', NOW()
+    WHERE NOT EXISTS (
+        SELECT 1 FROM transactions
+        WHERE notes = 'Retroactive ram bonus correction (Blowfly Wave bug)'
+    )
+    """,
 ]
 
 
