@@ -13,10 +13,17 @@ class DroughtService:
         """Apply local drought to a player. Haystack consumption (if any) is
         handled by the caller (see space_resolver._handle_local_drought) since
         per the rules a haystack is only "used" when it actually offsets a sale.
+
+        Rule: landing on a Local Drought (whether new or while already in
+        drought) requires a fresh full circuit (BOARD_SIZE spaces) to clear.
+        Per-player "next drought halved" only applies on the very first
+        drought (consumed there); a subsequent extension still requires
+        the full circuit.
         """
         if player.is_in_drought:
-            # Already in drought — extend by another full circuit
-            player.drought_spaces_remaining += BOARD_SIZE
+            # Restart the clock from this space — another full circuit.
+            player.drought_spaces_remaining = BOARD_SIZE
+            player.drought_start_space = board_index
         else:
             player.is_in_drought = True
             player.drought_start_space = board_index

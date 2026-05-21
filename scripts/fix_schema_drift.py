@@ -22,6 +22,12 @@ STATEMENTS = [
     # Reset any stale negative wool_cheque_bonus values caused by the old
     # blowfly bug (decremented bonus instead of using a dedicated flag).
     "UPDATE game_players SET wool_cheque_bonus = 0 WHERE wool_cheque_bonus < 0",
+    # Cap drought_spaces_remaining at one full circuit. Old apply_drought
+    # extended by += BOARD_SIZE on subsequent Local Drought landings; the
+    # rule is to reset to BOARD_SIZE. Idempotent — once values are <=44,
+    # no rows match.
+    "UPDATE game_players SET drought_spaces_remaining = 44 "
+    "WHERE drought_spaces_remaining > 44 AND is_in_drought = true",
     # One-off retroactive credit: Jim (game 2, player 3) was shorted $375
     # on each of three wool cheques (ids 6, 22, 28) by the Blowfly Wave bug.
     # Idempotent via the unique notes string.
