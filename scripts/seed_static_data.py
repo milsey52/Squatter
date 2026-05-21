@@ -307,7 +307,7 @@ def seed_tucker_bag_cards(session):
         {
             "title": "Blowfly Wave",
             "effect_code": "BLOWFLY_WAVE",
-            "effect_params": {"wool_reduction_pct": 10, "protection_space": "Jet Sheep"},
+            "effect_params": {"wool_reduction_pct": 10},
             "is_retainable": False,
         },
         {
