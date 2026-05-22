@@ -81,16 +81,43 @@ class DecisionService:
     def stock_sale_buy(self, player_id: int, pens: int,
                        use_high_stock_prices: bool = False) -> dict:
         """Player buys sheep at the stock sale. The Stock Sale card is drawn
-        here — AFTER the player has committed to buying — per the rules."""
+        here — AFTER the player has committed to buying — per the rules.
+
+        Once committed, the card and (if applicable) the High Stock Prices
+        modifier are locked for the whole transaction. If the player can't
+        afford the requested pens at the locked price, the call returns a
+        soft "insufficient_funds" status (card stays drawn, pending stays
+        open) so the player can retry with a smaller amount or pass.
+        """
         pending = self._validate_pending("stock_sale_decision", player_id)
+        data = json.loads(pending.action_data) if pending.action_data else {}
 
         player = self.session.query(models.GamePlayer).get(player_id)
-        stock_card = self.stock_sale.draw_stock_card(pending.turn_id)
 
-        # Optional: apply retained High Stock Prices card to buying price
+        # Reuse the card drawn on the first commit; lock HSP state at first commit.
+        stock_card = self.stock_sale.get_card_for_turn(pending.turn_id)
+        is_retry = stock_card is not None
+        if is_retry:
+            original = data.get("original_pens", 0)
+            if pens > original:
+                raise ValueError(
+                    f"Already committed to {original} pens at the locked price — "
+                    f"retry must be {original} or fewer"
+                )
+            hsp_locked = bool(data.get("hsp_locked", False))
+        else:
+            stock_card = self.stock_sale.draw_stock_card(pending.turn_id)
+            hsp_locked = bool(use_high_stock_prices)
+            data["buy_committed"] = True
+            data["original_pens"] = pens
+            data["hsp_locked"] = hsp_locked
+            pending.action_data = json.dumps(data)
+            self.session.flush()
+
+        # Apply locked HSP setting (ignore request's flag on retry)
         hsp_modifier_pct = 0
         hsp_draw = None
-        if use_high_stock_prices:
+        if hsp_locked:
             hsp_draw = self._find_retained_high_stock_prices(player_id)
             if not hsp_draw:
                 raise ValueError("No retained High Stock Prices card to apply")
@@ -103,10 +130,15 @@ class DecisionService:
                     else base_buy_price
         total_cost = buy_price * pens
 
-        # Validate
+        # Validate — insufficient funds is soft (card stays, retry allowed)
         balance = self.ledger.player_balance(player_id)
         if balance < total_cost:
-            raise ValueError(f"Insufficient funds: need ${total_cost}, have ${balance}")
+            return {
+                "status": "insufficient_funds",
+                "requested_pens": pens,
+                "balance": balance,
+                "hsp_locked": hsp_locked,
+            }
 
         # Drought rule: restocking only allowed onto irrigated paddocks during drought
         # (Natural/Improved excluded even with a haystack).
@@ -182,6 +214,12 @@ class DecisionService:
         """Player sells sheep at the stock sale. The Stock Sale card is drawn
         here — AFTER the player has committed to selling — per the rules."""
         pending = self._validate_pending("stock_sale_decision", player_id)
+        data = json.loads(pending.action_data) if pending.action_data else {}
+        if data.get("buy_committed"):
+            raise ValueError(
+                "Already committed to buy — cannot switch to sell. "
+                "Reduce the pens count or pass."
+            )
 
         player = self.session.query(models.GamePlayer).get(player_id)
         stock_card = self.stock_sale.draw_stock_card(pending.turn_id)

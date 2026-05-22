@@ -26,9 +26,20 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
       const res = await fetch(`${API_BASE}/games/${gameId}/${endpoint}`, {
         method: 'POST', headers, body: JSON.stringify(body)
       });
+      const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || `Failed: ${res.status}`);
+        throw new Error(payload.detail || `Failed: ${res.status}`);
+      }
+      // Stock Sale buy with insufficient funds: card stays drawn, pending
+      // stays open in committed mode — surface the message and refresh so
+      // the modal re-renders with the lock state.
+      if (payload.status === 'insufficient_funds') {
+        setError(
+          `Cannot afford ${payload.requested_pens} pens at the locked price ` +
+          `(balance $${payload.balance}). Try fewer pens or pass.`
+        );
+        onResolved();
+        return;
       }
       onResolved();
     } catch (e) {
@@ -76,16 +87,31 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
 
   // Stock Sale — DECLARE step (no card visible yet, per rules)
   if (pendingAction.action_type === 'stock_sale_decision') {
-    const maxBuy = Math.min(data.empty_pens ?? 15, data.max_per_transaction ?? 15);
+    const buyCommitted = !!data.buy_committed;
+    const originalPens = data.original_pens ?? 0;
+    const hspLocked = !!data.hsp_locked;
+    const maxBuy = buyCommitted
+      ? Math.min(originalPens, data.empty_pens ?? 15, data.max_per_transaction ?? 15)
+      : Math.min(data.empty_pens ?? 15, data.max_per_transaction ?? 15);
     const maxSell = Math.min(data.total_pens ?? 0, data.max_per_transaction ?? 15);
     return (
       <div style={modalStyle}>
-        <h2 style={{ margin: '0 0 1rem', color: '#1982c4' }}>Stock Sale — Declare</h2>
+        <h2 style={{ margin: '0 0 1rem', color: '#1982c4' }}>
+          {buyCommitted ? 'Stock Sale — Buy Locked' : 'Stock Sale — Declare'}
+        </h2>
         <p><strong>{data.space_name || 'Stock Sale'}</strong></p>
-        <p style={{ fontSize: '0.85rem', color: '#666', fontStyle: 'italic' }}>
-          Per the rules, you must commit to buy/sell and the number of pens
-          <strong> before</strong> the Stock Sale card is revealed.
-        </p>
+        {buyCommitted ? (
+          <div style={{ marginBottom: '0.5rem', padding: '0.6rem', background: '#FFF3E0', border: '1px solid #FB8C00', borderRadius: '6px', fontSize: '0.85rem', color: '#E65100' }}>
+            You committed to buy <strong>{originalPens}</strong> pens. The Stock Sale
+            card has been drawn but stays hidden; the price is locked. Choose a
+            smaller number of pens or pass.
+          </div>
+        ) : (
+          <p style={{ fontSize: '0.85rem', color: '#666', fontStyle: 'italic' }}>
+            Per the rules, you must commit to buy/sell and the number of pens
+            <strong> before</strong> the Stock Sale card is revealed.
+          </p>
+        )}
         <p style={{ fontSize: '0.85rem' }}>
           You hold <strong>{data.total_pens ?? '?'}</strong> pens; <strong>{data.empty_pens ?? '?'}</strong> empty pens of capacity available.
         </p>
@@ -108,24 +134,32 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
           </div>
         )}
         {isMyAction && activePlayerHasHighStockPrices && (
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem', padding: '0.5rem', background: '#FFF8E1', border: '1px solid #FFB300', borderRadius: '6px' }}>
-            <input type="checkbox" checked={useHighStockPrices} onChange={(e) => setUseHighStockPrices(e.target.checked)} />
-            <span style={{ fontSize: '0.9rem' }}>Apply <strong>High Stock Prices</strong> (+20% to buy or sell — discards card)</span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem', padding: '0.5rem', background: '#FFF8E1', border: '1px solid #FFB300', borderRadius: '6px', opacity: buyCommitted ? 0.7 : 1 }}>
+            <input type="checkbox"
+              checked={buyCommitted ? hspLocked : useHighStockPrices}
+              disabled={buyCommitted}
+              onChange={(e) => setUseHighStockPrices(e.target.checked)} />
+            <span style={{ fontSize: '0.9rem' }}>
+              Apply <strong>High Stock Prices</strong> (+20% to buy or sell — discards card)
+              {buyCommitted && <em style={{ marginLeft: 6, color: '#666' }}>(locked)</em>}
+            </span>
           </label>
         )}
         {haystackOfferBlock}
         {isMyAction && (
           <div style={{ marginTop: '1rem' }}>
-            <label>Pens: <input type="number" min={1} max={data.max_per_transaction ?? 15} value={pens} onChange={e => setPens(Number(e.target.value))} style={{ width: 60, marginLeft: 8 }} /></label>
+            <label>Pens: <input type="number" min={1} max={buyCommitted ? maxBuy : (data.max_per_transaction ?? 15)} value={pens} onChange={e => setPens(Number(e.target.value))} style={{ width: 60, marginLeft: 8 }} /></label>
             <span style={{ marginLeft: 12, fontSize: '0.78rem', color: '#666' }}>
-              max buy {maxBuy}, max sell {maxSell}
+              max buy {maxBuy}{!buyCommitted && <>, max sell {maxSell}</>}
             </span>
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
               <button style={btnStyle('#4caf50')} disabled={submitting || pens > maxBuy || pens < 1 || !!data.restock_blocked}
                 title={data.restock_blocked ? 'Restock blocked — complete the circuit first' : undefined}
                 onClick={() => doAction('decisions/stock-sale', { action: 'buy', pens, use_high_stock_prices: useHighStockPrices })}>Buy {pens}</button>
-              <button style={btnStyle('#ff9800')} disabled={submitting || pens > maxSell || pens < 1}
-                onClick={() => doAction('decisions/stock-sale', { action: 'sell', pens, use_high_stock_prices: useHighStockPrices })}>Sell {pens}</button>
+              {!buyCommitted && (
+                <button style={btnStyle('#ff9800')} disabled={submitting || pens > maxSell || pens < 1}
+                  onClick={() => doAction('decisions/stock-sale', { action: 'sell', pens, use_high_stock_prices: useHighStockPrices })}>Sell {pens}</button>
+              )}
               <button style={btnStyle('#666')} disabled={submitting} onClick={() => doAction('decisions/stock-sale', { action: 'pass' })}>Pass</button>
               {haystackBuyButton}
             </div>
