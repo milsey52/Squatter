@@ -529,6 +529,70 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
     return null;
   }
 
+  // Bore Dries Up — detailed breakdown
+  if (pendingAction.action_type === 'bore_dries_up_effect') {
+    const notAffected = !data.affected;
+    return (
+      <div style={modalStyle}>
+        <h2 style={{ margin: '0 0 0.5rem', color: '#d32f2f' }}>Bore Dries Up!</h2>
+        {data.space_name && <p style={{ margin: '0 0 0.75rem' }}><strong>{data.space_name}</strong></p>}
+        {notAffected ? (
+          <p style={{ color: '#388e3c', fontWeight: 'bold' }}>
+            {data.reason || 'No effect — you have no Irrigated pasture.'}
+          </p>
+        ) : (
+          <>
+            <p style={{ fontSize: '0.85rem', color: '#666', fontStyle: 'italic', margin: '0 0 0.75rem' }}>
+              Half of your Irrigated stock (rounded up) is sold to the Bank.
+              You cannot restock until the circuit is complete.
+            </p>
+            <table style={{ width: '100%', fontSize: '0.9rem', borderCollapse: 'collapse' }}>
+              <tbody>
+                <tr>
+                  <td style={{ padding: '0.25rem 0' }}>Irrigated pens sold</td>
+                  <td style={{ padding: '0.25rem 0', textAlign: 'right' }}><strong>{data.pens_sold}</strong></td>
+                </tr>
+                <tr>
+                  <td style={{ padding: '0.25rem 0' }}>Price per pen</td>
+                  <td style={{ padding: '0.25rem 0', textAlign: 'right' }}>
+                    ${data.price_per_pen}{data.had_haystack && <em style={{ color: '#388e3c', marginLeft: 4 }}>(haystack)</em>}
+                  </td>
+                </tr>
+                <tr style={{ borderTop: '1px solid #ccc' }}>
+                  <td style={{ padding: '0.4rem 0', fontWeight: 'bold' }}>Income</td>
+                  <td style={{ padding: '0.4rem 0', textAlign: 'right', fontWeight: 'bold', color: '#2e7d32' }}>
+                    ${(data.income ?? 0).toLocaleString()}
+                  </td>
+                </tr>
+                {data.had_haystack && (
+                  <tr>
+                    <td style={{ padding: '0.25rem 0', color: '#666' }} colSpan={2}>
+                      <em>Haystack consumed (returned to Bank).</em>
+                    </td>
+                  </tr>
+                )}
+                <tr style={{ borderTop: '1px solid #ccc' }}>
+                  <td style={{ padding: '0.4rem 0', color: '#E65100' }}>Restock blocked for</td>
+                  <td style={{ padding: '0.4rem 0', textAlign: 'right', color: '#E65100', fontWeight: 'bold' }}>
+                    {data.spaces_blocked} spaces{data.halved_duration && <em style={{ marginLeft: 4 }}>(halved)</em>}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </>
+        )}
+        {isMyAction && (
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
+            <button style={btnStyle('#1982c4')} disabled={submitting}
+              onClick={() => doAction('decisions/acknowledge')}>OK</button>
+          </div>
+        )}
+        {!isMyAction && <p style={{ fontStyle: 'italic', color: '#666', marginTop: '0.75rem' }}>Waiting for {activePlayer?.player_name}...</p>}
+        {error && <p style={{ color: 'red', marginTop: '0.5rem' }}>{error}</p>}
+      </div>
+    );
+  }
+
   // Generic informational actions (drought, flood, etc.)
   const titleMap = {
     drought_effect: 'Local Drought!',

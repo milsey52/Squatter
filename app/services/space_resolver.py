@@ -437,6 +437,7 @@ class SpaceResolver:
             self.session.flush()
 
         self._create_pending_action(turn, player, "bore_dries_up_effect", {
+            "space_name": space.name,
             "affected": affected,
             "pens_sold": pens_sold,
             "income": total_income,
@@ -444,6 +445,11 @@ class SpaceResolver:
             "had_haystack": had_haystack,
             "halved_duration": halved,
             "spaces_blocked": player.restock_block_spaces_remaining if affected else 0,
+            "no_effect": not affected,
+            "reason": (
+                "You have no Irrigated pasture — Bore Dries Up has no effect."
+                if not affected else None
+            ),
         })
 
     # ── Flood Damage ─────────────────────────────────────────────────────
