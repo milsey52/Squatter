@@ -422,6 +422,19 @@ function App() {
           }}>
             Squatter - {currentUserPlayer?.player_name || 'Player'}
           </h1>
+          {gameCode && (
+            <div style={{
+              position: "absolute", top: "235px", left: "50%", transform: "translateX(-50%)",
+              background: "rgba(255,255,255,0.9)", padding: "6px 14px", borderRadius: 6,
+              boxShadow: "0 1px 4px rgba(0,0,0,0.1)", zIndex: 2, maxWidth: 360,
+              textAlign: "center", fontSize: "0.85rem", color: "#2d5016"
+            }}>
+              The Current Game Code is <strong style={{ letterSpacing: "1px" }}>{gameCode}</strong>.
+              <div style={{ fontSize: "0.75rem", color: "#555", marginTop: 2 }}>
+                Use this code to rejoin the game.
+              </div>
+            </div>
+          )}
           <Board
             players={game.players || []}
             currentPlayerId={game.current_player_id}
