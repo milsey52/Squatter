@@ -444,7 +444,7 @@ function App() {
           {/* Last Tucker Bag card */}
           {lastDrawnCard && (
             <div style={{
-              position: "absolute", top: "250px", left: "50%", transform: "translateX(-50%)",
+              position: "absolute", top: "300px", left: "50%", transform: "translateX(-50%)",
               background: "rgba(255,255,255,0.95)", padding: "12px 18px", borderRadius: 8,
               boxShadow: "0 2px 8px rgba(0,0,0,0.15)", zIndex: 2, maxWidth: 350, textAlign: "center"
             }}>
