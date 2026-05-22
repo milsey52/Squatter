@@ -8,6 +8,7 @@ import HoldingsPanel from "./components/HoldingsPanel";
 import TradingBoard from "./components/TradingBoard";
 import StationPanel from "./components/StationPanel";
 import PendingActionModal from "./components/PendingActionModal";
+import PlayerStationModal from "./components/PlayerStationModal";
 import { useGameEvents } from "./hooks/useGameEvents";
 import { Z_INDEX } from "./constants/zIndex";
 
@@ -53,6 +54,7 @@ function App() {
   const [showTradingBoard, setShowTradingBoard] = useState(false);
   const [showStationPanel, setShowStationPanel] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
+  const [viewingPlayerId, setViewingPlayerId] = useState(null);
   const [holdingsRefreshKey, setHoldingsRefreshKey] = useState(0);
   const [activeTrade, setActiveTrade] = useState(null);
   const [gameOver, setGameOver] = useState(false);
@@ -717,8 +719,12 @@ function App() {
                   background: isCurrent ? "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)" : "transparent",
                   border: isCurrent ? "2px solid #4caf50" : "1px solid #e0e0e0"
                 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
-                    <strong>{p.player_name}</strong>
+                  <div
+                    onClick={() => setViewingPlayerId(p.game_player_id)}
+                    title="Click to view this player's station"
+                    style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", cursor: "pointer" }}
+                  >
+                    <strong style={{ textDecoration: "underline dotted", textUnderlineOffset: 3 }}>{p.player_name}</strong>
                     <span style={{ fontSize: "0.85rem", color: "#555" }}>{spaceLabel}</span>
                     <span style={{ fontSize: "0.85rem", color: "#1982c4" }}>${cash}</span>
                     <span style={{ fontSize: "0.85rem", color: "#4caf50" }}>{totalPens} pens</span>
@@ -729,7 +735,7 @@ function App() {
                   {retained.length > 0 && (
                     <div style={{ fontSize: "0.8rem", color: "#6a4c93", marginTop: "4px" }}>
                       Cards: {retained.map((card, i) => (
-                        <button key={i} onClick={() => setSelectedCard(card)} style={{
+                        <button key={i} onClick={(e) => { e.stopPropagation(); setSelectedCard(card); }} style={{
                           background: 'none', border: 'none', color: '#6a4c93',
                           textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit'
                         }}>{card.title}{i < retained.length - 1 ? ", " : ""}</button>
@@ -862,6 +868,17 @@ function App() {
             onClose={() => setShowTradingBoard(false)}
           />
         </div>
+      )}
+
+{/* Player Station Modal — click any player in the list */}
+      {viewingPlayerId !== null && (
+        <PlayerStationModal
+          gameId={gameId}
+          playerId={viewingPlayerId}
+          playerName={game.players?.find(p => p.game_player_id === viewingPlayerId)?.player_name}
+          onClose={() => setViewingPlayerId(null)}
+          onCardClick={(card) => setSelectedCard(card)}
+        />
       )}
 
       {/* Retained Card Popup */}
