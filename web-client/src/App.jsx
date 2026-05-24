@@ -443,6 +443,36 @@ function App() {
             animatedPositions={animatedPositions}
           />
 
+          {/* Winner banner — spans the board horizontally */}
+          {gameOver && winner && (
+            <div style={{
+              position: "absolute", top: "50%", left: 0, right: 0,
+              transform: "translateY(-50%)", zIndex: Z_INDEX.GAME_OVER,
+              background: "linear-gradient(135deg, #ff6f00 0%, #ffb300 50%, #ff6f00 100%)",
+              border: "6px double #fff", boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
+              padding: "1.4rem 1rem", textAlign: "center",
+            }}>
+              <div style={{
+                fontSize: "2.8rem", fontWeight: 900, color: "#fff",
+                textShadow: "2px 3px 8px rgba(0,0,0,0.5)", letterSpacing: 2,
+                fontFamily: "'Georgia', serif",
+              }}>
+                {winner} is WINNER!!!!
+              </div>
+              <div style={{ fontSize: "0.95rem", color: "#fff8e1", marginTop: 6, fontStyle: "italic" }}>
+                6,000 sheep on a fully irrigated farm
+              </div>
+              <button onClick={() => { setGameOver(false); setWinner(null); setScreen('selector'); }}
+                style={{
+                  marginTop: 12, padding: "0.6rem 1.4rem", background: "#fff",
+                  color: "#ff6f00", border: "none", borderRadius: 8,
+                  fontSize: "1rem", fontWeight: "bold", cursor: "pointer",
+                }}>
+                Return to Menu
+              </button>
+            </div>
+          )}
+
           {/* Last Tucker Bag card */}
           {lastDrawnCard && (
             <div style={{
@@ -886,29 +916,6 @@ function App() {
         <RetainedCardPopup card={selectedCard} onClose={() => setSelectedCard(null)} />
       )}
 
-      {/* Game Over */}
-      {gameOver && winner && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', zIndex: Z_INDEX.GAME_OVER
-        }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #4caf50 0%, #81c784 100%)',
-            borderRadius: '20px', padding: '3rem', textAlign: 'center', maxWidth: '600px'
-          }}>
-            <h1 style={{ fontSize: '2.5rem', margin: '0 0 1rem', color: '#fff' }}>GAME WON!</h1>
-            <h2 style={{ fontSize: '1.8rem', margin: '0 0 1rem', color: '#fff' }}>{winner} wins!</h2>
-            <p style={{ fontSize: '1.1rem', color: '#e8f5e9', marginBottom: '2rem' }}>
-              6,000 sheep on a fully irrigated farm!
-            </p>
-            <button onClick={() => { setGameOver(false); setWinner(null); setScreen('selector'); }}
-              style={{ padding: '1rem 2rem', background: '#fff', color: '#4caf50', border: 'none', borderRadius: '10px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}>
-              Return to Menu
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
