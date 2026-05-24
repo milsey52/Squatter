@@ -736,6 +736,11 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
     return null;
   }
 
+  // Game won — the celebratory banner on the board is the canonical UI.
+  if (pendingAction.action_type === 'game_won') {
+    return null;
+  }
+
   // Local Drought — detailed breakdown
   if (pendingAction.action_type === 'drought_effect') {
     // Haystack-with-card variant is rendered as an inline overlay on the board.
