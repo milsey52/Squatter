@@ -15,6 +15,7 @@ class StockSaleRequest(BaseModel):
     action: str  # "buy", "sell", "pass"
     pens: Optional[int] = None
     use_high_stock_prices: bool = False
+    use_auto_sell_modifier: bool = True  # opt-out of the +20% earned from enhanced expenses
 
 
 class TuckerBagRequest(BaseModel):
@@ -60,7 +61,8 @@ async def stock_sale_decision(
             if not body.pens or body.pens <= 0:
                 raise ValueError("Must specify positive number of pens to sell")
             result = service.stock_sale_sell(player.game_player_id, body.pens,
-                                             use_high_stock_prices=body.use_high_stock_prices)
+                                             use_high_stock_prices=body.use_high_stock_prices,
+                                             use_auto_sell_modifier=body.use_auto_sell_modifier)
         elif body.action == "pass":
             result = service.stock_sale_pass(player.game_player_id)
         else:

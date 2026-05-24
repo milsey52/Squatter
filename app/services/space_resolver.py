@@ -142,6 +142,9 @@ class SpaceResolver:
             # halved 22-space variant). UI uses these to disable the Buy button.
             "restock_blocked": bool(player.restock_blocked_until_circuit),
             "restock_block_spaces_remaining": player.restock_block_spaces_remaining or 0,
+            # Modifier visibility — refreshed by get_pending_action_state on each poll.
+            "next_sell_price_modifier": player.next_sell_price_modifier or 0,
+            "balance": self.ledger.player_balance(player.game_player_id),
         })
 
     # ── Tucker Bag ───────────────────────────────────────────────────────

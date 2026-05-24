@@ -11,6 +11,8 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
   const [stockSaleAction, setStockSaleAction] = useState(null);
   // Fire-fighting auction local bid input
   const [auctionBid, setAuctionBid] = useState(0);
+  // Stock-sale: opt-in to consume the pending next-sell-price auto modifier
+  const [useAutoSellModifier, setUseAutoSellModifier] = useState(true);
 
   if (!pendingAction) return null;
 
@@ -249,6 +251,28 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
             )}. Selling and passing are still allowed.
           </div>
         )}
+        {/* Modifiers / status summary */}
+        <div style={{ marginTop: '0.5rem', padding: '0.6rem', background: '#F1F8E9', border: '1px solid #c5e1a5', borderRadius: '6px', fontSize: '0.85rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span><strong>Your balance:</strong></span>
+            <span><strong>${(data.balance ?? 0).toLocaleString()}</strong></span>
+          </div>
+          <div style={{ fontWeight: 'bold', marginBottom: 4, fontSize: '0.82rem', color: '#33691E' }}>Active modifiers</div>
+          <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.82rem' }}>
+            {data.next_sell_price_modifier > 0 && (
+              <li>+{data.next_sell_price_modifier}% sell bonus pending (from Worm Control Programme / Control of Weeds / Fertilised Pasture)</li>
+            )}
+            {activePlayerHasHighStockPrices && (
+              <li>High Stock Prices card available (+20% to buy or sell — opt-in below; discards card)</li>
+            )}
+            {data.in_drought && (
+              <li>Drought: Natural/Improved sell at half price; Irrigated unaffected</li>
+            )}
+            {!(data.next_sell_price_modifier > 0) && !activePlayerHasHighStockPrices && !data.in_drought && (
+              <li style={{ color: '#666' }}>No active modifiers — stock sale uses card prices as-is.</li>
+            )}
+          </ul>
+        </div>
         {haystackOfferBlock}
         {isMyAction && buyCommitted && (
           // Locked retry: only allow Buy (fewer pens) or Pass
@@ -299,6 +323,18 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
                 </span>
               </label>
             )}
+            {stockSaleAction === 'sell' && data.next_sell_price_modifier > 0 && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem', padding: '0.5rem', background: '#E8F5E9', border: '1px solid #66BB6A', borderRadius: '6px' }}>
+                <input type="checkbox" checked={useAutoSellModifier}
+                  onChange={(e) => setUseAutoSellModifier(e.target.checked)} />
+                <span style={{ fontSize: '0.9rem' }}>
+                  Apply <strong>+{data.next_sell_price_modifier}%</strong> sell bonus this sale
+                  <em style={{ marginLeft: 4, color: '#666', fontSize: '0.78rem' }}>
+                    (uncheck to save for a later sale)
+                  </em>
+                </span>
+              </label>
+            )}
             <div style={{ marginTop: '1rem' }}>
               <label>Pens to {stockSaleAction}: <input type="number" min={1}
                 max={stockSaleAction === 'buy' ? maxBuy : maxSell}
@@ -310,11 +346,11 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
                 <button style={btnStyle(stockSaleAction === 'buy' ? '#4caf50' : '#ff9800')}
                   disabled={submitting || pens < 1 || pens > (stockSaleAction === 'buy' ? maxBuy : maxSell)}
-                  onClick={() => doAction('decisions/stock-sale', { action: stockSaleAction, pens, use_high_stock_prices: useHighStockPrices })}>
+                  onClick={() => doAction('decisions/stock-sale', { action: stockSaleAction, pens, use_high_stock_prices: useHighStockPrices, use_auto_sell_modifier: useAutoSellModifier })}>
                   Confirm {stockSaleAction === 'buy' ? 'Buy' : 'Sell'} {pens}
                 </button>
                 <button style={btnStyle('#666')} disabled={submitting}
-                  onClick={() => { setError(null); setStockSaleAction(null); setUseHighStockPrices(false); }}>Back</button>
+                  onClick={() => { setError(null); setStockSaleAction(null); setUseHighStockPrices(false); setUseAutoSellModifier(true); }}>Back</button>
               </div>
             </div>
           </>

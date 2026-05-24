@@ -71,6 +71,8 @@ class DecisionService:
                     data["in_drought"] = bool(player.is_in_drought)
                     data["restock_blocked"] = bool(player.restock_blocked_until_circuit)
                     data["restock_block_spaces_remaining"] = player.restock_block_spaces_remaining or 0
+                    data["next_sell_price_modifier"] = player.next_sell_price_modifier or 0
+                    data["balance"] = self.ledger.player_balance(pending.active_player_id)
 
             result["action_data"] = data
 
@@ -210,9 +212,16 @@ class DecisionService:
                 }}
 
     def stock_sale_sell(self, player_id: int, pens: int,
-                        use_high_stock_prices: bool = False) -> dict:
+                        use_high_stock_prices: bool = False,
+                        use_auto_sell_modifier: bool = True) -> dict:
         """Player sells sheep at the stock sale. The Stock Sale card is drawn
-        here — AFTER the player has committed to selling — per the rules."""
+        here — AFTER the player has committed to selling — per the rules.
+
+        use_auto_sell_modifier: when False, the player chooses NOT to consume
+        their pending next_sell_price_modifier (from Worm Control Programme /
+        Control of Weeds and Insects / Fertilised Pasture). The modifier is
+        preserved for a future sell.
+        """
         pending = self._validate_pending("stock_sale_decision", player_id)
         data = json.loads(pending.action_data) if pending.action_data else {}
         if data.get("buy_committed"):
@@ -234,7 +243,8 @@ class DecisionService:
             raise ValueError(f"Cannot sell more than {MAX_PENS_PER_TRANSACTION} pens per transaction")
 
         # Auto-apply expense-bonus modifier (from Spray Weeds / Fertilising spaces)
-        auto_modifier = player.next_sell_price_modifier or 0
+        # unless the player elected to save it for a later sale.
+        auto_modifier = (player.next_sell_price_modifier or 0) if use_auto_sell_modifier else 0
 
         # Optional: apply retained High Stock Prices card on top
         hsp_draw = None
@@ -265,8 +275,9 @@ class DecisionService:
             notes += " (drought: Natural/Improved at half price)"
         self.ledger.receive_from_bank(player, sell_income, "stock_sale", pending.turn_id, notes=notes)
 
-        # Clear auto-apply modifier after use
-        if player.next_sell_price_modifier:
+        # Clear auto-apply modifier ONLY when it was consumed for this sale;
+        # opting out preserves it for a later sale.
+        if auto_modifier and player.next_sell_price_modifier:
             player.next_sell_price_modifier = 0
             self.session.flush()
 
