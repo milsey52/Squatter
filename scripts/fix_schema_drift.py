@@ -21,13 +21,13 @@ STATEMENTS = [
     "ADD COLUMN IF NOT EXISTS wool_cheque_blowfly_pct INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE game_players "
     "ADD COLUMN IF NOT EXISTS restock_block_scope VARCHAR",
-    # One-off: Max in game 4 currently has a Bore Dries Up block but the
-    # scope column was NULL (pre-deploy). Set it to 'irrigated' for him.
-    # Idempotent — once scope is set, the IS NULL clause fails.
+    # Legacy in-flight restock blocks (rows existing before the scope column
+    # was added) default to 'irrigated' since the only path that left them
+    # in production testing was Bore Dries Up. Idempotent — once scope is
+    # set, the IS NULL clause fails.
     """
     UPDATE game_players SET restock_block_scope = 'irrigated'
-    WHERE game_id = 4 AND player_name = 'Max'
-      AND restock_blocked_until_circuit = true
+    WHERE restock_blocked_until_circuit = true
       AND restock_block_scope IS NULL
     """,
     # Reset any stale negative wool_cheque_bonus values caused by the old
