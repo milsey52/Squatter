@@ -229,8 +229,11 @@ class CardService:
 
         if params.get("restock_blocked"):
             from app.constants import BOARD_SIZE
+            # Lucerne Flea: card text says "Do not buy any more sheep before
+            # completing a full circuit of the board" — scope = 'all'.
             player.restock_blocked_until_circuit = True
             player.restock_block_spaces_remaining = BOARD_SIZE
+            player.restock_block_scope = 'all'
             self.session.flush()
 
         return {"pens_sold": pens_sold, "income": pens_sold * sell_price if pens_sold > 0 else 0}
@@ -340,8 +343,10 @@ class CardService:
 
         if params.get("restock_blocked"):
             from app.constants import BOARD_SIZE
+            # Grass Fire: blocks all restocking until the circuit is complete.
             player.restock_blocked_until_circuit = True
             player.restock_block_spaces_remaining = BOARD_SIZE
+            player.restock_block_scope = 'all'
             self.session.flush()
 
         return {

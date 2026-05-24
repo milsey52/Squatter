@@ -208,9 +208,22 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
     const buyCommitted = !!data.buy_committed;
     const originalPens = data.original_pens ?? 0;
     const hspLocked = !!data.hsp_locked;
+    // Restock block can be scoped: 'all' bars all buying, 'irrigated' bars
+    // only Irrigated paddocks (Natural/Improved buying still allowed).
+    const blockScope = data.restock_blocked ? (data.restock_block_scope || 'all') : null;
+    const buyAllowed = blockScope !== 'all';
+    // Available buy capacity depends on the combination of block scope + drought.
+    const nonIrrigatedEmpty = (data.empty_natural_pens ?? 0) + (data.empty_improved_pens ?? 0);
+    const allEmpty = data.empty_pens ?? 0;
+    let buyPool = allEmpty;
+    if (blockScope === 'irrigated' && !data.in_drought) {
+      buyPool = nonIrrigatedEmpty;
+    } else if (data.in_drought) {
+      buyPool = data.empty_irrigated_pens ?? 0;
+    }
     const maxBuy = buyCommitted
-      ? Math.min(originalPens, data.empty_pens ?? 15, data.max_per_transaction ?? 15)
-      : Math.min(data.empty_pens ?? 15, data.max_per_transaction ?? 15);
+      ? Math.min(originalPens, buyPool, data.max_per_transaction ?? 15)
+      : Math.min(buyPool, data.max_per_transaction ?? 15);
     const maxSell = Math.min(data.total_pens ?? 0, data.max_per_transaction ?? 15);
     return (
       <div style={modalStyle}>
@@ -244,11 +257,14 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
         )}
         {data.restock_blocked && (
           <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: '#FFF3E0', border: '1px solid #FF9800', borderRadius: '6px', fontSize: '0.85rem', color: '#E65100' }}>
-            <strong>Restock blocked.</strong>{' '}
-            You cannot buy stock until the circuit is complete
-            {data.restock_block_spaces_remaining > 0 && (
-              <> ({data.restock_block_spaces_remaining} spaces remaining)</>
-            )}. Selling and passing are still allowed.
+            <strong>Restock blocked
+              {blockScope === 'irrigated' && ' (Irrigated only)'}.
+            </strong>{' '}
+            {blockScope === 'irrigated' ? (
+              <>You cannot buy stock into Irrigated paddocks until the circuit is complete{data.restock_block_spaces_remaining > 0 && <> ({data.restock_block_spaces_remaining} spaces remaining)</>}. Natural/Improved restocking is still allowed.</>
+            ) : (
+              <>You cannot buy stock until the circuit is complete{data.restock_block_spaces_remaining > 0 && <> ({data.restock_block_spaces_remaining} spaces remaining)</>}. Selling and passing are still allowed.</>
+            )}
           </div>
         )}
         {/* Modifiers / status summary */}
@@ -301,8 +317,9 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
         {isMyAction && !buyCommitted && stockSaleAction === null && (
           // Step 1: pick Buy / Sell / Pass
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-            <button style={btnStyle('#4caf50')} disabled={submitting || maxBuy < 1 || !!data.restock_blocked}
-              title={data.restock_blocked ? 'Restock blocked — complete the circuit first' : undefined}
+            <button style={btnStyle('#4caf50')} disabled={submitting || maxBuy < 1 || !buyAllowed}
+              title={!buyAllowed ? 'Restock blocked — complete the circuit first' :
+                     (blockScope === 'irrigated' ? 'Bore Dries Up: Natural/Improved only' : undefined)}
               onClick={() => { setError(null); setStockSaleAction('buy'); setPens(1); }}>Buy</button>
             <button style={btnStyle('#ff9800')} disabled={submitting || maxSell < 1}
               onClick={() => { setError(null); setStockSaleAction('sell'); setPens(1); }}>Sell</button>

@@ -19,6 +19,17 @@ STATEMENTS = [
     "ADD COLUMN IF NOT EXISTS one_time BOOLEAN NOT NULL DEFAULT false",
     "ALTER TABLE game_players "
     "ADD COLUMN IF NOT EXISTS wool_cheque_blowfly_pct INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE game_players "
+    "ADD COLUMN IF NOT EXISTS restock_block_scope VARCHAR",
+    # One-off: Max in game 4 currently has a Bore Dries Up block but the
+    # scope column was NULL (pre-deploy). Set it to 'irrigated' for him.
+    # Idempotent — once scope is set, the IS NULL clause fails.
+    """
+    UPDATE game_players SET restock_block_scope = 'irrigated'
+    WHERE game_id = 4 AND player_name = 'Max'
+      AND restock_blocked_until_circuit = true
+      AND restock_block_scope IS NULL
+    """,
     # Reset any stale negative wool_cheque_bonus values caused by the old
     # blowfly bug (decremented bonus instead of using a dedicated flag).
     "UPDATE game_players SET wool_cheque_bonus = 0 WHERE wool_cheque_bonus < 0",

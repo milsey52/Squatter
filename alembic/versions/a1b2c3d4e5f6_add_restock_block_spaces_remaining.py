@@ -54,9 +54,18 @@ def upgrade() -> None:
             server_default='0',
         ),
     )
+    op.add_column(
+        'game_players',
+        sa.Column(
+            'restock_block_scope',
+            sa.String(),
+            nullable=True,
+        ),
+    )
 
 
 def downgrade() -> None:
+    op.drop_column('game_players', 'restock_block_scope')
     op.drop_column('game_players', 'wool_cheque_blowfly_pct')
     op.drop_column('cards', 'one_time')
     op.drop_column('games', 'current_turn_order_round')

@@ -138,6 +138,7 @@ class TurnManager:
             if (player.restock_block_spaces_remaining <= 0) or passed_start:
                 player.restock_blocked_until_circuit = False
                 player.restock_block_spaces_remaining = 0
+                player.restock_block_scope = None
                 player.bore_dried_up = False
             self.session.flush()
 

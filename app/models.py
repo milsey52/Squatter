@@ -84,6 +84,8 @@ class GamePlayer(Base):
     bore_dried_up = Column(Boolean, nullable=False, default=False)
     restock_blocked_until_circuit = Column(Boolean, nullable=False, default=False)
     restock_block_spaces_remaining = Column(Integer, nullable=False, default=0)
+    # 'all' (Lucerne Flea / Grass Fire) or 'irrigated' (Bore Dries Up); NULL when no block.
+    restock_block_scope = Column(String, nullable=True)
     wool_cheque_bonus = Column(Integer, nullable=False, default=0)
     next_sell_price_modifier = Column(Integer, nullable=False, default=0)
     footrot_immune = Column(Boolean, nullable=False, default=False)

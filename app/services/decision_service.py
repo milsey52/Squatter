@@ -71,6 +71,9 @@ class DecisionService:
                     data["in_drought"] = bool(player.is_in_drought)
                     data["restock_blocked"] = bool(player.restock_blocked_until_circuit)
                     data["restock_block_spaces_remaining"] = player.restock_block_spaces_remaining or 0
+                    data["restock_block_scope"] = player.restock_block_scope
+                    data["empty_natural_pens"] = self.station.get_empty_pens_by_type(pending.active_player_id, "natural")
+                    data["empty_improved_pens"] = self.station.get_empty_pens_by_type(pending.active_player_id, "improved")
                     data["next_sell_price_modifier"] = player.next_sell_price_modifier or 0
                     data["balance"] = self.ledger.player_balance(pending.active_player_id)
 
@@ -142,10 +145,23 @@ class DecisionService:
                 "hsp_locked": hsp_locked,
             }
 
-        # Drought rule: restocking only allowed onto irrigated paddocks during drought
-        # (Natural/Improved excluded even with a haystack).
+        # Restock scoping. Two independent restrictions can apply at once:
+        # 1. Drought → buy only into Irrigated paddocks.
+        # 2. Restock block → 'all' (Lucerne / Grass Fire) bars ALL buying;
+        #    'irrigated' (Bore Dries Up) bars Irrigated only.
+        # If drought + irrigated-block apply together, the only allowed bucket
+        # is empty → must refuse.
+        scope = (player.restock_block_scope or 'all') if player.restock_blocked_until_circuit else None
+        if scope == 'all':
+            raise ValueError("Cannot buy stock: restock blocked until next circuit")
+
         only_types = None
-        if player.is_in_drought:
+        if player.is_in_drought and scope == 'irrigated':
+            raise ValueError(
+                "Cannot restock: drought requires Irrigated paddocks but "
+                "Bore Dries Up has blocked Irrigated restocking until next circuit"
+            )
+        elif player.is_in_drought:
             only_types = ("irrigated",)
             empty_pens = self.station.get_empty_pens_by_type(player_id, "irrigated")
             if empty_pens == 0:
@@ -157,13 +173,27 @@ class DecisionService:
                 raise ValueError(
                     f"Drought restricts restocking to Irrigated only — {empty_pens} pen(s) available"
                 )
+        elif scope == 'irrigated':
+            # Bore Dries Up — buy into Natural/Improved only.
+            only_types = ("natural", "improved")
+            empty_pens = (
+                self.station.get_empty_pens_by_type(player_id, "natural")
+                + self.station.get_empty_pens_by_type(player_id, "improved")
+            )
+            if empty_pens == 0:
+                raise ValueError(
+                    "Cannot restock — Bore Dries Up blocks Irrigated restocking "
+                    "and you have no Natural/Improved capacity available"
+                )
+            if pens > empty_pens:
+                raise ValueError(
+                    f"Bore Dries Up blocks Irrigated restocking — only "
+                    f"{empty_pens} pen(s) of Natural/Improved capacity available"
+                )
         else:
             empty_pens = self.station.get_empty_pens(player_id)
             if pens > empty_pens:
                 raise ValueError(f"Not enough paddock space: {empty_pens} pens available")
-
-        if self.drought.is_restock_blocked(player):
-            raise ValueError("Cannot buy stock: restock blocked until next circuit")
 
         from app.constants import MAX_PENS_PER_TRANSACTION
         if pens > MAX_PENS_PER_TRANSACTION:
@@ -173,8 +203,10 @@ class DecisionService:
         notes = f"Bought {pens} pens at ${buy_price}/pen"
         if hsp_modifier_pct:
             notes += f" (+{hsp_modifier_pct}% High Stock Prices)"
-        if only_types:
+        if only_types == ("irrigated",):
             notes += " (drought: irrigated only)"
+        elif only_types == ("natural", "improved"):
+            notes += " (bore dried up: natural/improved only)"
         self.ledger.pay_bank(player, total_cost, "stock_purchase", pending.turn_id, notes=notes)
         self.station.buy_sheep(player_id, pens, only_types=only_types)
 

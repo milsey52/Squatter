@@ -142,6 +142,9 @@ class SpaceResolver:
             # halved 22-space variant). UI uses these to disable the Buy button.
             "restock_blocked": bool(player.restock_blocked_until_circuit),
             "restock_block_spaces_remaining": player.restock_block_spaces_remaining or 0,
+            "restock_block_scope": player.restock_block_scope,
+            "empty_natural_pens": self.station.get_empty_pens_by_type(player.game_player_id, "natural"),
+            "empty_improved_pens": self.station.get_empty_pens_by_type(player.game_player_id, "improved"),
             # Modifier visibility — refreshed by get_pending_action_state on each poll.
             "next_sell_price_modifier": player.next_sell_price_modifier or 0,
             "balance": self.ledger.player_balance(player.game_player_id),
@@ -430,7 +433,10 @@ class SpaceResolver:
             # Restock-block duration: full circuit, OR halved (22 spaces) if the
             # Sustainable Water Management Tucker Bag effect is queued. The
             # halved flag is consumed here regardless of Local Drought.
+            # Scope = 'irrigated' because Bore Dries Up only restricts
+            # restocking onto Irrigated pasture; Natural/Improved are free.
             player.restock_blocked_until_circuit = True
+            player.restock_block_scope = 'irrigated'
             if player.next_drought_halved:
                 player.restock_block_spaces_remaining = BOARD_SIZE // 2
                 player.next_drought_halved = False
