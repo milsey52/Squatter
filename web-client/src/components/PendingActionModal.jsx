@@ -9,6 +9,8 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
   const [useHighStockPrices, setUseHighStockPrices] = useState(false);
   // Stock sale two-step flow: null = choose action, 'buy'|'sell' = enter pens
   const [stockSaleAction, setStockSaleAction] = useState(null);
+  // Fire-fighting auction local bid input
+  const [auctionBid, setAuctionBid] = useState(0);
 
   if (!pendingAction) return null;
 
@@ -18,8 +20,132 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
 
   const headers = {
     'Authorization': `Bearer ${sessionToken}`,
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
   };
+  const modalStyle = {
+    position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+    background: '#fff', borderRadius: '12px', padding: '2rem', minWidth: '380px',
+    maxWidth: '500px', boxShadow: '0 10px 40px rgba(0,0,0,0.3)', zIndex: 9000,
+  };
+  const btnStyle = (bg) => ({
+    padding: '0.6rem 1.2rem', background: bg, color: '#fff',
+    border: 'none', borderRadius: '6px', cursor: submitting ? 'not-allowed' : 'pointer',
+    fontSize: '0.95rem', fontWeight: 'bold', opacity: submitting ? 0.6 : 1,
+  });
+
+  // ── Fire Fighting Equipment — Auction ──────────────────────────────
+  if (pendingAction.action_type === 'fire_fighting_auction') {
+    const myPlayer = players.find(p => p.user_id === userId);
+    const myPlayerId = myPlayer?.game_player_id ?? null;
+    const eligible = data.eligible_players || [];
+    const declined = data.declined || [];
+    const currentBid = data.current_bid;
+    const currentBidderId = data.current_bidder_id;
+    const startingPrice = data.starting_price ?? 350;
+    const minBid = (currentBid === null || currentBid === undefined)
+      ? startingPrice
+      : currentBid + 1;
+    const isEligible = eligible.some(ep => ep.id === myPlayerId);
+    const hasDeclined = declined.includes(myPlayerId);
+    const isHighBidder = currentBidderId === myPlayerId;
+    const canAct = isEligible && !hasDeclined && !isHighBidder;
+
+    const auctionAction = async (endpoint, body = {}) => {
+      setSubmitting(true);
+      setError(null);
+      try {
+        const res = await fetch(`${API_BASE}/games/${gameId}/${endpoint}`, {
+          method: 'POST', headers, body: JSON.stringify(body),
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(payload.detail || `Failed: ${res.status}`);
+        onResolved();
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setSubmitting(false);
+      }
+    };
+
+    return (
+      <div style={modalStyle}>
+        <h2 style={{ margin: '0 0 0.5rem', color: '#d32f2f' }}>
+          Fire Fighting Equipment — Auction
+        </h2>
+        <p style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', color: '#555' }}>
+          {data.card_title || 'Fire Fighting Equipment'}
+        </p>
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: '#666', fontStyle: 'italic' }}>
+          Drawer declined. Card is now offered to the other players by auction —
+          highest bid wins. Minimum opening bid: ${startingPrice}.
+        </p>
+        <div style={{ padding: '0.6rem', background: '#FFF8E1', border: '1px solid #FFB300', borderRadius: 6, marginBottom: '0.75rem' }}>
+          {currentBid !== null && currentBid !== undefined ? (
+            <div style={{ fontSize: '0.95rem' }}>
+              <strong>Current bid:</strong> ${currentBid} by {data.current_bidder_name}
+            </div>
+          ) : (
+            <div style={{ fontSize: '0.95rem', color: '#666' }}>No bids yet.</div>
+          )}
+        </div>
+        {/* Status panel showing who's in / out */}
+        <div style={{ fontSize: '0.8rem', color: '#555', marginBottom: '0.75rem' }}>
+          {eligible.map(ep => {
+            const status =
+              ep.id === currentBidderId ? 'leading'
+              : declined.includes(ep.id) ? 'declined'
+              : 'undecided';
+            const color =
+              status === 'leading' ? '#388e3c'
+              : status === 'declined' ? '#b71c1c'
+              : '#666';
+            return (
+              <span key={ep.id} style={{ marginRight: 10, color }}>
+                {ep.name} ({status})
+              </span>
+            );
+          })}
+        </div>
+        {!isEligible ? (
+          <p style={{ fontStyle: 'italic', color: '#666' }}>
+            You declined the card; waiting for the auction to complete.
+          </p>
+        ) : hasDeclined ? (
+          <p style={{ fontStyle: 'italic', color: '#666' }}>
+            You declined. Waiting for the auction to complete.
+          </p>
+        ) : isHighBidder ? (
+          <p style={{ fontWeight: 'bold', color: '#2e7d32' }}>
+            You are leading at ${currentBid}. Waiting for other players.
+          </p>
+        ) : (
+          <>
+            <div style={{ marginTop: '0.5rem' }}>
+              <label>Bid: <input type="number" min={minBid}
+                value={auctionBid && auctionBid >= minBid ? auctionBid : minBid}
+                onChange={e => setAuctionBid(Number(e.target.value))}
+                style={{ width: 90, marginLeft: 8 }} /></label>
+              <span style={{ marginLeft: 12, fontSize: '0.78rem', color: '#666' }}>
+                min ${minBid}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+              <button style={btnStyle('#4caf50')} disabled={submitting || !canAct}
+                onClick={() => auctionAction('decisions/fire-fighting-auction-bid',
+                  { bid: auctionBid && auctionBid >= minBid ? auctionBid : minBid })}>
+                BID ${auctionBid && auctionBid >= minBid ? auctionBid : minBid}
+              </button>
+              <button style={btnStyle('#666')} disabled={submitting || !canAct}
+                onClick={() => auctionAction('decisions/fire-fighting-auction-decline')}>
+                DECLINE
+              </button>
+            </div>
+          </>
+        )}
+        {error && <p style={{ color: 'red', marginTop: '0.5rem' }}>{error}</p>}
+      </div>
+    );
+  }
 
   const doAction = async (endpoint, body = {}) => {
     setSubmitting(true);
@@ -50,18 +176,6 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
       setSubmitting(false);
     }
   };
-
-  const modalStyle = {
-    position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-    background: '#fff', borderRadius: '12px', padding: '2rem', minWidth: '380px',
-    maxWidth: '500px', boxShadow: '0 10px 40px rgba(0,0,0,0.3)', zIndex: 9000
-  };
-
-  const btnStyle = (bg) => ({
-    padding: '0.6rem 1.2rem', background: bg, color: '#fff',
-    border: 'none', borderRadius: '6px', cursor: submitting ? 'not-allowed' : 'pointer',
-    fontSize: '0.95rem', fontWeight: 'bold', opacity: submitting ? 0.6 : 1
-  });
 
   const haystackOfferBlock = data.haystack_available ? (
     <div style={{ marginTop: '0.5rem', padding: '0.6rem', background: '#F1F8E9', border: '1px solid #7CB342', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>

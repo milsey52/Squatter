@@ -407,6 +407,122 @@ class DecisionService:
                 return {"status": "declined", "passed_to": next_player.player_name}
         return {"status": "declined", "card_returned_to_bank": True}
 
+    # ── Fire Fighting Equipment — Open Auction (3+ player games) ────────
+    def _create_fire_fighting_auction(self, turn_id, card, eligible_players, starting_price):
+        action = models.PendingAction(
+            game_id=self.game_id,
+            turn_id=turn_id,
+            action_type="fire_fighting_auction",
+            active_player_id=None,
+            action_data=json.dumps({
+                "card_id": card.card_id,
+                "card_title": card.title,
+                "card_body": card.body_text,
+                "starting_price": starting_price,
+                "current_bid": None,
+                "current_bidder_id": None,
+                "current_bidder_name": None,
+                "eligible_players": [
+                    {"id": p.game_player_id, "name": p.player_name}
+                    for p in eligible_players
+                ],
+                "declined": [],
+            }),
+        )
+        self.session.add(action)
+        self.session.flush()
+
+    def fire_fighting_auction_bid(self, player_id: int, bid_amount: int) -> dict:
+        pending = self.get_pending_action()
+        if not pending or pending.action_type != "fire_fighting_auction":
+            raise ValueError("No active fire-fighting auction")
+        data = json.loads(pending.action_data)
+
+        eligible_ids = [p["id"] for p in data["eligible_players"]]
+        if player_id not in eligible_ids:
+            raise ValueError("You are not part of this auction")
+        if player_id in data["declined"]:
+            raise ValueError("You already declined")
+        if player_id == data.get("current_bidder_id"):
+            raise ValueError("You are already the current high bidder")
+
+        current_bid = data.get("current_bid")
+        min_bid = data["starting_price"] if current_bid is None else current_bid + 1
+        if bid_amount < min_bid:
+            raise ValueError(f"Bid must be at least ${min_bid}")
+        balance = self.ledger.player_balance(player_id)
+        if balance < bid_amount:
+            raise ValueError(f"Insufficient funds: need ${bid_amount}, have ${balance}")
+
+        player = self.session.query(models.GamePlayer).get(player_id)
+        data["current_bid"] = bid_amount
+        data["current_bidder_id"] = player_id
+        data["current_bidder_name"] = player.player_name
+        pending.action_data = json.dumps(data)
+        self.session.flush()
+
+        outcome = self._maybe_finalize_auction(pending)
+        return {"status": "bid_placed", "bid": bid_amount, "outcome": outcome}
+
+    def fire_fighting_auction_decline(self, player_id: int) -> dict:
+        pending = self.get_pending_action()
+        if not pending or pending.action_type != "fire_fighting_auction":
+            raise ValueError("No active fire-fighting auction")
+        data = json.loads(pending.action_data)
+
+        eligible_ids = [p["id"] for p in data["eligible_players"]]
+        if player_id not in eligible_ids:
+            raise ValueError("You are not part of this auction")
+        if player_id in data["declined"]:
+            raise ValueError("You already declined")
+        if player_id == data.get("current_bidder_id"):
+            raise ValueError("You cannot decline your own winning bid")
+
+        data["declined"].append(player_id)
+        pending.action_data = json.dumps(data)
+        self.session.flush()
+
+        outcome = self._maybe_finalize_auction(pending)
+        return {"status": "declined", "outcome": outcome}
+
+    def _maybe_finalize_auction(self, pending) -> str:
+        """If all bidders other than the current high bidder have declined,
+        award (or refund) the card and resolve. Returns one of:
+        'ongoing', 'awarded', 'no_bids'."""
+        data = json.loads(pending.action_data)
+        eligible_ids = [p["id"] for p in data["eligible_players"]]
+        declined = set(data["declined"])
+        current_bidder = data.get("current_bidder_id")
+        # Bidders who can still act = eligible minus declined minus current high bidder
+        still_active = [
+            pid for pid in eligible_ids
+            if pid not in declined and pid != current_bidder
+        ]
+        if still_active:
+            return "ongoing"
+
+        card = self.session.query(models.Card).get(data["card_id"])
+        if current_bidder is not None:
+            bid = data["current_bid"]
+            winner = self.session.query(models.GamePlayer).get(current_bidder)
+            # Funds were checked at bid time; recheck for safety in case balance
+            # changed during the auction (unlikely but possible across turns).
+            if self.ledger.player_balance(current_bidder) < bid:
+                # Winner can't pay — return to bank.
+                self._resolve(pending)
+                return "no_bids"
+            self.ledger.pay_bank(winner, bid, "card_purchase", pending.turn_id,
+                                 notes=f"Won {card.title} at auction (${bid})")
+            CardService(self.session, self.game_id).retain_card(
+                winner, card, pending.turn_id
+            )
+            self._resolve(pending)
+            return "awarded"
+
+        # No bids at all → card returned to the Bank (stays in the deck).
+        self._resolve(pending)
+        return "no_bids"
+
     # ── Tucker Bag Card ─────────────────────────────────────────────────
 
     def tucker_bag_acknowledge(self, player_id: int, buy_card: bool = False) -> dict:
@@ -450,10 +566,8 @@ class DecisionService:
 
         self._resolve(pending)
 
-        # Refused FFE → in a 2-player game, offer the card to the other player at $350.
-        # In 3+ player games, cycle through the other players in turn order so each can
-        # accept at $350 (highest-bid auction left for a future enhancement; this preserves
-        # the rule that the card stays in the game until claimed or all decline).
+        # Refused FFE → with one other player, fixed-price offer at $350;
+        # with 2+ others, open a highest-bid auction.
         if offer_to_others:
             others = (
                 self.session.query(models.GamePlayer)
@@ -463,19 +577,19 @@ class DecisionService:
                 .order_by(models.GamePlayer.turn_order)
                 .all()
             )
-            if others:
-                next_offer_player = others[0]
-                params = json.loads(card.effect_params) if card.effect_params else {}
-                offer_price = params.get("purchase_price", 350)
-                queue = [p.game_player_id for p in others[1:]]
-                self._create_pending_action_raw(pending.turn_id, next_offer_player,
+            params = json.loads(card.effect_params) if card.effect_params else {}
+            offer_price = params.get("purchase_price", 350)
+            if len(others) == 1:
+                self._create_pending_action_raw(pending.turn_id, others[0],
                                                 "fire_fighting_offer", {
                     "card_id": card.card_id,
                     "card_title": card.title,
                     "card_body": card.body_text,
                     "price": offer_price,
-                    "remaining_queue": queue,
+                    "remaining_queue": [],
                 })
+            elif len(others) >= 2:
+                self._create_fire_fighting_auction(pending.turn_id, card, others, offer_price)
 
         # If the effect drew a Stock Sale card (Grass Fire etc.), surface the
         # card and outcome to the player(s) via a follow-up modal.

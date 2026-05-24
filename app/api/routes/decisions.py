@@ -174,6 +174,71 @@ class FireFightingOfferRequest(BaseModel):
     accept: bool
 
 
+class FireFightingAuctionBidRequest(BaseModel):
+    bid: int
+
+
+def _get_my_player(session: Session, game_id: int, user_id: int) -> models.GamePlayer:
+    """Return the active GamePlayer for this user in this game, or 403."""
+    player = (
+        session.query(models.GamePlayer)
+        .filter_by(game_id=game_id, user_id=user_id, is_active=True)
+        .first()
+    )
+    if not player:
+        raise HTTPException(status_code=403, detail="Not a player in this game")
+    return player
+
+
+@router.post("/decisions/fire-fighting-auction-bid")
+async def fire_fighting_auction_bid(
+    game_id: int,
+    body: FireFightingAuctionBidRequest,
+    auth_data: tuple[int, int] = Depends(auth.verify_session_token),
+    session: Session = Depends(deps.get_session),
+):
+    user_id, token_game_id = auth_data
+    if token_game_id != game_id:
+        raise HTTPException(status_code=403, detail="Session token is for a different game")
+    deps.get_game_or_404(game_id, session)
+    service = DecisionService(session, game_id)
+    player = _get_my_player(session, game_id, user_id)
+    try:
+        result = service.fire_fighting_auction_bid(player.game_player_id, body.bid)
+        session.commit()
+        await events.broadcast_game_event(
+            game_id, "game_state_changed",
+            {"reason": "fire_fighting_auction_bid", "result": result},
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/decisions/fire-fighting-auction-decline")
+async def fire_fighting_auction_decline(
+    game_id: int,
+    auth_data: tuple[int, int] = Depends(auth.verify_session_token),
+    session: Session = Depends(deps.get_session),
+):
+    user_id, token_game_id = auth_data
+    if token_game_id != game_id:
+        raise HTTPException(status_code=403, detail="Session token is for a different game")
+    deps.get_game_or_404(game_id, session)
+    service = DecisionService(session, game_id)
+    player = _get_my_player(session, game_id, user_id)
+    try:
+        result = service.fire_fighting_auction_decline(player.game_player_id)
+        session.commit()
+        await events.broadcast_game_event(
+            game_id, "game_state_changed",
+            {"reason": "fire_fighting_auction_decline", "result": result},
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.post("/decisions/fire-fighting-offer")
 async def fire_fighting_offer(
     game_id: int,
