@@ -74,6 +74,10 @@ class DecisionService:
                     data["restock_block_scope"] = player.restock_block_scope
                     data["empty_natural_pens"] = self.station.get_empty_pens_by_type(pending.active_player_id, "natural")
                     data["empty_improved_pens"] = self.station.get_empty_pens_by_type(pending.active_player_id, "improved")
+                    paddocks = self.station.get_paddocks(pending.active_player_id)
+                    data["natural_pens"] = sum(p.sheep_pens for p in paddocks if p.paddock_type == "natural")
+                    data["improved_pens"] = sum(p.sheep_pens for p in paddocks if p.paddock_type == "improved")
+                    data["irrigated_pens"] = sum(p.sheep_pens for p in paddocks if p.paddock_type == "irrigated")
                     data["next_sell_price_modifier"] = player.next_sell_price_modifier or 0
                     data["balance"] = self.ledger.player_balance(pending.active_player_id)
 
@@ -243,11 +247,16 @@ class DecisionService:
                     "sell_price_improved_irrigated": stock_card.sell_price_improved_irrigated,
                 }}
 
-    def stock_sale_sell(self, player_id: int, pens: int,
+    def stock_sale_sell(self, player_id: int, pens: int = None,
                         use_high_stock_prices: bool = False,
-                        use_auto_sell_modifier: bool = True) -> dict:
+                        use_auto_sell_modifier: bool = True,
+                        pens_by_type: dict = None) -> dict:
         """Player sells sheep at the stock sale. The Stock Sale card is drawn
         here — AFTER the player has committed to selling — per the rules.
+
+        pens_by_type: {"natural": int, "improved": int, "irrigated": int} —
+        the player's per-tier allocation. If omitted, falls back to the
+        legacy cheapest-first behavior on the supplied total `pens`.
 
         use_auto_sell_modifier: when False, the player chooses NOT to consume
         their pending next_sell_price_modifier (from Worm Control Programme /
@@ -263,6 +272,33 @@ class DecisionService:
             )
 
         player = self.session.query(models.GamePlayer).get(player_id)
+
+        # Resolve total pens & per-tier allocation. If pens_by_type is given,
+        # it is authoritative; otherwise we derive a legacy cheapest-first
+        # allocation from `pens` later in _calculate_sell_income.
+        if pens_by_type:
+            pens_by_type = {k: int(v or 0) for k, v in pens_by_type.items()}
+            for tier in ("natural", "improved", "irrigated"):
+                pens_by_type.setdefault(tier, 0)
+                if pens_by_type[tier] < 0:
+                    raise ValueError(f"{tier.title()} pens must be non-negative")
+            paddocks = self.station.get_paddocks(player_id)
+            held = {
+                "natural": sum(p.sheep_pens for p in paddocks if p.paddock_type == "natural"),
+                "improved": sum(p.sheep_pens for p in paddocks if p.paddock_type == "improved"),
+                "irrigated": sum(p.sheep_pens for p in paddocks if p.paddock_type == "irrigated"),
+            }
+            for tier in ("natural", "improved", "irrigated"):
+                if pens_by_type[tier] > held[tier]:
+                    raise ValueError(
+                        f"Cannot sell {pens_by_type[tier]} {tier} pens — "
+                        f"only {held[tier]} available"
+                    )
+            pens = sum(pens_by_type.values())
+
+        if not pens or pens <= 0:
+            raise ValueError("Must specify a positive number of pens to sell")
+
         stock_card = self.stock_sale.draw_stock_card(pending.turn_id)
 
         # Determine sell price based on paddock types
@@ -292,7 +328,8 @@ class DecisionService:
         modifier_pct = auto_modifier + hsp_modifier_pct
 
         breakdown = self._calculate_sell_income(player_id, pens, stock_card, modifier_pct,
-                                                in_drought=bool(player.is_in_drought))
+                                                in_drought=bool(player.is_in_drought),
+                                                pens_by_type=pens_by_type)
         sell_income = breakdown["total"]
 
         # Remove sheep in the same tier order so the income reflects what was actually sold.
@@ -838,17 +875,19 @@ class DecisionService:
 
     def _calculate_sell_income(self, player_id: int, pens: int,
                                stock_card: models.StockCard, modifier_pct: int,
-                               in_drought: bool = False) -> dict:
+                               in_drought: bool = False,
+                               pens_by_type: dict = None) -> dict:
         """Calculate total income from selling pens, using paddock-type pricing.
         Returns {"total": int, "tiers": [(paddock_type, pens), ...]} so the caller
-        can remove sheep in the same tier order. During drought, Natural and
-        Improved are halved (rule: stock sold from Natural/Improved during a
-        drought is at half the normal price). Irrigated remains at full price."""
-        paddocks = self.station.get_paddocks(player_id)
-        natural_pens = sum(p.sheep_pens for p in paddocks if p.paddock_type == "natural")
-        improved_pens = sum(p.sheep_pens for p in paddocks if p.paddock_type == "improved")
-        irrigated_pens = sum(p.sheep_pens for p in paddocks if p.paddock_type == "irrigated")
+        can remove sheep in the same tier order.
 
+        pens_by_type: when provided, uses the player's explicit per-tier
+        allocation; otherwise falls back to cheapest-first (natural →
+        improved → irrigated) for backward compatibility.
+
+        During drought, Natural and Improved are halved (rule: stock sold
+        from Natural/Improved during a drought is at half the normal price).
+        Irrigated remains at full price."""
         natural_price = stock_card.sell_price_natural
         improved_price = stock_card.sell_price_improved_irrigated
         irrigated_price = stock_card.sell_price_improved_irrigated
@@ -862,12 +901,20 @@ class DecisionService:
             natural_price = natural_price // 2
             improved_price = improved_price // 2
 
-        # Sell order: natural → improved → irrigated (consume cheapest first;
-        # in drought this also drains the discounted tiers first as you'd expect).
-        remaining = pens
-        from_natural = min(remaining, natural_pens); remaining -= from_natural
-        from_improved = min(remaining, improved_pens); remaining -= from_improved
-        from_irrigated = min(remaining, irrigated_pens); remaining -= from_irrigated
+        if pens_by_type:
+            from_natural = int(pens_by_type.get("natural", 0))
+            from_improved = int(pens_by_type.get("improved", 0))
+            from_irrigated = int(pens_by_type.get("irrigated", 0))
+        else:
+            # Legacy fallback: cheapest-first.
+            paddocks = self.station.get_paddocks(player_id)
+            natural_pens = sum(p.sheep_pens for p in paddocks if p.paddock_type == "natural")
+            improved_pens = sum(p.sheep_pens for p in paddocks if p.paddock_type == "improved")
+            irrigated_pens = sum(p.sheep_pens for p in paddocks if p.paddock_type == "irrigated")
+            remaining = pens
+            from_natural = min(remaining, natural_pens); remaining -= from_natural
+            from_improved = min(remaining, improved_pens); remaining -= from_improved
+            from_irrigated = min(remaining, irrigated_pens); remaining -= from_irrigated
 
         total = (from_natural * natural_price
                  + from_improved * improved_price

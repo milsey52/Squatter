@@ -13,6 +13,10 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
   const [auctionBid, setAuctionBid] = useState(0);
   // Stock-sale: opt-in to consume the pending next-sell-price auto modifier
   const [useAutoSellModifier, setUseAutoSellModifier] = useState(true);
+  // Stock-sale Sell step: per-tier pen allocation
+  const [sellNatural, setSellNatural] = useState(0);
+  const [sellImproved, setSellImproved] = useState(0);
+  const [sellIrrigated, setSellIrrigated] = useState(0);
 
   if (!pendingAction) return null;
 
@@ -352,24 +356,88 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
                 </span>
               </label>
             )}
-            <div style={{ marginTop: '1rem' }}>
-              <label>Pens to {stockSaleAction}: <input type="number" min={1}
-                max={stockSaleAction === 'buy' ? maxBuy : maxSell}
-                value={pens} onChange={e => setPens(Number(e.target.value))}
-                style={{ width: 60, marginLeft: 8 }} /></label>
-              <span style={{ marginLeft: 12, fontSize: '0.78rem', color: '#666' }}>
-                max {stockSaleAction === 'buy' ? maxBuy : maxSell}
-              </span>
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-                <button style={btnStyle(stockSaleAction === 'buy' ? '#4caf50' : '#ff9800')}
-                  disabled={submitting || pens < 1 || pens > (stockSaleAction === 'buy' ? maxBuy : maxSell)}
-                  onClick={() => doAction('decisions/stock-sale', { action: stockSaleAction, pens, use_high_stock_prices: useHighStockPrices, use_auto_sell_modifier: useAutoSellModifier })}>
-                  Confirm {stockSaleAction === 'buy' ? 'Buy' : 'Sell'} {pens}
-                </button>
-                <button style={btnStyle('#666')} disabled={submitting}
-                  onClick={() => { setError(null); setStockSaleAction(null); setUseHighStockPrices(false); setUseAutoSellModifier(true); }}>Back</button>
+            {stockSaleAction === 'buy' ? (
+              <div style={{ marginTop: '1rem' }}>
+                <label>Pens to buy: <input type="number" min={1} max={maxBuy}
+                  value={pens} onChange={e => setPens(Number(e.target.value))}
+                  style={{ width: 60, marginLeft: 8 }} /></label>
+                <span style={{ marginLeft: 12, fontSize: '0.78rem', color: '#666' }}>
+                  max {maxBuy}
+                </span>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+                  <button style={btnStyle('#4caf50')}
+                    disabled={submitting || pens < 1 || pens > maxBuy}
+                    onClick={() => doAction('decisions/stock-sale', { action: 'buy', pens, use_high_stock_prices: useHighStockPrices, use_auto_sell_modifier: useAutoSellModifier })}>
+                    Confirm Buy {pens}
+                  </button>
+                  <button style={btnStyle('#666')} disabled={submitting}
+                    onClick={() => { setError(null); setStockSaleAction(null); setUseHighStockPrices(false); setUseAutoSellModifier(true); }}>Back</button>
+                </div>
               </div>
-            </div>
+            ) : (() => {
+              const heldNat = data.natural_pens ?? 0;
+              const heldImp = data.improved_pens ?? 0;
+              const heldIrr = data.irrigated_pens ?? 0;
+              const totalSell = sellNatural + sellImproved + sellIrrigated;
+              const maxPerTxn = data.max_per_transaction ?? 15;
+              const overTier =
+                sellNatural > heldNat || sellImproved > heldImp || sellIrrigated > heldIrr;
+              const overTotal = totalSell > maxPerTxn;
+              const disabled = submitting || totalSell < 1 || overTier || overTotal;
+              const tierRow = (label, value, setValue, held, color) => (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 4 }}>
+                  <span style={{ minWidth: 110, fontSize: '0.88rem', color }}>{label}</span>
+                  <input type="number" min={0} max={held}
+                    value={value} onChange={e => setValue(Math.max(0, Number(e.target.value)))}
+                    disabled={held === 0}
+                    style={{ width: 60 }} />
+                  <span style={{ fontSize: '0.78rem', color: '#666' }}>of {held}</span>
+                </div>
+              );
+              return (
+                <div style={{ marginTop: '1rem' }}>
+                  <p style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', color: '#555' }}>
+                    Choose how many pens to sell from each pasture type:
+                  </p>
+                  {tierRow('Natural', sellNatural, setSellNatural, heldNat, '#8d6e63')}
+                  {tierRow('Improved', sellImproved, setSellImproved, heldImp, '#66bb6a')}
+                  {tierRow('Irrigated', sellIrrigated, setSellIrrigated, heldIrr, '#42a5f5')}
+                  <p style={{ margin: '0.5rem 0', fontSize: '0.85rem' }}>
+                    Total to sell: <strong>{totalSell}</strong> pens
+                    <span style={{ marginLeft: 8, color: '#666', fontSize: '0.78rem' }}>
+                      (max {maxPerTxn} per transaction)
+                    </span>
+                  </p>
+                  {overTier && <p style={{ color: '#b71c1c', fontSize: '0.82rem', margin: 0 }}>
+                    A tier exceeds what you own.
+                  </p>}
+                  {overTotal && <p style={{ color: '#b71c1c', fontSize: '0.82rem', margin: 0 }}>
+                    Total exceeds the {maxPerTxn}-pen per-transaction limit.
+                  </p>}
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                    <button style={btnStyle('#ff9800')} disabled={disabled}
+                      onClick={() => doAction('decisions/stock-sale', {
+                        action: 'sell',
+                        pens_by_type: {
+                          natural: sellNatural,
+                          improved: sellImproved,
+                          irrigated: sellIrrigated,
+                        },
+                        use_high_stock_prices: useHighStockPrices,
+                        use_auto_sell_modifier: useAutoSellModifier,
+                      })}>
+                      Confirm Sell {totalSell}
+                    </button>
+                    <button style={btnStyle('#666')} disabled={submitting}
+                      onClick={() => {
+                        setError(null); setStockSaleAction(null);
+                        setUseHighStockPrices(false); setUseAutoSellModifier(true);
+                        setSellNatural(0); setSellImproved(0); setSellIrrigated(0);
+                      }}>Back</button>
+                  </div>
+                </div>
+              );
+            })()}
           </>
         )}
         {!isMyAction && <p style={{ fontStyle: 'italic', color: '#666' }}>Waiting for {activePlayer?.player_name}...</p>}

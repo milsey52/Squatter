@@ -154,6 +154,10 @@ class SpaceResolver:
             "restock_block_scope": player.restock_block_scope,
             "empty_natural_pens": self.station.get_empty_pens_by_type(player.game_player_id, "natural"),
             "empty_improved_pens": self.station.get_empty_pens_by_type(player.game_player_id, "improved"),
+            # Per-type pens HELD — so the Sell step can let the player allocate.
+            "natural_pens": sum(p.sheep_pens for p in self.station.get_paddocks(player.game_player_id) if p.paddock_type == "natural"),
+            "improved_pens": sum(p.sheep_pens for p in self.station.get_paddocks(player.game_player_id) if p.paddock_type == "improved"),
+            "irrigated_pens": sum(p.sheep_pens for p in self.station.get_paddocks(player.game_player_id) if p.paddock_type == "irrigated"),
             # Modifier visibility — refreshed by get_pending_action_state on each poll.
             "next_sell_price_modifier": player.next_sell_price_modifier or 0,
             "balance": self.ledger.player_balance(player.game_player_id),
