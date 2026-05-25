@@ -666,6 +666,25 @@ class DecisionService:
                 "wool_reduction_pct": result.get("wool_reduction_pct"),
             })
 
+        # Drought (card) — same outcome modal as landing on Local Drought,
+        # so create a drought_effect pending and let the existing renderer
+        # (board overlay if haystack drew a Stock Sale card; centred modal
+        # otherwise) display the breakdown.
+        if card.effect_code == "DROUGHT":
+            self._create_pending_action_raw(pending.turn_id, player, "drought_effect", {
+                "space_name": card.title,
+                "pens_sold": result.get("pens_sold", 0),
+                "income": result.get("income", 0),
+                "drought_spaces": result.get("drought_spaces", 0),
+                "had_haystack": result.get("had_haystack", False),
+                "extended": result.get("extended", False),
+                "by_type": result.get("by_type"),
+                "no_haystack_price_per_pen": result.get("no_haystack_price_per_pen"),
+                "stock_card_used": result.get("stock_card_used"),
+                "no_effect": result.get("no_effect", False),
+                "reason": result.get("reason"),
+            })
+
         # "Special Sheep Sale — move to next Stock Sale" should give the player
         # the buy/sell/pass choice on arrival, same as landing there via dice.
         if card.effect_code == "MOVE_TO_STOCK_SALE" and result.get("moved_to"):

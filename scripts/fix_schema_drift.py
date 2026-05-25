@@ -37,6 +37,29 @@ STATEMENTS = [
     # could never be applied. Repair the existing prod row. Idempotent.
     "UPDATE cards SET is_retainable = true "
     "WHERE effect_code = 'HIGH_STOCK_PRICES' AND is_retainable = false",
+    # New Tucker Bag card "Drought" — ensure the prod row has effect_code
+    # 'DROUGHT' so the dispatcher fires the local-drought handler.
+    # Idempotent — once effect_code='DROUGHT' the WHERE no longer matches.
+    """
+    UPDATE cards SET effect_code = 'DROUGHT'
+    WHERE deck_type = 'tucker_bag'
+      AND title = 'Drought'
+      AND (effect_code IS NULL OR effect_code <> 'DROUGHT')
+    """,
+    # If the card row doesn't exist at all (e.g. fresh seed without the
+    # new entry, or local DB lacking it), insert it. Idempotent via the
+    # NOT EXISTS guard.
+    """
+    INSERT INTO cards (deck_type, title, body_text, is_retainable,
+                       effect_code, effect_params, one_time)
+    SELECT 'tucker_bag', 'Drought',
+           'You are affected by Local Drought. Sell half of your Natural / Improved stock to the Bank at $500 per pen (or use a Haystack to receive Stock Sale prices instead — haystack consumed). Drought lasts one full circuit (44 spaces). Irrigated stock is unaffected.',
+           false, 'DROUGHT', '{}', false
+    WHERE NOT EXISTS (
+        SELECT 1 FROM cards
+        WHERE deck_type = 'tucker_bag' AND title = 'Drought'
+    )
+    """,
     # Swap Fly Strike Dip (was board_index 13) with Shearing Costs (was
     # board_index 40). Idempotent — the IF guards by checking the current
     # name at board_index 13; once swapped, it no longer matches Fly Strike.

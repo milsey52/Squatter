@@ -467,6 +467,88 @@ class CardService:
             "restock_blocked": bool(params.get("restock_blocked")),
         }
 
+    def _effect_drought(self, player, params, turn_id):
+        """Tucker Bag 'Drought' — same effect as landing on a Local Drought
+        space. Sells half of the player's Natural/Improved stock, applies a
+        full-circuit drought, optionally consumes a haystack to use Stock
+        Sale prices instead of the no-haystack flat rate."""
+        from app.constants import DROUGHT_SELL_PRICE_NO_HAYSTACK, BOARD_SIZE
+
+        non_irrigated = [
+            p for p in self.station.get_paddocks(player.game_player_id)
+            if p.paddock_type in ("natural", "improved")
+        ]
+        if not non_irrigated:
+            return {
+                "no_effect": True,
+                "reason": "All paddocks are Irrigated — drought has no effect.",
+                "pens_sold": 0,
+                "income": 0,
+                "drought_spaces": 0,
+                "had_haystack": bool(player.has_haystack),
+                "extended": False,
+                "by_type": {"natural": 0, "improved": 0, "irrigated": 0},
+                "no_haystack_price_per_pen": DROUGHT_SELL_PRICE_NO_HAYSTACK,
+                "stock_card_used": None,
+            }
+
+        already_in_drought = player.is_in_drought
+        had_haystack = bool(player.has_haystack)
+        pens_sold = 0
+        total_income = 0
+        stock_card_drawn = None
+        by_type = {"natural": 0, "improved": 0, "irrigated": 0}
+
+        if not already_in_drought:
+            breakdown = self.station.sell_half_stock(
+                player.game_player_id, exclude_irrigated=True, return_breakdown=True
+            )
+            pens_sold = breakdown["total"]
+            by_type = breakdown["by_type"]
+            if pens_sold > 0:
+                if had_haystack:
+                    stock_card_drawn = self.stock_sale.draw_stock_card(turn_id)
+                    total_income = (
+                        by_type["natural"] * stock_card_drawn.sell_price_natural
+                        + by_type["improved"] * stock_card_drawn.sell_price_improved_irrigated
+                        + by_type["irrigated"] * stock_card_drawn.sell_price_improved_irrigated
+                    )
+                    notes = (f"Drought (card): sold {pens_sold} pens at Stock Sale prices "
+                             f"(haystack consumed)")
+                    player.has_haystack = False
+                    player.haystack_used = False
+                else:
+                    total_income = pens_sold * DROUGHT_SELL_PRICE_NO_HAYSTACK
+                    notes = (f"Drought (card): sold {pens_sold} pens at "
+                             f"${DROUGHT_SELL_PRICE_NO_HAYSTACK}/pen (no haystack)")
+                self.ledger.receive_from_bank(
+                    player, total_income, "drought_sale", turn_id, notes=notes
+                )
+
+        # No board_index for a card-triggered drought — pass the player's
+        # current space so drought_start_space is recorded sensibly.
+        self.drought.apply_drought(player, player.current_space_id)
+        self.session.flush()
+
+        return {
+            "no_effect": False,
+            "pens_sold": pens_sold,
+            "income": total_income,
+            "drought_spaces": player.drought_spaces_remaining,
+            "had_haystack": had_haystack,
+            "extended": already_in_drought,
+            "by_type": by_type,
+            "no_haystack_price_per_pen": DROUGHT_SELL_PRICE_NO_HAYSTACK,
+            "stock_card_used": (
+                {
+                    "buy_price_per_pen": stock_card_drawn.buy_price_per_pen,
+                    "sell_price_natural": stock_card_drawn.sell_price_natural,
+                    "sell_price_improved_irrigated":
+                        stock_card_drawn.sell_price_improved_irrigated,
+                } if stock_card_drawn else None
+            ),
+        }
+
     def _effect_blowfly_wave(self, player, params, turn_id):
         # Wool cheque reduces by N% on the next wool cheque (applied to
         # base + ram_bonus in calculate_wool_cheque), unless cleared by

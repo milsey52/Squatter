@@ -352,6 +352,12 @@ def seed_tucker_bag_cards(session):
             "effect_params": {"wool_cheque_bonus": 3000},
             "is_retainable": False,
         },
+        {
+            "title": "Drought",
+            "effect_code": "DROUGHT",
+            "effect_params": {},
+            "is_retainable": False,
+        },
     ]
 
     if len(card_defs) != len(lines):
