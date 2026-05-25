@@ -12,7 +12,7 @@ Index,Space Name,Season,No Card – Rate per Pen,No Card – Single Payment,Card
 10,Flood Damage,,,,,,,Flood Damage,,,
 11,Tucker Bag,,,,,,,Tucker Bag,,,
 12,Stock Sale,,,,,,,Stock Sale,,,
-13,Shearing Costs,Haymaking,$20/pen,,,,,,,,
+13,Shearing Costs,,$20/pen,,,,,,,,
 14,Control of Vermin,,,$50.00,,,,,,,
 15,Stock Sale,,,,,,,Stock Sale,,,
 16,Footrot Treatment,,$20.00,,,,,,,,
@@ -39,7 +39,7 @@ Index,Space Name,Season,No Card – Rate per Pen,No Card – Single Payment,Card
 37,Pay Cost of Fertilising Pasture,Haymaking,,,,$250.00,Fertilised Pasture,Fertilised Pasture,,,
 38,Stock Sale,Haymaking,,,,,,Stock Sale,,,
 39,Stud Ram – Mitchell’s Pride,Haymaking,,,,,,,$500.00,$400.00,$75.00
-40,Jet Sheep Against Fly Strike,,$5.00,,,,,,,,
+40,Jet Sheep Against Fly Strike,Haymaking,$5.00,,,,,,,,
 41,Tucker Bag,Haymaking,,,,,,Tucker Bag,,,
 42,Stock Sale,Haymaking,,,,,,Stock Sale,,,
 43,Local Drought,,,,,,,Local Drought,,,

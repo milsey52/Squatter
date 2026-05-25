@@ -5,7 +5,7 @@ import { boardIndexToPixel, GRID_POSITIONS } from "./boardLayout";
 // (which the previous no-cache header can't retroactively invalidate) fetch
 // the new file. The query string makes the URL unique so the browser treats
 // it as a fresh resource.
-const BOARD_SVG_VERSION = 2;
+const BOARD_SVG_VERSION = 3;
 
 const CELL = 90;
 const TOKEN_SIZE = 26;

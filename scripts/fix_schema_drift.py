@@ -97,6 +97,14 @@ STATEMENTS = [
       END IF;
     END $$;
     """,
+    # Haymaking belongs to the BOARD POSITION (37-42), not the space's
+    # contents. The swap above carried the Haymaking flag with Shearing
+    # over to position 13 — pin it back to position 40. Idempotent via
+    # the WHERE guards.
+    "UPDATE spaces SET season = NULL "
+    "WHERE board_index = 13 AND season = 'Haymaking'",
+    "UPDATE spaces SET season = 'Haymaking' "
+    "WHERE board_index = 40 AND season IS NULL",
     # Reset any stale negative wool_cheque_bonus values caused by the old
     # blowfly bug (decremented bonus instead of using a dedicated flag).
     "UPDATE game_players SET wool_cheque_bonus = 0 WHERE wool_cheque_bonus < 0",
