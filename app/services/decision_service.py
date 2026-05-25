@@ -634,25 +634,22 @@ class DecisionService:
             elif len(others) >= 2:
                 self._create_fire_fighting_auction(pending.turn_id, card, others, offer_price)
 
-        # If the effect drew a Stock Sale card (Grass Fire etc.), surface the
-        # card and outcome to the player(s) via a follow-up modal.
-        if result.get("stock_card_used"):
-            self._create_pending_action_raw(pending.turn_id, player, "tucker_bag_result", {
-                "card_title": card.title,
-                "pens_sold": result.get("pens_sold", 0),
-                "income": result.get("income", 0),
-                "by_type": result.get("by_type"),
-                "stock_card_used": result["stock_card_used"],
-            })
-
-        # Lucerne Flea — show a reconciliation popup explaining the outcome
-        # (protected or pens-sold breakdown).
-        if card.effect_code == "LUCERNE_FLEA":
+        # Reconciliation popups for "protection or take damage" Tucker Bag
+        # cards. Each follow-up pending carries effect_code so the frontend
+        # can render the right wording. Grass Fire keeps the board-anchored
+        # overlay style when unprotected (stock_card_used set); the modal
+        # only renders for its protected case.
+        damage_card_codes = {
+            "LUCERNE_FLEA", "FIRE_DAMAGE", "WORM_INFESTATION",
+            "GRASS_FIRE", "BLOWFLY_WAVE",
+        }
+        if card.effect_code in damage_card_codes:
             self._create_pending_action_raw(pending.turn_id, player, "tucker_bag_result", {
                 "card_title": card.title,
                 "effect_code": card.effect_code,
                 "protected": result.get("protected", False),
                 "protection_card": result.get("protection_card"),
+                # Lucerne / Worm / Grass Fire damage fields
                 "total_pens_before": result.get("total_pens_before"),
                 "fraction_text": result.get("fraction_text"),
                 "pens_sold": result.get("pens_sold", 0),
@@ -660,6 +657,13 @@ class DecisionService:
                 "income": result.get("income", 0),
                 "by_type": result.get("by_type"),
                 "restock_blocked": result.get("restock_blocked", False),
+                # Fire Damage / Grass Fire
+                "cost": result.get("cost"),
+                "haystack_lost": result.get("haystack_lost", False),
+                # Grass Fire (board overlay)
+                "stock_card_used": result.get("stock_card_used"),
+                # Blowfly Wave
+                "wool_reduction_pct": result.get("wool_reduction_pct"),
             })
 
         # "Special Sheep Sale — move to next Stock Sale" should give the player

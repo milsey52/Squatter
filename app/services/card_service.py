@@ -126,17 +126,23 @@ class CardService:
         has_protection = self._has_retained_card(player, protection) if protection else False
 
         if has_protection:
-            return {"protected": True, "card": protection}
+            return {"protected": True, "protection_card": protection}
 
         self.ledger.pay_bank(player, cost, "fire_damage", turn_id)
 
+        haystack_lost = False
         if player.has_haystack:
             player.has_haystack = False
             player.haystack_used = False
             self.session.flush()
-            return {"cost": cost, "haystack_lost": True}
+            haystack_lost = True
 
-        return {"cost": cost, "haystack_lost": False}
+        return {
+            "protected": False,
+            "protection_card": protection,
+            "cost": cost,
+            "haystack_lost": haystack_lost,
+        }
 
     def _effect_income_tax(self, player, params, turn_id):
         pid = player.game_player_id
@@ -282,15 +288,38 @@ class CardService:
     def _effect_worm_infestation(self, player, params, turn_id):
         protection = params.get("protection_card")
         if protection and self._has_retained_card(player, protection):
-            return {"protected": True, "card": protection}
+            return {"protected": True, "protection_card": protection}
 
         fraction = params["sell_fraction"]
         sell_price = params["sell_price_per_pen"]
-        pens_sold = self.station.sell_fraction_stock(player.game_player_id, fraction)
+        total_pens_before = self.station.get_total_pens(player.game_player_id)
+        breakdown = self.station.sell_fraction_stock(
+            player.game_player_id, fraction, return_breakdown=True
+        )
+        pens_sold = breakdown["total"]
+        income = pens_sold * sell_price
         if pens_sold > 0:
-            income = pens_sold * sell_price
             self.ledger.receive_from_bank(player, income, "card_stock_sale", turn_id)
-        return {"pens_sold": pens_sold, "income": pens_sold * sell_price if pens_sold > 0 else 0}
+
+        if abs(fraction - 0.5) < 0.01:
+            fraction_text = "1/2"
+        elif abs(fraction - 1/3) < 0.01:
+            fraction_text = "1/3"
+        elif abs(fraction - 2/3) < 0.01:
+            fraction_text = "2/3"
+        else:
+            fraction_text = f"{fraction:.2f}"
+
+        return {
+            "protected": False,
+            "protection_card": protection,
+            "total_pens_before": total_pens_before,
+            "fraction_text": fraction_text,
+            "pens_sold": pens_sold,
+            "sell_price_per_pen": sell_price,
+            "income": income,
+            "by_type": breakdown["by_type"],
+        }
 
     def _effect_local_rain(self, player, params, turn_id):
         was_in_drought = player.is_in_drought
@@ -337,7 +366,7 @@ class CardService:
     def _effect_grass_fire(self, player, params, turn_id):
         protection = params.get("protection_card")
         if protection and self._has_retained_card(player, protection):
-            return {"protected": True, "card": protection}
+            return {"protected": True, "protection_card": protection}
 
         fraction = params["sell_fraction"]
         breakdown = self.station.sell_fraction_stock(
@@ -368,19 +397,30 @@ class CardService:
                 "sell_price_improved_irrigated": card.sell_price_improved_irrigated,
             }
 
+        # Card text: "Grass fire destroys Haystack" — return to Bank if owned.
+        haystack_lost = False
+        if player.has_haystack:
+            player.has_haystack = False
+            player.haystack_used = False
+            haystack_lost = True
+
         if params.get("restock_blocked"):
             from app.constants import BOARD_SIZE
             # Grass Fire: blocks all restocking until the circuit is complete.
             player.restock_blocked_until_circuit = True
             player.restock_block_spaces_remaining = BOARD_SIZE
             player.restock_block_scope = 'all'
-            self.session.flush()
+        self.session.flush()
 
         return {
+            "protected": False,
+            "protection_card": protection,
             "pens_sold": pens_sold,
             "income": income,
             "by_type": by_type,
             "stock_card_used": stock_card_used,
+            "haystack_lost": haystack_lost,
+            "restock_blocked": bool(params.get("restock_blocked")),
         }
 
     def _effect_blowfly_wave(self, player, params, turn_id):

@@ -582,6 +582,16 @@ function App() {
                           {Object.entries(sd.by_type).filter(([, n]) => n > 0).map(([t, n]) => `${n} ${t}`).join(', ')}
                         </div>
                       )}
+                      {sd.haystack_lost && (
+                        <div style={{ fontSize: "0.78rem", color: "#b71c1c", marginTop: 4 }}>
+                          Haystack lost (returned to Bank).
+                        </div>
+                      )}
+                      {sd.restock_blocked && (
+                        <div style={{ fontSize: "0.78rem", color: "#E65100", marginTop: 4, fontWeight: "bold" }}>
+                          Restock blocked until full circuit.
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
