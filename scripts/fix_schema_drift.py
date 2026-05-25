@@ -30,6 +30,11 @@ STATEMENTS = [
     WHERE restock_blocked_until_circuit = true
       AND restock_block_scope IS NULL
     """,
+    # High Stock Prices was incorrectly seeded with is_retainable=False, so
+    # drawing it never put the card in the player's hand and the +20% bonus
+    # could never be applied. Repair the existing prod row. Idempotent.
+    "UPDATE cards SET is_retainable = true "
+    "WHERE effect_code = 'HIGH_STOCK_PRICES' AND is_retainable = false",
     # Reset any stale negative wool_cheque_bonus values caused by the old
     # blowfly bug (decremented bonus instead of using a dedicated flag).
     "UPDATE game_players SET wool_cheque_bonus = 0 WHERE wool_cheque_bonus < 0",
@@ -52,6 +57,23 @@ STATEMENTS = [
     WHERE NOT EXISTS (
         SELECT 1 FROM transactions
         WHERE notes = 'Retroactive ram bonus correction (Blowfly Wave bug)'
+    )
+    """,
+    # One-off retroactive credit: George (game 9, player 18) sold 5 pens at
+    # $770/pen ($3,850) but should have applied his High Stock Prices card
+    # for +20% ($4,620). HSP was never retained because of the
+    # is_retainable=false seed bug (now fixed above), so the checkbox never
+    # showed in the modal. Credit the $770 difference. Idempotent.
+    """
+    INSERT INTO transactions (
+        game_id, player_from_id, player_to_id, amount,
+        transaction_type, notes, created_at
+    )
+    SELECT 9, NULL, 18, 770, 'stock_sale_correction',
+           'Retroactive High Stock Prices +20% correction (5 pens sale)', NOW()
+    WHERE NOT EXISTS (
+        SELECT 1 FROM transactions
+        WHERE notes = 'Retroactive High Stock Prices +20% correction (5 pens sale)'
     )
     """,
 ]

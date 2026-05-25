@@ -320,7 +320,7 @@ def seed_tucker_bag_cards(session):
             "title": "High Stock Prices",
             "effect_code": "HIGH_STOCK_PRICES",
             "effect_params": {"price_modifier_pct": 20},
-            "is_retainable": False,
+            "is_retainable": True,
         },
         {
             "title": "Eradicate Footrot",
