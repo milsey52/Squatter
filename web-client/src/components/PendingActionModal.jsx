@@ -736,6 +736,71 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
     return null;
   }
 
+  // Lucerne Flea reconciliation popup (Tucker Bag follow-up)
+  if (pendingAction.action_type === 'tucker_bag_result' && data.effect_code === 'LUCERNE_FLEA') {
+    return (
+      <div style={modalStyle}>
+        <h2 style={{ margin: '0 0 0.5rem', color: '#6a4c93' }}>
+          {data.card_title || 'Lucerne Flea Infestation'}
+        </h2>
+        {data.protected ? (
+          <p style={{ color: '#388e3c', fontWeight: 'bold', fontSize: '1rem' }}>
+            No loss — <em>{data.protection_card || 'Control of Weeds and Insects'}</em> card held.
+          </p>
+        ) : (
+          <>
+            <p style={{ fontSize: '0.9rem', color: '#555', margin: '0 0 0.5rem' }}>
+              No <em>{data.protection_card || 'Control of Weeds and Insects'}</em> card held.
+              Sell {data.fraction_text || '1/3'} of stock at ${data.sell_price_per_pen}/pen.
+            </p>
+            <table style={{ width: '100%', fontSize: '0.9rem', borderCollapse: 'collapse' }}>
+              <tbody>
+                <tr>
+                  <td style={{ padding: '0.25rem 0' }}>
+                    {data.total_pens_before} pens × {data.fraction_text || '1/3'}
+                  </td>
+                  <td style={{ padding: '0.25rem 0', textAlign: 'right' }}>
+                    <strong>{data.pens_sold}</strong> pens
+                  </td>
+                </tr>
+                {data.by_type && Object.values(data.by_type).some(n => n > 0) && (
+                  <tr>
+                    <td style={{ padding: '0 0 0.25rem 0', fontSize: '0.78rem', color: '#666' }} colSpan={2}>
+                      {Object.entries(data.by_type).filter(([, n]) => n > 0).map(([t, n]) => `${n} ${t}`).join(', ')}
+                    </td>
+                  </tr>
+                )}
+                <tr>
+                  <td style={{ padding: '0.25rem 0' }}>
+                    {data.pens_sold} pens × ${data.sell_price_per_pen}/pen
+                  </td>
+                  <td style={{ padding: '0.25rem 0', textAlign: 'right', fontWeight: 'bold', color: '#2e7d32' }}>
+                    ${(data.income ?? 0).toLocaleString()}
+                  </td>
+                </tr>
+                {data.restock_blocked && (
+                  <tr style={{ borderTop: '1px solid #ccc' }}>
+                    <td style={{ padding: '0.4rem 0', color: '#E65100' }} colSpan={2}>
+                      Restock blocked until full circuit.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </>
+        )}
+        {isMyAction && (
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
+            <button style={btnStyle('#6a4c93')} disabled={submitting}
+              onClick={() => doAction('decisions/acknowledge')}>OK</button>
+          </div>
+        )}
+        {!isMyAction && <p style={{ fontStyle: 'italic', color: '#666', marginTop: '0.75rem' }}>Waiting for {activePlayer?.player_name}...</p>}
+        {error && <p style={{ color: 'red', marginTop: '0.5rem' }}>{error}</p>}
+      </div>
+    );
+  }
+
   // Game won — the celebratory banner on the board is the canonical UI.
   if (pendingAction.action_type === 'game_won') {
     return null;

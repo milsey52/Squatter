@@ -645,6 +645,23 @@ class DecisionService:
                 "stock_card_used": result["stock_card_used"],
             })
 
+        # Lucerne Flea — show a reconciliation popup explaining the outcome
+        # (protected or pens-sold breakdown).
+        if card.effect_code == "LUCERNE_FLEA":
+            self._create_pending_action_raw(pending.turn_id, player, "tucker_bag_result", {
+                "card_title": card.title,
+                "effect_code": card.effect_code,
+                "protected": result.get("protected", False),
+                "protection_card": result.get("protection_card"),
+                "total_pens_before": result.get("total_pens_before"),
+                "fraction_text": result.get("fraction_text"),
+                "pens_sold": result.get("pens_sold", 0),
+                "sell_price_per_pen": result.get("sell_price_per_pen"),
+                "income": result.get("income", 0),
+                "by_type": result.get("by_type"),
+                "restock_blocked": result.get("restock_blocked", False),
+            })
+
         # "Special Sheep Sale — move to next Stock Sale" should give the player
         # the buy/sell/pass choice on arrival, same as landing there via dice.
         if card.effect_code == "MOVE_TO_STOCK_SALE" and result.get("moved_to"):

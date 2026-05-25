@@ -218,13 +218,20 @@ class CardService:
     def _effect_lucerne_flea(self, player, params, turn_id):
         protection = params.get("protection_card")
         if protection and self._has_retained_card(player, protection):
-            return {"protected": True, "card": protection}
+            return {
+                "protected": True,
+                "protection_card": protection,
+            }
 
         fraction = params["sell_fraction"]
         sell_price = params["sell_price_per_pen"]
-        pens_sold = self.station.sell_fraction_stock(player.game_player_id, fraction)
+        total_pens_before = self.station.get_total_pens(player.game_player_id)
+        breakdown = self.station.sell_fraction_stock(
+            player.game_player_id, fraction, return_breakdown=True
+        )
+        pens_sold = breakdown["total"]
+        income = pens_sold * sell_price
         if pens_sold > 0:
-            income = pens_sold * sell_price
             self.ledger.receive_from_bank(player, income, "card_stock_sale", turn_id)
 
         if params.get("restock_blocked"):
@@ -236,7 +243,27 @@ class CardService:
             player.restock_block_scope = 'all'
             self.session.flush()
 
-        return {"pens_sold": pens_sold, "income": pens_sold * sell_price if pens_sold > 0 else 0}
+        # Choose a readable fraction label for the popup.
+        if abs(fraction - 1/3) < 0.01:
+            fraction_text = "1/3"
+        elif abs(fraction - 0.5) < 0.01:
+            fraction_text = "1/2"
+        elif abs(fraction - 2/3) < 0.01:
+            fraction_text = "2/3"
+        else:
+            fraction_text = f"{fraction:.2f}"
+
+        return {
+            "protected": False,
+            "protection_card": protection,
+            "total_pens_before": total_pens_before,
+            "fraction_text": fraction_text,
+            "pens_sold": pens_sold,
+            "sell_price_per_pen": sell_price,
+            "income": income,
+            "by_type": breakdown["by_type"],
+            "restock_blocked": bool(params.get("restock_blocked")),
+        }
 
     def _effect_fire_fighting_equipment(self, player, params, turn_id):
         # This is a retainable card with purchase option
