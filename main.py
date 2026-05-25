@@ -39,9 +39,17 @@ if os.path.exists(static_dir):
     @app.get("/board.svg")
     async def serve_board_svg():
         svg_path = os.path.join(os.path.dirname(__file__), "web-client", "public", "board.svg")
+        # Force browsers to revalidate on every load so updated SVGs (e.g.
+        # a space swap) reach clients without depending on the user's
+        # hard-refresh behaviour.
+        headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
         if os.path.exists(svg_path):
-            return FileResponse(svg_path, media_type="image/svg+xml")
-        return FileResponse(os.path.join(static_dir, "board.svg"), media_type="image/svg+xml")
+            return FileResponse(svg_path, media_type="image/svg+xml", headers=headers)
+        return FileResponse(
+            os.path.join(static_dir, "board.svg"),
+            media_type="image/svg+xml",
+            headers=headers,
+        )
 
     @app.get("/")
     async def serve_root():
