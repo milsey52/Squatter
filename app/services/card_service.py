@@ -29,9 +29,15 @@ class CardService:
     def draw_card(self, turn_id: int) -> models.Card:
         """Draw a Tucker Bag card.
 
-        Rule: the FIRST Tucker Bag draw of each game is always Fire Fighting
-        Equipment. Subsequent draws are uniformly random from the deck, with
-        one-time cards (cards.one_time = TRUE) excluded once they've been drawn."""
+        Rules:
+        - The FIRST Tucker Bag draw of each game is always Fire Fighting
+          Equipment.
+        - The deck cycles: once a card is drawn it is excluded until every
+          other (non-permanently-excluded) card has also been drawn, at which
+          point the deck resets.
+        - one_time cards (cards.one_time = TRUE) are permanently excluded
+          after they've been drawn once.
+        """
         # Has any Tucker Bag card been drawn yet this game?
         prior_count = (
             self.session.query(func.count(models.CardDraw.card_draw_id))
@@ -55,7 +61,7 @@ class CardService:
                 )
             card = ffe
         else:
-            # Card IDs of one-time cards already drawn this game.
+            # Permanent exclusions: one_time cards already drawn this game.
             already_drawn_one_time = {
                 cid for (cid,) in self.session.query(models.CardDraw.card_id)
                     .join(models.Card, models.Card.card_id == models.CardDraw.card_id)
@@ -64,13 +70,39 @@ class CardService:
                     .distinct()
                     .all()
             }
-            q = self.session.query(models.Card).filter_by(deck_type="tucker_bag")
-            if already_drawn_one_time:
-                q = q.filter(~models.Card.card_id.in_(already_drawn_one_time))
-            all_cards = q.all()
-            if not all_cards:
+            pool = (
+                self.session.query(models.Card)
+                .filter_by(deck_type="tucker_bag")
+                .all()
+            )
+            pool = [c for c in pool if c.card_id not in already_drawn_one_time]
+            if not pool:
                 raise RuntimeError("No Tucker Bag cards available to draw")
-            card = random.choice(all_cards)
+            pool_ids = {c.card_id for c in pool}
+            deck_size = len(pool_ids)
+
+            # Replay this game's draws in order to find the cards drawn in
+            # the current (incomplete) pass through the deck. A pass
+            # completes — and resets to empty — once all deck_size cards
+            # are in it.
+            past_draws = (
+                self.session.query(models.CardDraw.card_id)
+                .filter_by(game_id=self.game_id, deck_type="tucker_bag")
+                .order_by(models.CardDraw.draw_order.asc())
+                .all()
+            )
+            current_pass = set()
+            for (cid,) in past_draws:
+                if cid not in pool_ids:
+                    continue
+                current_pass.add(cid)
+                if len(current_pass) >= deck_size:
+                    current_pass = set()
+
+            eligible = [c for c in pool if c.card_id not in current_pass]
+            if not eligible:
+                eligible = pool  # safety fallback; shouldn't happen
+            card = random.choice(eligible)
 
         draw_order = (
             self.session.query(func.coalesce(func.max(models.CardDraw.draw_order), 0))
