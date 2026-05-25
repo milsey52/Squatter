@@ -1,6 +1,12 @@
 import boardSVG from "/board.svg";
 import { boardIndexToPixel, GRID_POSITIONS } from "./boardLayout";
 
+// Cache-buster: bump when board.svg content changes so stuck client caches
+// (which the previous no-cache header can't retroactively invalidate) fetch
+// the new file. The query string makes the URL unique so the browser treats
+// it as a fresh resource.
+const BOARD_SVG_VERSION = 2;
+
 const CELL = 90;
 const TOKEN_SIZE = 26;
 const TOKEN_COLORS = ["#ff595e", "#8ac926", "#1982c4", "#ffca3a", "#ff924c", "#7d5ba6"];
@@ -21,7 +27,7 @@ export default function Board({ players = [], currentPlayerId, animatedPositions
 
   return (
     <div style={{ position: "relative", width: 1130, height: 1130 }}>
-      <img src={boardSVG} alt="Board" style={{ width: "100%", height: "100%" }} />
+      <img src={`${boardSVG}?v=${BOARD_SVG_VERSION}`} alt="Board" style={{ width: "100%", height: "100%" }} />
 
       {players.map((player, idx) => {
         const displayPosition = animatedPositions[player.game_player_id] !== undefined
