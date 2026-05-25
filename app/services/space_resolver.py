@@ -124,6 +124,15 @@ class SpaceResolver:
         # BEFORE the Stock Sale card is revealed. We do NOT draw the card here
         # — that happens inside stock_sale_buy / stock_sale_sell, after the
         # player has committed.
+        # Worm Infestation: clear the restock block on this Stock Sale landing
+        # per the card text ("You can restock when you land on the next
+        # Stock Sale.").
+        if player.restock_block_until_stock_sale:
+            player.restock_blocked_until_circuit = False
+            player.restock_block_spaces_remaining = 0
+            player.restock_block_scope = None
+            player.restock_block_until_stock_sale = False
+            self.session.flush()
         from app.constants import MAX_PENS_PER_TRANSACTION
         total_pens = self.station.get_total_pens(player.game_player_id)
         empty_pens = self.station.get_empty_pens(player.game_player_id)
@@ -211,6 +220,16 @@ class SpaceResolver:
     def _handle_expense(self, player, space, turn, passed_start):
         total_pens = self.station.get_total_pens(player.game_player_id)
 
+        # Fly Strike Dip / Jet Sheep — landing here clears any pending
+        # Blowfly Wave wool-cheque penalty (per the Blowfly card text:
+        # "No loss if you land on space marked 'Jet Sheep' before your
+        # next Wool Cheque.").
+        blowfly_cleared = 0
+        if space.board_index == 13 and (player.wool_cheque_blowfly_pct or 0) > 0:
+            blowfly_cleared = player.wool_cheque_blowfly_pct
+            player.wool_cheque_blowfly_pct = 0
+            self.session.flush()
+
         # Check if player holds the relevant card for immunity
         has_card = False
         if space.relevant_card_name:
@@ -287,6 +306,10 @@ class SpaceResolver:
         # Notify about card grant for spaces 21/37
         if space.board_index in (21, 37) and not has_card:
             action_data["card_granted"] = space.relevant_card_name
+
+        # Notify the popup when Fly Strike Dip cleared a Blowfly Wave penalty.
+        if blowfly_cleared:
+            action_data["blowfly_cleared_pct"] = blowfly_cleared
 
         self._create_pending_action(turn, player, "expense_payment", action_data)
 

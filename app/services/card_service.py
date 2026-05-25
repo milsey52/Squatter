@@ -301,6 +301,17 @@ class CardService:
         if pens_sold > 0:
             self.ledger.receive_from_bank(player, income, "card_stock_sale", turn_id)
 
+        # Card text: "You can restock when you land on the next Stock Sale."
+        # Block all restocking; clearance happens in _handle_stock_sale on
+        # the next Stock Sale landing. Cap with BOARD_SIZE as a safety net
+        # in case the player somehow doesn't hit a Stock Sale within a circuit.
+        from app.constants import BOARD_SIZE
+        player.restock_blocked_until_circuit = True
+        player.restock_block_spaces_remaining = BOARD_SIZE
+        player.restock_block_scope = 'all'
+        player.restock_block_until_stock_sale = True
+        self.session.flush()
+
         if abs(fraction - 0.5) < 0.01:
             fraction_text = "1/2"
         elif abs(fraction - 1/3) < 0.01:
@@ -319,6 +330,7 @@ class CardService:
             "sell_price_per_pen": sell_price,
             "income": income,
             "by_type": breakdown["by_type"],
+            "restock_blocked_until_stock_sale": True,
         }
 
     def _effect_local_rain(self, player, params, turn_id):

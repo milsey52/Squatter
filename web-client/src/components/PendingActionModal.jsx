@@ -614,6 +614,11 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
             )}
           </>
         )}
+        {data.blowfly_cleared_pct && (
+          <p style={{ color: '#4caf50', fontWeight: 'bold', marginTop: '0.5rem' }}>
+            Blowfly Wave penalty cleared (−{data.blowfly_cleared_pct}% wool cheque reduction lifted).
+          </p>
+        )}
         {haystackOfferBlock}
         {isMyAction && (
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
@@ -838,8 +843,8 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
                   </td>
                 </tr>
                 <tr style={{ borderTop: '1px solid #ccc' }}>
-                  <td style={{ padding: '0.4rem 0', color: '#E65100' }} colSpan={2}>
-                    Restock at next Stock Sale.
+                  <td style={{ padding: '0.4rem 0', color: '#E65100', fontWeight: 'bold' }} colSpan={2}>
+                    Restock blocked until you land on the next Stock Sale.
                   </td>
                 </tr>
               </tbody>

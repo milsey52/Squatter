@@ -21,6 +21,8 @@ STATEMENTS = [
     "ADD COLUMN IF NOT EXISTS wool_cheque_blowfly_pct INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE game_players "
     "ADD COLUMN IF NOT EXISTS restock_block_scope VARCHAR",
+    "ALTER TABLE game_players "
+    "ADD COLUMN IF NOT EXISTS restock_block_until_stock_sale BOOLEAN NOT NULL DEFAULT false",
     # Legacy in-flight restock blocks (rows existing before the scope column
     # was added) default to 'irrigated' since the only path that left them
     # in production testing was Bore Dries Up. Idempotent — once scope is

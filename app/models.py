@@ -86,6 +86,9 @@ class GamePlayer(Base):
     restock_block_spaces_remaining = Column(Integer, nullable=False, default=0)
     # 'all' (Lucerne Flea / Grass Fire) or 'irrigated' (Bore Dries Up); NULL when no block.
     restock_block_scope = Column(String, nullable=True)
+    # Worm Infestation rule: clear the restock block on landing at any
+    # Stock Sale space (not after a full circuit).
+    restock_block_until_stock_sale = Column(Boolean, nullable=False, default=False)
     wool_cheque_bonus = Column(Integer, nullable=False, default=0)
     next_sell_price_modifier = Column(Integer, nullable=False, default=0)
     footrot_immune = Column(Boolean, nullable=False, default=False)
