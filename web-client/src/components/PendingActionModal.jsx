@@ -911,6 +911,90 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
     );
   }
 
+  // Drought on ALL Stations — drawer-only summary popup with per-player table.
+  if (pendingAction.action_type === 'drought_all_stations_result') {
+    const breakdowns = data.breakdowns || [];
+    const labelFor = (b) => {
+      if (b.outcome === 'no_effect') return 'No effect';
+      if (b.outcome === 'extended') return 'Already in drought';
+      return b.had_haystack && b.stock_card_used ? 'Affected · haystack' : 'Affected';
+    };
+    return (
+      <div style={{ ...modalStyle, minWidth: 520, maxWidth: 640 }}>
+        <h2 style={{ margin: '0 0 0.5rem', color: '#d32f2f' }}>
+          {data.card_title || 'Drought on ALL Stations'}
+        </h2>
+        <p style={{ fontSize: '0.9rem', color: '#555', margin: '0 0 0.5rem' }}>
+          Drought applied to every active station.
+        </p>
+        <p style={{ fontSize: '0.82rem', color: '#666', fontStyle: 'italic', margin: '0 0 0.75rem' }}>
+          Each affected player sells half their Natural/Improved stock at
+          ${data.no_haystack_price_per_pen ?? 500}/pen (or Stock Sale prices if a
+          Haystack offsets — haystack consumed). Drought clock: 44 spaces.
+        </p>
+        <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid #999', fontSize: '0.78rem', color: '#555' }}>
+              <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem' }}>Player</th>
+              <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem' }}>Outcome</th>
+              <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem' }}>Sold</th>
+              <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem' }}>Income</th>
+              <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem' }}>Clock</th>
+            </tr>
+          </thead>
+          <tbody>
+            {breakdowns.map((b) => {
+              const tiers = b.by_type
+                ? Object.entries(b.by_type).filter(([, n]) => n > 0).map(([t, n]) => `${n} ${t}`).join(', ')
+                : '';
+              return (
+                <tr key={b.player_id} style={{ borderBottom: '1px solid #eee', verticalAlign: 'top' }}>
+                  <td style={{ padding: '0.4rem' }}><strong>{b.player_name}</strong></td>
+                  <td style={{ padding: '0.4rem', color: b.outcome === 'no_effect' ? '#388e3c' : '#b71c1c' }}>
+                    {labelFor(b)}
+                    {b.outcome === 'no_effect' && (
+                      <div style={{ fontSize: '0.72rem', color: '#666', fontStyle: 'italic' }}>
+                        all Irrigated
+                      </div>
+                    )}
+                    {b.outcome === 'extended' && (
+                      <div style={{ fontSize: '0.72rem', color: '#666', fontStyle: 'italic' }}>
+                        clock reset
+                      </div>
+                    )}
+                    {b.had_haystack && b.stock_card_used && b.outcome === 'affected' && (
+                      <div style={{ fontSize: '0.72rem', color: '#666', fontStyle: 'italic' }}>
+                        haystack consumed
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ padding: '0.4rem', textAlign: 'right' }}>
+                    {b.pens_sold > 0 ? <><strong>{b.pens_sold}</strong> pens</> : '—'}
+                    {tiers && <div style={{ fontSize: '0.72rem', color: '#666' }}>{tiers}</div>}
+                  </td>
+                  <td style={{ padding: '0.4rem', textAlign: 'right', color: b.income > 0 ? '#2e7d32' : '#888' }}>
+                    {b.income > 0 ? `$${b.income.toLocaleString()}` : '—'}
+                  </td>
+                  <td style={{ padding: '0.4rem', textAlign: 'right' }}>
+                    {b.drought_spaces > 0 ? b.drought_spaces : '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {isMyAction && (
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
+            <button style={btnStyle('#d32f2f')} disabled={submitting}
+              onClick={() => doAction('decisions/acknowledge')}>OK</button>
+          </div>
+        )}
+        {!isMyAction && <p style={{ fontStyle: 'italic', color: '#666', marginTop: '0.75rem' }}>Waiting for {activePlayer?.player_name}...</p>}
+        {error && <p style={{ color: 'red', marginTop: '0.5rem' }}>{error}</p>}
+      </div>
+    );
+  }
+
   // Lucerne Flea reconciliation popup (Tucker Bag follow-up)
   if (pendingAction.action_type === 'tucker_bag_result' && data.effect_code === 'LUCERNE_FLEA') {
     return (

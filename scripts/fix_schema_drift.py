@@ -60,6 +60,27 @@ STATEMENTS = [
         WHERE deck_type = 'tucker_bag' AND title = 'Drought'
     )
     """,
+    # New Tucker Bag card "Drought on ALL Stations" — applies drought to
+    # every active player. INSERT IF NOT EXISTS, idempotent.
+    """
+    INSERT INTO cards (deck_type, title, body_text, is_retainable,
+                       effect_code, effect_params, one_time)
+    SELECT 'tucker_bag', 'Drought on ALL Stations',
+           'General Drought affecting ALL stations. Each player sells half of their Natural / Improved stock to the Bank at $500 per pen (or uses a Haystack to receive Stock Sale prices instead — haystack consumed). Drought lasts one full circuit (44 spaces) per station. While in drought, restocking is restricted to Irrigated paddocks only. Stations with only Irrigated Pasture are unaffected.',
+           false, 'DROUGHT_ALL_STATIONS', '{}', false
+    WHERE NOT EXISTS (
+        SELECT 1 FROM cards
+        WHERE deck_type = 'tucker_bag' AND title = 'Drought on ALL Stations'
+    )
+    """,
+    # In case the row exists but effect_code wasn't set (e.g. manually
+    # added without the right code), back-fill. Idempotent.
+    """
+    UPDATE cards SET effect_code = 'DROUGHT_ALL_STATIONS'
+    WHERE deck_type = 'tucker_bag'
+      AND title = 'Drought on ALL Stations'
+      AND (effect_code IS NULL OR effect_code <> 'DROUGHT_ALL_STATIONS')
+    """,
     # Swap Fly Strike Dip (was board_index 13) with Shearing Costs (was
     # board_index 40). Idempotent — the IF guards by checking the current
     # name at board_index 13; once swapped, it no longer matches Fly Strike.

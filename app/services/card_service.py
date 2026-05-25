@@ -549,6 +549,101 @@ class CardService:
             ),
         }
 
+    def _effect_drought_all_stations(self, player, params, turn_id):
+        """Tucker Bag 'Drought on ALL Stations' — applies Local Drought to
+        every active player. Per-player breakdown is returned in the result
+        so the drawer's summary popup can show what happened to each
+        station. Other players' drought state updates silently."""
+        from app.constants import DROUGHT_SELL_PRICE_NO_HAYSTACK
+
+        all_players = (
+            self.session.query(models.GamePlayer)
+            .filter_by(game_id=self.game_id, is_active=True)
+            .order_by(models.GamePlayer.turn_order)
+            .all()
+        )
+
+        breakdowns = []
+        for p in all_players:
+            non_irrigated = [
+                pad for pad in self.station.get_paddocks(p.game_player_id)
+                if pad.paddock_type in ("natural", "improved")
+            ]
+            if not non_irrigated:
+                breakdowns.append({
+                    "player_id": p.game_player_id,
+                    "player_name": p.player_name,
+                    "outcome": "no_effect",
+                    "reason": "all Irrigated",
+                    "pens_sold": 0,
+                    "income": 0,
+                    "by_type": {"natural": 0, "improved": 0, "irrigated": 0},
+                    "drought_spaces": 0,
+                    "had_haystack": bool(p.has_haystack),
+                    "stock_card_used": None,
+                })
+                continue
+
+            already_in_drought = p.is_in_drought
+            had_haystack = bool(p.has_haystack)
+            pens_sold = 0
+            total_income = 0
+            stock_card_drawn = None
+            by_type = {"natural": 0, "improved": 0, "irrigated": 0}
+
+            if not already_in_drought:
+                breakdown = self.station.sell_half_stock(
+                    p.game_player_id, exclude_irrigated=True, return_breakdown=True
+                )
+                pens_sold = breakdown["total"]
+                by_type = breakdown["by_type"]
+                if pens_sold > 0:
+                    if had_haystack:
+                        stock_card_drawn = self.stock_sale.draw_stock_card(turn_id)
+                        total_income = (
+                            by_type["natural"] * stock_card_drawn.sell_price_natural
+                            + by_type["improved"] * stock_card_drawn.sell_price_improved_irrigated
+                            + by_type["irrigated"] * stock_card_drawn.sell_price_improved_irrigated
+                        )
+                        notes = (f"General Drought: sold {pens_sold} pens at Stock Sale "
+                                 f"prices (haystack consumed)")
+                        p.has_haystack = False
+                        p.haystack_used = False
+                    else:
+                        total_income = pens_sold * DROUGHT_SELL_PRICE_NO_HAYSTACK
+                        notes = (f"General Drought: sold {pens_sold} pens at "
+                                 f"${DROUGHT_SELL_PRICE_NO_HAYSTACK}/pen")
+                    self.ledger.receive_from_bank(
+                        p, total_income, "drought_sale", turn_id, notes=notes
+                    )
+
+            self.drought.apply_drought(p, p.current_space_id)
+
+            breakdowns.append({
+                "player_id": p.game_player_id,
+                "player_name": p.player_name,
+                "outcome": "extended" if already_in_drought else "affected",
+                "pens_sold": pens_sold,
+                "income": total_income,
+                "by_type": by_type,
+                "drought_spaces": p.drought_spaces_remaining,
+                "had_haystack": had_haystack,
+                "stock_card_used": (
+                    {
+                        "buy_price_per_pen": stock_card_drawn.buy_price_per_pen,
+                        "sell_price_natural": stock_card_drawn.sell_price_natural,
+                        "sell_price_improved_irrigated":
+                            stock_card_drawn.sell_price_improved_irrigated,
+                    } if stock_card_drawn else None
+                ),
+            })
+
+        self.session.flush()
+        return {
+            "breakdowns": breakdowns,
+            "no_haystack_price_per_pen": DROUGHT_SELL_PRICE_NO_HAYSTACK,
+        }
+
     def _effect_blowfly_wave(self, player, params, turn_id):
         # Wool cheque reduces by N% on the next wool cheque (applied to
         # base + ram_bonus in calculate_wool_cheque), unless cleared by

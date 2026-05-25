@@ -666,6 +666,16 @@ class DecisionService:
                 "wool_reduction_pct": result.get("wool_reduction_pct"),
             })
 
+        # Drought on ALL Stations — drawer sees a per-player summary modal;
+        # other players' drought state is applied silently and shown in the
+        # player list / Holdings panel.
+        if card.effect_code == "DROUGHT_ALL_STATIONS":
+            self._create_pending_action_raw(pending.turn_id, player, "drought_all_stations_result", {
+                "card_title": card.title,
+                "breakdowns": result.get("breakdowns", []),
+                "no_haystack_price_per_pen": result.get("no_haystack_price_per_pen"),
+            })
+
         # Drought (card) — same outcome modal as landing on Local Drought,
         # so create a drought_effect pending and let the existing renderer
         # (board overlay if haystack drew a Stock Sale card; centred modal
