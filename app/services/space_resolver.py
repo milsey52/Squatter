@@ -225,7 +225,7 @@ class SpaceResolver:
         # "No loss if you land on space marked 'Jet Sheep' before your
         # next Wool Cheque.").
         blowfly_cleared = 0
-        if space.board_index == 13 and (player.wool_cheque_blowfly_pct or 0) > 0:
+        if space.board_index == 40 and (player.wool_cheque_blowfly_pct or 0) > 0:
             blowfly_cleared = player.wool_cheque_blowfly_pct
             player.wool_cheque_blowfly_pct = 0
             self.session.flush()

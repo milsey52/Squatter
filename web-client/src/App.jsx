@@ -18,14 +18,14 @@ const SPACE_LABELS = [
   "Start/Wool Sale", "Stock Sale", "Sheep Dipping", "Stud Ram – Elmsford",
   "Tucker Bag", "Bore Dries Up", "Visiting Town", "Visiting Town",
   "Drench Sheep for Worms", "Tucker Bag", "Flood Damage", "Tucker Bag",
-  "Stock Sale", "Fly Strike Dip", "Control of Vermin", "Stock Sale",
+  "Stock Sale", "Shearing Costs", "Control of Vermin", "Stock Sale",
   "Footrot Treatment", "Stock Sale", "Stud Ram – Lachlan Lad", "Tucker Bag",
   "Fencing Repairs", "Spray for Weeds & Insects", "Local Drought", "Liver Fluke Drench",
   "Tucker Bag", "Stock Sale", "Stud Ram – King of Warramboo", "Local Rain",
   "Stock Sale", "Pulpy Kidney Vaccine", "Stud Ram – Winton Boy", "Tucker Bag",
   "Stock Sale", "Stud Ram Dies", "Water Drilling", "Tucker Bag",
   "Stock Sale", "Fertilising Pasture", "Stock Sale", "Stud Ram – Mitchell's Pride",
-  "Shearing Costs", "Tucker Bag", "Stock Sale", "Local Drought"
+  "Fly Strike Dip", "Tucker Bag", "Stock Sale", "Local Drought"
 ];
 
 function App() {

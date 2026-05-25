@@ -55,11 +55,11 @@
 <rect x="50" y="950" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
 <text x="54" y="961" font-family="Arial" font-size="10" fill="#aaa">12</text>
 <text x="95" y="998" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
-<rect x="50" y="860" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<rect x="50" y="860" width="90" height="90" fill="#F1F8E9" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
+<rect x="50" y="860" width="90" height="7" fill="#7CB342" rx="3" ry="0"/>
 <text x="54" y="871" font-family="Arial" font-size="10" fill="#aaa">13</text>
-<text x="95" y="902" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Fly Strike</text>
-<text x="95" y="915" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Dip</text>
-<text x="95" y="944" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$5/pen</text>
+<text x="95" y="908" font-family="Arial" font-size="13" font-weight="bold" fill="#33691E" text-anchor="middle">Shearing</text>
+<text x="95" y="944" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$20/pen</text>
 <rect x="50" y="770" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
 <text x="54" y="781" font-family="Arial" font-size="10" fill="#aaa">14</text>
 <text x="95" y="812" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Vermin</text>
@@ -160,11 +160,11 @@
 <text x="1085" y="632" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">Mitchell’s</text>
 <text x="1085" y="645" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">Pride</text>
 <text x="1085" y="674" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">Buy $500</text>
-<rect x="1040" y="680" width="90" height="90" fill="#F1F8E9" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<rect x="1040" y="680" width="90" height="7" fill="#7CB342" rx="3" ry="0"/>
+<rect x="1040" y="680" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
 <text x="1044" y="691" font-family="Arial" font-size="10" fill="#aaa">40</text>
-<text x="1085" y="728" font-family="Arial" font-size="13" font-weight="bold" fill="#33691E" text-anchor="middle">Shearing</text>
-<text x="1085" y="764" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$20/pen</text>
+<text x="1085" y="722" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Fly Strike</text>
+<text x="1085" y="735" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Dip</text>
+<text x="1085" y="764" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$5/pen</text>
 <rect x="1040" y="770" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
 <rect x="1040" y="770" width="90" height="7" fill="#7CB342" rx="3" ry="0"/>
 <text x="1044" y="781" font-family="Arial" font-size="10" fill="#aaa">41</text>
