@@ -27,7 +27,7 @@ from app.services.turn_manager import TurnManager
 from app.api.routes import events
 
 
-POLL_INTERVAL_SECONDS = 1.5
+POLL_INTERVAL_SECONDS = 3.0
 ERROR_BACKOFF_SECONDS = 5.0
 
 
