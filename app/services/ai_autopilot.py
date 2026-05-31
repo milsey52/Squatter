@@ -29,6 +29,9 @@ from app.api.routes import events
 
 POLL_INTERVAL_SECONDS = 3.0
 ERROR_BACKOFF_SECONDS = 5.0
+# How long to let an AI-owned pending sit on humans' screens (card popup,
+# wool-cheque breakdown, drought effect, etc.) before the AI clicks OK.
+DISPLAY_DELAY_SECONDS = 4.0
 
 
 async def run_autopilot():
@@ -63,6 +66,10 @@ async def _tick():
 
 async def _drive_one_game(game_id: int):
     """Make at most one move in this game (if an AI is up to act)."""
+    # Step 1: pick what (if anything) the AI should do this tick. Hold the
+    # session only for the scan, then release it so we don't block other
+    # requests during the display-delay sleep.
+    action = None  # ('pending', ai_id, pending_id, action_type) | ('roll', ai_id) | ('order_roll', event_payload)
     with SessionLocal() as session:
         game = session.query(models.Game).filter_by(game_id=game_id).first()
         if not game:
@@ -78,55 +85,72 @@ async def _drive_one_game(game_id: int):
         if game.status != "in_progress":
             return
 
-        # First priority: any pending action belonging to an AI player.
         pending_for_ai = _find_pending_for_ai(session, game)
         if pending_for_ai is not None:
             ai_player, pending = pending_for_ai
+            action = ("pending", ai_player.game_player_id,
+                      pending.pending_action_id, pending.action_type)
+        else:
+            # Mirror the human /turns route: don't roll while any pending
+            # action is unresolved.
+            any_unresolved = (
+                session.query(models.PendingAction)
+                .filter(
+                    models.PendingAction.game_id == game_id,
+                    models.PendingAction.resolved_at.is_(None),
+                )
+                .first()
+            )
+            if any_unresolved is None:
+                current = session.query(models.GamePlayer).filter_by(
+                    game_player_id=game.current_game_player_id
+                ).first()
+                if current and current.is_ai and current.is_active:
+                    action = ("roll", current.game_player_id)
+
+    if action is None:
+        return
+
+    # Step 2: pace the action so humans can read what's happening.
+    await asyncio.sleep(DISPLAY_DELAY_SECONDS)
+
+    # Step 3: take the action with a fresh session.
+    if action[0] == "pending":
+        _, ai_id, pending_id, action_type = action
+        with SessionLocal() as session:
+            pending = session.query(models.PendingAction).filter_by(
+                pending_action_id=pending_id, resolved_at=None
+            ).first()
+            if not pending:
+                return  # raced — already resolved
+            ai_player = session.query(models.GamePlayer).filter_by(
+                game_player_id=ai_id
+            ).first()
+            if not ai_player:
+                return
             try:
-                service = AIPlayerService(session, game_id, ai_player)
-                service.handle_pending(pending)
+                AIPlayerService(session, game_id, ai_player).handle_pending(pending)
                 session.commit()
             except Exception:
                 session.rollback()
                 traceback.print_exc()
                 return
-            await events.broadcast_game_event(
-                game_id, "game_state_changed",
-                {"reason": "ai_acted", "action_type": pending.action_type,
-                 "player_id": ai_player.game_player_id}
-            )
-            return
-
-        # Second: if the current player is an AI and there's no pending
-        # for ANY player, roll dice. Mirrors the human /turns route guard:
-        # an unresolved pending (e.g., the previous player's Tucker Bag
-        # popup) blocks the next dice roll.
-        any_unresolved = (
-            session.query(models.PendingAction)
-            .filter(
-                models.PendingAction.game_id == game_id,
-                models.PendingAction.resolved_at.is_(None),
-            )
-            .first()
+        await events.broadcast_game_event(
+            game_id, "game_state_changed",
+            {"reason": "ai_acted", "action_type": action_type, "player_id": ai_id}
         )
-        if any_unresolved is not None:
-            return
-        current = session.query(models.GamePlayer).filter_by(
-            game_player_id=game.current_game_player_id
-        ).first()
-        if not current or not current.is_ai or not current.is_active:
-            return
-        # Skip if the AI is in Visiting Town (TurnManager handles skip count).
+        return
+
+    # action[0] == "roll"
+    _, ai_id = action
+    with SessionLocal() as session:
         try:
-            tm = TurnManager(session, game_id)
-            tm.play_turn()
+            TurnManager(session, game_id).play_turn()
             session.commit()
         except Exception:
             session.rollback()
             traceback.print_exc()
             return
-
-        # Broadcast turn_played
         turn = (
             session.query(models.Turn)
             .filter(models.Turn.game_id == game_id)
@@ -138,20 +162,18 @@ async def _drive_one_game(game_id: int):
         updated = session.query(models.GamePlayer).filter_by(
             game_player_id=turn.active_game_player_id
         ).first()
-        await events.broadcast_game_event(
-            game_id, "turn_played",
-            {
-                "turn_number": turn.turn_number,
-                "player_id": turn.active_game_player_id,
-                "dice_roll": [turn.dice_roll_1, turn.dice_roll_2],
-                "is_double": turn.is_double,
-                "new_position": updated.current_space_id if updated else None,
-                "visiting_town_turns": updated.visiting_town_turns if updated else 0,
-                "is_in_drought": updated.is_in_drought if updated else False,
-                "has_pending_action": pending_state is not None,
-                "pending_action": pending_state,
-            }
-        )
+        payload = {
+            "turn_number": turn.turn_number,
+            "player_id": turn.active_game_player_id,
+            "dice_roll": [turn.dice_roll_1, turn.dice_roll_2],
+            "is_double": turn.is_double,
+            "new_position": updated.current_space_id if updated else None,
+            "visiting_town_turns": updated.visiting_town_turns if updated else 0,
+            "is_in_drought": updated.is_in_drought if updated else False,
+            "has_pending_action": pending_state is not None,
+            "pending_action": pending_state,
+        }
+    await events.broadcast_game_event(game_id, "turn_played", payload)
 
 
 def _find_pending_for_ai(session: Session, game) -> tuple | None:
