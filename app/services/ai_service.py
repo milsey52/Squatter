@@ -35,6 +35,12 @@ class AIPlayerService:
         data = json.loads(pending.action_data) if pending.action_data else {}
         action_type = pending.action_type
 
+        # Haystack offers ride along on most Haymaking-season pendings
+        # (data.haystack_available true) and also appear standalone as
+        # action_type='haystack_offer'. Try to purchase before resolving
+        # the main action.
+        self._consider_haystack_purchase(data)
+
         if action_type == "tucker_bag_drawn":
             return self._tucker_bag_drawn(data)
         if action_type == "stock_sale_decision":
@@ -63,6 +69,46 @@ class AIPlayerService:
         return f"{action_type}:acknowledged"
 
     # ── Helpers ────────────────────────────────────────────────────────
+    def _consider_haystack_purchase(self, data: dict) -> bool:
+        """If a haystack is on offer and the AI should buy it given its
+        difficulty + cash, do so inline (deduct cash, set has_haystack).
+        Returns True if bought."""
+        if not data.get("haystack_available"):
+            return False
+        if self.player.has_haystack:
+            return False
+        cost = int(data.get("haystack_cost") or 0)
+        if cost <= 0:
+            return False
+        balance = self.ledger.player_balance(self.player.game_player_id)
+        if balance < cost:
+            return False
+
+        if self.difficulty == "easy":
+            # Coin flip — Easy is random.
+            if random.random() < 0.5:
+                return False
+        else:
+            # Medium / Hard: buy when comfortably affordable. Always grab
+            # one if in drought (already paying the drought premium means
+            # we badly need offset capacity for future drought sales).
+            buffer = 0 if self.player.is_in_drought else 1000
+            if balance < cost + buffer:
+                return False
+
+        latest_turn = (
+            self.session.query(models.Turn)
+            .filter_by(game_id=self.game_id)
+            .order_by(models.Turn.turn_id.desc())
+            .first()
+        )
+        turn_id = latest_turn.turn_id if latest_turn else None
+        notes = "Bought haystack" + (" (drought premium)" if self.player.is_in_drought else "")
+        self.ledger.pay_bank(self.player, cost, "haystack_purchase", turn_id, notes=notes)
+        self.player.has_haystack = True
+        self.session.flush()
+        return True
+
     def _has_high_stock_prices_card(self) -> bool:
         return (
             self.session.query(models.CardDraw)
