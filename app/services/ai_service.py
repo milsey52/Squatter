@@ -127,10 +127,13 @@ class AIPlayerService:
     def find_upgrade_candidate(self) -> dict | None:
         """If the AI should upgrade a paddock RIGHT NOW (it's their turn,
         no pending action), return {'paddock_number': N, 'target_type': T}.
-        Returns None for Easy difficulty or when no affordable upgrade is
-        available.
-        Rule: upgrades only on own turn — caller must check that."""
+        Returns None for Easy difficulty, when in drought, or when no
+        affordable upgrade is available.
+        Rule: upgrades only on own turn — caller must check that.
+        Rule: a Player in drought cannot upgrade paddocks."""
         if self.difficulty == "easy":
+            return None
+        if self.player.is_in_drought:
             return None
 
         balance = self.ledger.player_balance(self.player.game_player_id)

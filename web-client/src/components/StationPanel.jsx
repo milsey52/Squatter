@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
-export default function StationPanel({ gameId, sessionToken, onClose, onUpdate, isMyTurn = false }) {
+export default function StationPanel({ gameId, sessionToken, onClose, onUpdate, isMyTurn = false, inDrought = false }) {
   const [station, setStation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -90,18 +90,28 @@ export default function StationPanel({ gameId, sessionToken, onClose, onUpdate, 
               {pad.is_mortgaged && <span style={{ color: '#d32f2f', marginLeft: 6 }}>(Mortgaged)</span>}
             </div>
             <div style={{ display: 'flex', gap: '4px', marginTop: '6px', flexWrap: 'wrap' }}>
-              {pad.paddock_type === 'natural' && !pad.is_mortgaged && (
-                <button onClick={() => doAction('upgrade-paddock', { paddock_id: pad.paddock_id, target_type: 'improved' })}
-                  disabled={!isMyTurn}
-                  title={!isMyTurn ? "Only allowed on your turn" : undefined}
-                  style={{ ...smallBtn('#66bb6a'), opacity: isMyTurn ? 1 : 0.45, cursor: isMyTurn ? 'pointer' : 'not-allowed' }}>Improve ($500)</button>
-              )}
-              {pad.paddock_type === 'improved' && !pad.is_mortgaged && (
-                <button onClick={() => doAction('upgrade-paddock', { paddock_id: pad.paddock_id, target_type: 'irrigated' })}
-                  disabled={!isMyTurn}
-                  title={!isMyTurn ? "Only allowed on your turn" : undefined}
-                  style={{ ...smallBtn('#42a5f5'), opacity: isMyTurn ? 1 : 0.45, cursor: isMyTurn ? 'pointer' : 'not-allowed' }}>Irrigate ($1500)</button>
-              )}
+              {pad.paddock_type === 'natural' && !pad.is_mortgaged && (() => {
+                const blocked = !isMyTurn || inDrought;
+                const reason = !isMyTurn ? "Only allowed on your turn"
+                  : inDrought ? "Cannot upgrade paddocks while in drought" : undefined;
+                return (
+                  <button onClick={() => doAction('upgrade-paddock', { paddock_id: pad.paddock_id, target_type: 'improved' })}
+                    disabled={blocked}
+                    title={reason}
+                    style={{ ...smallBtn('#66bb6a'), opacity: blocked ? 0.45 : 1, cursor: blocked ? 'not-allowed' : 'pointer' }}>Improve ($500)</button>
+                );
+              })()}
+              {pad.paddock_type === 'improved' && !pad.is_mortgaged && (() => {
+                const blocked = !isMyTurn || inDrought;
+                const reason = !isMyTurn ? "Only allowed on your turn"
+                  : inDrought ? "Cannot upgrade paddocks while in drought" : undefined;
+                return (
+                  <button onClick={() => doAction('upgrade-paddock', { paddock_id: pad.paddock_id, target_type: 'irrigated' })}
+                    disabled={blocked}
+                    title={reason}
+                    style={{ ...smallBtn('#42a5f5'), opacity: blocked ? 0.45 : 1, cursor: blocked ? 'not-allowed' : 'pointer' }}>Irrigate ($1500)</button>
+                );
+              })()}
               {!pad.is_mortgaged && (
                 <button onClick={() => doAction('mortgage-paddock', { paddock_id: pad.paddock_id })}
                   style={smallBtn('#d32f2f')}>Mortgage</button>

@@ -94,6 +94,11 @@ async def upgrade_paddock(
         raise HTTPException(status_code=400,
                             detail="You can only purchase Improved/Irrigated pasture on your own turn")
 
+    # Rule: a Player in drought cannot upgrade paddocks.
+    if player.is_in_drought:
+        raise HTTPException(status_code=400,
+                            detail="Cannot upgrade paddocks while in drought")
+
     station_svc = StationService(session, game_id)
     ledger_svc = LedgerService(session, game_id)
 

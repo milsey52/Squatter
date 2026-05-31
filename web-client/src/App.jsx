@@ -909,6 +909,7 @@ function App() {
           onClose={() => setShowStationPanel(false)}
           onUpdate={fetchGameState}
           isMyTurn={isCurrentPlayer}
+          inDrought={!!currentUserPlayer?.is_in_drought}
         />
       )}
 
