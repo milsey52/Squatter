@@ -46,7 +46,9 @@ THRESHOLDS = {
     },
     "hard": {
         "sell_threshold_pens": 10,
-        "sell_threshold_pens_hsp": 6,
+        # HSP timing: Hard *saves* the card for a bigger sell rather than
+        # burning it at low pen count. With HSP, hold off until pens >= 14.
+        "sell_threshold_pens_hsp": 14,
         "buy_threshold_pens": 8,
         "buy_floor_cash": 2500,
         "stud_ram_cash_buffer": 1000,
@@ -57,8 +59,21 @@ THRESHOLDS = {
         "mortgage_cash_floor": 100,
         "lift_mortgage_cash_floor": 1500,
         "haystack_cash_buffer": 500,
+        # FFE auction
+        "ffe_max_bid": 600,
+        "ffe_bid_increment": 50,
+        "ffe_cash_buffer": 500,
+        # Drought-imminent: when a Local Drought space is within
+        # this many spaces ahead, add the extra cash reserve to every
+        # cash-out decision.
+        "drought_lookahead_spaces": 10,
+        "drought_extra_buffer": 500,
     },
 }
+
+# Local Drought spaces on the current board (board_index, 0-based).
+LOCAL_DROUGHT_BOARD_INDICES = {22, 43}
+BOARD_SIZE = 44
 
 
 class AIPlayerService:
@@ -99,12 +114,7 @@ class AIPlayerService:
             self.decision.fire_fighting_offer_respond(self.player.game_player_id, accept=False)
             return "fire_fighting_offer:declined"
         if action_type == "fire_fighting_auction":
-            # AI always declines auctions in v1
-            try:
-                self.decision.fire_fighting_auction_decline(self.player.game_player_id)
-            except ValueError:
-                pass
-            return "fire_fighting_auction:declined"
+            return self._fire_fighting_auction(data)
 
         # Everything else is purely informational — acknowledge.
         try:
@@ -124,7 +134,7 @@ class AIPlayerService:
             return None
 
         balance = self.ledger.player_balance(self.player.game_player_id)
-        buffer = self.t["upgrade_cash_buffer"]
+        buffer = self.t["upgrade_cash_buffer"] + self._cash_reserve_extra()
 
         # Improved → Irrigated (only when all 5 are already improved/irrigated)
         irr_info = self.station.can_upgrade_to_irrigated(self.player.game_player_id)
@@ -288,7 +298,10 @@ class AIPlayerService:
             # Medium / Hard: buy when comfortably affordable. Always grab
             # one if in drought (already paying the drought premium means
             # we badly need offset capacity for future drought sales).
-            buffer = 0 if self.player.is_in_drought else self.t["haystack_cash_buffer"]
+            if self.player.is_in_drought:
+                buffer = 0
+            else:
+                buffer = self.t["haystack_cash_buffer"] + self._cash_reserve_extra()
             if balance < cost + buffer:
                 return False
 
@@ -304,6 +317,39 @@ class AIPlayerService:
         self.player.has_haystack = True
         self.session.flush()
         return True
+
+    def _has_retained_card_by_effect(self, effect_code: str) -> bool:
+        return (
+            self.session.query(models.CardDraw)
+            .join(models.Card, models.CardDraw.card_id == models.Card.card_id)
+            .filter(
+                models.CardDraw.game_id == self.game_id,
+                models.CardDraw.kept_by_player_id == self.player.game_player_id,
+                models.CardDraw.discarded_at.is_(None),
+                models.Card.effect_code == effect_code,
+            )
+            .first()
+        ) is not None
+
+    def _drought_imminent(self) -> bool:
+        """True (Hard only) when a Local Drought space lies within the
+        AI's lookahead window. Adds a cash-reserve cushion before any
+        cash-spending decision."""
+        if self.difficulty != "hard":
+            return False
+        lookahead = self.t.get("drought_lookahead_spaces", 0)
+        if lookahead <= 0:
+            return False
+        pos = self.player.current_space_id or 0
+        for offset in range(1, lookahead + 1):
+            target = (pos + offset) % BOARD_SIZE
+            if target in LOCAL_DROUGHT_BOARD_INDICES:
+                return True
+        return False
+
+    def _cash_reserve_extra(self) -> int:
+        """Extra cash buffer to require when drought is imminent (Hard)."""
+        return self.t.get("drought_extra_buffer", 0) if self._drought_imminent() else 0
 
     def _has_high_stock_prices_card(self) -> bool:
         return (
@@ -562,7 +608,7 @@ class AIPlayerService:
         in_drought = bool(self.player.is_in_drought)
         # Buy if comfortably affordable, not in drought, and we have enough
         # sheep for the wool bonus to pay back.
-        if (balance >= price + self.t["stud_ram_cash_buffer"]
+        if (balance >= price + self.t["stud_ram_cash_buffer"] + self._cash_reserve_extra()
                 and not in_drought
                 and total_pens >= self.t["stud_ram_min_pens"]):
             try:
@@ -573,6 +619,52 @@ class AIPlayerService:
         self.decision.stud_ram_pass(self.player.game_player_id)
         return "stud_ram:passed"
 
+    def _fire_fighting_auction(self, data: dict) -> str:
+        # Hard bids up to ffe_max_bid. Easy/Medium auto-decline.
+        if self.difficulty != "hard":
+            try:
+                self.decision.fire_fighting_auction_decline(self.player.game_player_id)
+            except ValueError:
+                pass
+            return "fire_fighting_auction:declined"
+
+        # Already hold FFE? Decline.
+        if self._has_retained_card_by_effect("FIRE_FIGHTING_EQUIPMENT"):
+            try:
+                self.decision.fire_fighting_auction_decline(self.player.game_player_id)
+            except ValueError:
+                pass
+            return "ffe_auction:already_have"
+
+        # Already current high bidder? Wait (don't outbid self).
+        if data.get("current_bidder_id") == self.player.game_player_id:
+            return "ffe_auction:already_leading"
+
+        current_bid = data.get("current_bid")
+        starting_price = int(data.get("starting_price", 350) or 350)
+        increment = int(self.t.get("ffe_bid_increment", 50))
+        next_bid = max(starting_price, (current_bid or 0) + increment)
+
+        max_bid = int(self.t.get("ffe_max_bid", 0))
+        buffer = int(self.t.get("ffe_cash_buffer", 0)) + self._cash_reserve_extra()
+        balance = self.ledger.player_balance(self.player.game_player_id)
+        if next_bid > max_bid or balance < next_bid + buffer:
+            try:
+                self.decision.fire_fighting_auction_decline(self.player.game_player_id)
+            except ValueError:
+                pass
+            return f"ffe_auction:declined_over_budget_{next_bid}"
+
+        try:
+            self.decision.fire_fighting_auction_bid(self.player.game_player_id, next_bid)
+            return f"ffe_auction:bid_{next_bid}"
+        except ValueError:
+            try:
+                self.decision.fire_fighting_auction_decline(self.player.game_player_id)
+            except ValueError:
+                pass
+            return "ffe_auction:bid_failed_declined"
+
     def _expense_payment_medium(self, data: dict) -> str:
         if data.get("alternative_payment"):
             # Drench Sheep for Worms: enhanced grants +20% next sell bonus
@@ -582,7 +674,7 @@ class AIPlayerService:
             enhanced_cost = data.get("enhanced_option", {}).get("cost", 0) or 0
             choose_enhanced = (
                 total_pens >= self.t["drench_enhanced_min_pens"]
-                and balance >= enhanced_cost + self.t["drench_enhanced_cash_buffer"]
+                and balance >= enhanced_cost + self.t["drench_enhanced_cash_buffer"] + self._cash_reserve_extra()
             )
             option = "enhanced" if choose_enhanced else "basic"
             try:
