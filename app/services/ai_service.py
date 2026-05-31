@@ -19,7 +19,46 @@ from app.constants import (
     MAX_PENS_PER_TRANSACTION,
     IMPROVED_PASTURE_COST,
     IRRIGATED_PASTURE_COST,
+    MORTGAGE_NATURAL,
+    MORTGAGE_IMPROVED,
+    MORTGAGE_IRRIGATED,
+    MORTGAGE_INTEREST_RATE,
 )
+
+
+# Difficulty-keyed heuristic thresholds. Hard is more aggressive across
+# the board: sells sooner, buys with less cushion, upgrades with a
+# smaller buffer, defers mortgages, and unmortgages sooner.
+THRESHOLDS = {
+    "medium": {
+        "sell_threshold_pens": 12,
+        "sell_threshold_pens_hsp": 8,
+        "buy_threshold_pens": 5,
+        "buy_floor_cash": 3000,
+        "stud_ram_cash_buffer": 1500,
+        "stud_ram_min_pens": 4,
+        "drench_enhanced_min_pens": 5,
+        "drench_enhanced_cash_buffer": 1000,
+        "upgrade_cash_buffer": 1500,
+        "mortgage_cash_floor": 200,    # mortgage if cash drops below this
+        "lift_mortgage_cash_floor": 2500,  # lift if cash above this
+        "haystack_cash_buffer": 1000,
+    },
+    "hard": {
+        "sell_threshold_pens": 10,
+        "sell_threshold_pens_hsp": 6,
+        "buy_threshold_pens": 8,
+        "buy_floor_cash": 2500,
+        "stud_ram_cash_buffer": 1000,
+        "stud_ram_min_pens": 3,
+        "drench_enhanced_min_pens": 4,
+        "drench_enhanced_cash_buffer": 800,
+        "upgrade_cash_buffer": 800,
+        "mortgage_cash_floor": 100,
+        "lift_mortgage_cash_floor": 1500,
+        "haystack_cash_buffer": 500,
+    },
+}
 
 
 class AIPlayerService:
@@ -31,6 +70,8 @@ class AIPlayerService:
         self.station = StationService(session, game_id)
         self.ledger = LedgerService(session, game_id)
         self.difficulty = (player.ai_difficulty or "easy").lower()
+        # Hard inherits Medium's threshold dict for any keys it doesn't override.
+        self.t = THRESHOLDS.get(self.difficulty, THRESHOLDS["medium"])
 
     # ── Pending-action dispatch ────────────────────────────────────────
     def handle_pending(self, pending: models.PendingAction) -> str:
@@ -73,8 +114,6 @@ class AIPlayerService:
         return f"{action_type}:acknowledged"
 
     # ── Station maintenance (between rolls) ────────────────────────────
-    UPGRADE_CASH_BUFFER = 1500  # don't go broke
-
     def find_upgrade_candidate(self) -> dict | None:
         """If the AI should upgrade a paddock RIGHT NOW (it's their turn,
         no pending action), return {'paddock_number': N, 'target_type': T}.
@@ -85,10 +124,11 @@ class AIPlayerService:
             return None
 
         balance = self.ledger.player_balance(self.player.game_player_id)
+        buffer = self.t["upgrade_cash_buffer"]
 
         # Improved → Irrigated (only when all 5 are already improved/irrigated)
         irr_info = self.station.can_upgrade_to_irrigated(self.player.game_player_id)
-        if irr_info["can_upgrade"] and balance >= IRRIGATED_PASTURE_COST + self.UPGRADE_CASH_BUFFER:
+        if irr_info["can_upgrade"] and balance >= IRRIGATED_PASTURE_COST + buffer:
             paddocks = self.station.get_paddocks(self.player.game_player_id)
             improved = [p for p in paddocks if p.paddock_type == "improved" and not p.is_mortgaged]
             if improved:
@@ -97,11 +137,113 @@ class AIPlayerService:
 
         # Natural → Improved
         imp_info = self.station.can_upgrade_to_improved(self.player.game_player_id)
-        if imp_info["can_upgrade"] and balance >= IMPROVED_PASTURE_COST + self.UPGRADE_CASH_BUFFER:
+        if imp_info["can_upgrade"] and balance >= IMPROVED_PASTURE_COST + buffer:
             paddock_no = imp_info["available_paddocks"][0]
             return {"paddock_number": paddock_no, "target_type": "improved"}
 
         return None
+
+    def find_mortgage_candidate(self) -> int | None:
+        """Mortgage when cash is low and total stock <= 8 pens (game rule).
+        Prefer empty paddocks first, then lowest-tier ones.
+        Returns paddock_number or None."""
+        if self.difficulty == "easy":
+            return None
+        balance = self.ledger.player_balance(self.player.game_player_id)
+        if balance >= self.t["mortgage_cash_floor"]:
+            return None
+        total_pens = self.station.get_total_pens(self.player.game_player_id)
+        if total_pens > 8:  # game rule
+            return None
+        paddocks = [p for p in self.station.get_paddocks(self.player.game_player_id)
+                    if not p.is_mortgaged]
+        if not paddocks:
+            return None
+        # Mortgage selection priority: empty natural → empty improved → empty
+        # irrigated → stocked natural → stocked improved → stocked irrigated.
+        tier_rank = {"natural": 0, "improved": 1, "irrigated": 2}
+        paddocks.sort(key=lambda p: (
+            p.sheep_pens > 0,        # empty first
+            tier_rank[p.paddock_type],  # then by tier
+            p.paddock_number,
+        ))
+        return paddocks[0].paddock_number
+
+    def find_lift_mortgage_candidate(self) -> int | None:
+        """Lift a mortgage when cash is comfortable. Prefer highest-tier
+        paddocks first (recover the most valuable asset). Cost = mortgage
+        value × 1.10."""
+        if self.difficulty == "easy":
+            return None
+        balance = self.ledger.player_balance(self.player.game_player_id)
+        floor = self.t["lift_mortgage_cash_floor"]
+        mortgaged = [p for p in self.station.get_paddocks(self.player.game_player_id)
+                     if p.is_mortgaged]
+        if not mortgaged:
+            return None
+        # Lift selection priority: irrigated → improved → natural.
+        tier_rank = {"natural": 2, "improved": 1, "irrigated": 0}
+        mortgaged.sort(key=lambda p: (tier_rank[p.paddock_type], p.paddock_number))
+        mortgage_values = {
+            "natural": MORTGAGE_NATURAL,
+            "improved": MORTGAGE_IMPROVED,
+            "irrigated": MORTGAGE_IRRIGATED,
+        }
+        for p in mortgaged:
+            cost = int(mortgage_values[p.paddock_type] * (1 + MORTGAGE_INTEREST_RATE))
+            if balance >= cost + floor:
+                return p.paddock_number
+        return None
+
+    def execute_mortgage(self, paddock_number: int) -> str:
+        """Mortgage the paddock and credit the player."""
+        latest_turn = (
+            self.session.query(models.Turn)
+            .filter_by(game_id=self.game_id)
+            .order_by(models.Turn.turn_id.desc())
+            .first()
+        )
+        turn_id = latest_turn.turn_id if latest_turn else None
+        amount = self.station.mortgage_paddock(self.player.game_player_id, paddock_number)
+        self.ledger.receive_from_bank(
+            self.player, amount, "mortgage", turn_id,
+            notes=f"Mortgaged paddock {paddock_number}",
+        )
+        self.session.flush()
+        return f"mortgage:{paddock_number}"
+
+    def execute_lift_mortgage(self, paddock_number: int) -> str:
+        """Pay mortgage + 10% interest and clear the mortgage flag.
+        Triggers a win check (clearing the last mortgage on a 30-pen
+        irrigated station = win)."""
+        paddock = next(
+            (p for p in self.station.get_paddocks(self.player.game_player_id)
+             if p.paddock_number == paddock_number),
+            None,
+        )
+        if not paddock:
+            return "lift_mortgage:not_found"
+        mortgage_values = {
+            "natural": MORTGAGE_NATURAL,
+            "improved": MORTGAGE_IMPROVED,
+            "irrigated": MORTGAGE_IRRIGATED,
+        }
+        repay_cost = int(mortgage_values[paddock.paddock_type] * (1 + MORTGAGE_INTEREST_RATE))
+        latest_turn = (
+            self.session.query(models.Turn)
+            .filter_by(game_id=self.game_id)
+            .order_by(models.Turn.turn_id.desc())
+            .first()
+        )
+        turn_id = latest_turn.turn_id if latest_turn else None
+        self.ledger.pay_bank(
+            self.player, repay_cost, "unmortgage", turn_id,
+            notes=f"Unmortgaged paddock {paddock_number}",
+        )
+        self.station.unmortgage_paddock(self.player.game_player_id, paddock_number)
+        self.station.declare_winner_if_eligible(self.player.game_player_id, turn_id)
+        self.session.flush()
+        return f"lift_mortgage:{paddock_number}"
 
     def execute_upgrade(self, paddock_number: int, target_type: str) -> str:
         """Pay the cost and upgrade the paddock. Caller must ensure it's
@@ -146,7 +288,7 @@ class AIPlayerService:
             # Medium / Hard: buy when comfortably affordable. Always grab
             # one if in drought (already paying the drought premium means
             # we badly need offset capacity for future drought sales).
-            buffer = 0 if self.player.is_in_drought else 1000
+            buffer = 0 if self.player.is_in_drought else self.t["haystack_cash_buffer"]
             if balance < cost + buffer:
                 return False
 
@@ -366,9 +508,8 @@ class AIPlayerService:
 
         # Sell heuristic — skim profits when sheep are plentiful, especially
         # if we have an HSP card to amplify the gain.
-        SELL_THRESHOLD_NORMAL = 12
-        SELL_THRESHOLD_HSP = 8
-        sell_threshold = SELL_THRESHOLD_HSP if has_hsp else SELL_THRESHOLD_NORMAL
+        sell_threshold = (self.t["sell_threshold_pens_hsp"] if has_hsp
+                          else self.t["sell_threshold_pens"])
         if total_pens >= sell_threshold and total_pens >= 1:
             target = min(5, total_pens, max_per_txn)
             # Sell preference: Improved → Natural → Irrigated.
@@ -398,10 +539,9 @@ class AIPlayerService:
             return f"stock_sale:sold_{total_sell}{tag}"
 
         # Buy heuristic — restock when capacity & cash allow.
-        BUY_THRESHOLD_PENS = 5
-        BUY_FLOOR_CASH = 3000
-        if (buy_capacity >= 1 and total_pens < BUY_THRESHOLD_PENS
-                and balance >= BUY_FLOOR_CASH):
+        if (buy_capacity >= 1
+                and total_pens < self.t["buy_threshold_pens"]
+                and balance >= self.t["buy_floor_cash"]):
             qty = min(5, buy_capacity)
             try:
                 self.decision.stock_sale_buy(
@@ -422,9 +562,9 @@ class AIPlayerService:
         in_drought = bool(self.player.is_in_drought)
         # Buy if comfortably affordable, not in drought, and we have enough
         # sheep for the wool bonus to pay back.
-        if (balance >= price + 1500
+        if (balance >= price + self.t["stud_ram_cash_buffer"]
                 and not in_drought
-                and total_pens >= 4):
+                and total_pens >= self.t["stud_ram_min_pens"]):
             try:
                 self.decision.stud_ram_buy(self.player.game_player_id)
                 return "stud_ram:bought"
@@ -441,7 +581,8 @@ class AIPlayerService:
             balance = self.ledger.player_balance(self.player.game_player_id)
             enhanced_cost = data.get("enhanced_option", {}).get("cost", 0) or 0
             choose_enhanced = (
-                total_pens >= 5 and balance >= enhanced_cost + 1000
+                total_pens >= self.t["drench_enhanced_min_pens"]
+                and balance >= enhanced_cost + self.t["drench_enhanced_cash_buffer"]
             )
             option = "enhanced" if choose_enhanced else "basic"
             try:

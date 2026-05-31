@@ -106,11 +106,21 @@ async def _drive_one_game(game_id: int):
                     game_player_id=game.current_game_player_id
                 ).first()
                 if current and current.is_ai and current.is_active:
-                    # Try a paddock upgrade first (between rolls, on AI's
-                    # turn). One upgrade per tick so the human can see it.
+                    # Station maintenance priority — one move per tick for
+                    # pacing. Order:
+                    #   1. Mortgage (defensive — cash crunch)
+                    #   2. Lift mortgage (recover assets when flush)
+                    #   3. Upgrade (build station)
+                    #   4. Roll dice
                     service = AIPlayerService(session, game_id, current)
+                    mortgage_pn = service.find_mortgage_candidate()
+                    lift_pn = service.find_lift_mortgage_candidate()
                     upgrade = service.find_upgrade_candidate()
-                    if upgrade is not None:
+                    if mortgage_pn is not None:
+                        action = ("mortgage", current.game_player_id, mortgage_pn)
+                    elif lift_pn is not None:
+                        action = ("lift_mortgage", current.game_player_id, lift_pn)
+                    elif upgrade is not None:
                         action = ("upgrade", current.game_player_id,
                                   upgrade["paddock_number"], upgrade["target_type"])
                     else:
@@ -146,6 +156,32 @@ async def _drive_one_game(game_id: int):
         await events.broadcast_game_event(
             game_id, "game_state_changed",
             {"reason": "ai_acted", "action_type": action_type, "player_id": ai_id}
+        )
+        return
+
+    if action[0] in ("mortgage", "lift_mortgage"):
+        kind, ai_id, paddock_number = action
+        with SessionLocal() as session:
+            ai_player = session.query(models.GamePlayer).filter_by(
+                game_player_id=ai_id
+            ).first()
+            if not ai_player:
+                return
+            try:
+                service = AIPlayerService(session, game_id, ai_player)
+                if kind == "mortgage":
+                    service.execute_mortgage(paddock_number)
+                else:
+                    service.execute_lift_mortgage(paddock_number)
+                session.commit()
+            except Exception:
+                session.rollback()
+                traceback.print_exc()
+                return
+        await events.broadcast_game_event(
+            game_id, "game_state_changed",
+            {"reason": "paddock_mortgaged" if kind == "mortgage" else "paddock_unmortgaged",
+             "player_id": ai_id, "paddock_number": paddock_number}
         )
         return
 
