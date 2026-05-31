@@ -30,6 +30,11 @@ class SetReadyRequest(BaseModel):
     ready: bool
 
 
+class AddAIRequest(BaseModel):
+    player_name: str
+    difficulty: str  # 'easy' | 'medium' | 'hard'
+
+
 class GameCreatedResponse(BaseModel):
     game_id: int
     game_code: str
@@ -295,10 +300,13 @@ def get_lobby_status(
         "host_user_id": game.host_user_id,
         "max_players": game.max_players,
         "players": [{
+            "game_player_id": p.game_player_id,
             "user_id": p.user_id,
             "player_name": p.player_name,
             "is_ready": p.is_ready,
-            "turn_order": p.turn_order
+            "turn_order": p.turn_order,
+            "is_ai": bool(p.is_ai),
+            "ai_difficulty": p.ai_difficulty,
         } for p in players]
     }
 
@@ -337,6 +345,81 @@ async def set_ready_status(
     )
 
     return {"success": True, "is_ready": player.is_ready}
+
+
+@router.post("/{game_id}/lobby/add-ai")
+async def add_ai_player(
+    game_id: int,
+    request: AddAIRequest,
+    auth_data: tuple[int, int] = Depends(auth.verify_session_token),
+    session: Session = Depends(deps.get_session)
+):
+    """Host adds an AI player to the lobby. AI players have no user_id,
+    auto-ready, and are driven by the server-side autopilot during play."""
+    user_id, token_game_id = auth_data
+
+    if token_game_id != game_id:
+        raise HTTPException(status_code=403, detail="Session token is for a different game")
+
+    game = deps.get_game_or_404(game_id, session)
+
+    if game.host_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Only the host can add AI players")
+
+    if game.status != "lobby":
+        raise HTTPException(status_code=400, detail=f"Cannot add AI player while game status is {game.status}")
+
+    difficulty = (request.difficulty or "").lower()
+    if difficulty not in ("easy", "medium", "hard"):
+        raise HTTPException(status_code=400, detail="difficulty must be one of: easy, medium, hard")
+
+    name = request.player_name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="player_name is required")
+
+    # Reject duplicate names within the game (humans included)
+    existing_name = session.query(models.GamePlayer).filter_by(
+        game_id=game_id, player_name=name
+    ).first()
+    if existing_name:
+        raise HTTPException(status_code=400, detail=f"A player named '{name}' is already in this game")
+
+    current_count = session.query(models.GamePlayer).filter_by(game_id=game_id).count()
+    if current_count >= game.max_players:
+        raise HTTPException(status_code=400, detail=f"Game is full ({game.max_players} players maximum)")
+
+    next_turn_order = current_count + 1
+    ai_player = models.GamePlayer(
+        game_id=game_id,
+        user_id=None,
+        player_name=name,
+        turn_order=next_turn_order,
+        current_space_id=0,
+        is_ready=True,         # auto-ready
+        logged_in=True,        # always "logged in" so they don't suspend the game
+        is_ai=True,
+        ai_difficulty=difficulty,
+    )
+    session.add(ai_player)
+    session.commit()
+
+    await events.broadcast_game_event(
+        game_id, "player_joined",
+        {
+            "user_id": None,
+            "player_name": name,
+            "turn_order": next_turn_order,
+            "is_ai": True,
+            "ai_difficulty": difficulty,
+        }
+    )
+
+    return {
+        "success": True,
+        "game_player_id": ai_player.game_player_id,
+        "player_name": name,
+        "difficulty": difficulty,
+    }
 
 
 @router.post("/{game_id}/lobby/start")

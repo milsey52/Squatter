@@ -783,6 +783,12 @@ function App() {
                     style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", cursor: "pointer" }}
                   >
                     <strong style={{ textDecoration: "underline dotted", textUnderlineOffset: 3 }}>{p.player_name}</strong>
+                    {p.is_ai && (
+                      <span style={{
+                        padding: "1px 6px", borderRadius: 4, background: "#6a4c93",
+                        color: "#fff", fontSize: "0.7rem", fontWeight: "bold",
+                      }}>🤖 AI</span>
+                    )}
                     <span style={{ fontSize: "0.85rem", color: "#555" }}>{spaceLabel}</span>
                     <span style={{ fontSize: "0.85rem", color: "#1982c4" }}>${cash}</span>
                     <span style={{ fontSize: "0.85rem", color: "#4caf50" }}>{totalPens} pens</span>

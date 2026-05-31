@@ -1,3 +1,4 @@
+import asyncio
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Depends
@@ -6,8 +7,14 @@ from fastapi.responses import FileResponse
 from sqlalchemy import text
 from app.api.routes import games, turns, ledger, cards, decisions, lobby, events, trades, station
 from app.api.deps import get_session
+from app.services.ai_autopilot import run_autopilot
 
 app = FastAPI(title="Squatter API", redirect_slashes=False)
+
+
+@app.on_event("startup")
+async def _start_ai_autopilot():
+    asyncio.create_task(run_autopilot())
 
 app.include_router(lobby.router, prefix="/games", tags=["lobby"])
 app.include_router(events.router, prefix="/games", tags=["events"])

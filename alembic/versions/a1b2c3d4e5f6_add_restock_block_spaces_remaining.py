@@ -71,9 +71,19 @@ def upgrade() -> None:
             server_default=sa.text('false'),
         ),
     )
+    op.add_column(
+        'game_players',
+        sa.Column('is_ai', sa.Boolean(), nullable=False, server_default=sa.text('false')),
+    )
+    op.add_column(
+        'game_players',
+        sa.Column('ai_difficulty', sa.String(), nullable=True),
+    )
 
 
 def downgrade() -> None:
+    op.drop_column('game_players', 'ai_difficulty')
+    op.drop_column('game_players', 'is_ai')
     op.drop_column('game_players', 'restock_block_until_stock_sale')
     op.drop_column('game_players', 'restock_block_scope')
     op.drop_column('game_players', 'wool_cheque_blowfly_pct')

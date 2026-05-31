@@ -52,6 +52,8 @@ def get_game(game_id: int, session: Session = Depends(get_session)):
                 "has_haystack": p.has_haystack,
                 "turn_order": p.turn_order,
                 "is_active": p.is_active,
+                "is_ai": bool(p.is_ai),
+                "ai_difficulty": p.ai_difficulty,
             }
             for p in players
         ],

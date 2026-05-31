@@ -14,6 +14,10 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [showTurnOrderRoll, setShowTurnOrderRoll] = useState(false);
+  const [showAddAI, setShowAddAI] = useState(false);
+  const [aiName, setAiName] = useState('');
+  const [aiDifficulty, setAiDifficulty] = useState('easy');
+  const [addingAI, setAddingAI] = useState(false);
 
   const fetchLobbyStatus = useCallback(async () => {
     if (!gameId || !sessionToken) {
@@ -340,7 +344,7 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {lobbyData.players.map((player) => (
               <li
-                key={player.user_id}
+                key={player.game_player_id ?? `u${player.user_id}`}
                 style={{
                   padding: '1rem',
                   marginBottom: '0.75rem',
@@ -368,6 +372,19 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
                         HOST
                       </span>
                     )}
+                    {player.is_ai && (
+                      <span style={{
+                        marginLeft: '0.5rem',
+                        padding: '2px 8px',
+                        background: '#6a4c93',
+                        color: '#fff',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                      }}>
+                        🤖 AI · {(player.ai_difficulty || '').toUpperCase()}
+                      </span>
+                    )}
                   </strong>
                 </div>
                 <div>
@@ -393,6 +410,70 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
             fontSize: '0.9rem'
           }}>
             {error}
+          </div>
+        )}
+
+        {/* Add AI Player (host only) */}
+        {isHost && lobbyData.players.length < lobbyData.max_players && (
+          <div style={{ marginBottom: '1rem' }}>
+            {!showAddAI ? (
+              <button onClick={() => { setShowAddAI(true); setAiName(''); setAiDifficulty('easy'); }}
+                style={{
+                  padding: '0.75rem 1rem', background: '#6a4c93', color: '#fff',
+                  border: 'none', borderRadius: '6px', cursor: 'pointer',
+                  fontSize: '0.95rem', fontWeight: 'bold',
+                }}>
+                🤖 Add AI Player
+              </button>
+            ) : (
+              <div style={{ padding: '0.75rem', background: '#f5f0fa', border: '2px solid #6a4c93', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+                  <input type="text" placeholder="AI name" value={aiName}
+                    onChange={e => setAiName(e.target.value)}
+                    style={{ flex: 1, minWidth: 120, padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px' }} />
+                  <select value={aiDifficulty} onChange={e => setAiDifficulty(e.target.value)}
+                    style={{ padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px' }}>
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button disabled={addingAI || !aiName.trim()}
+                    onClick={async () => {
+                      setAddingAI(true); setError('');
+                      try {
+                        const res = await fetch(`${API_BASE}/games/${gameId}/lobby/add-ai`, {
+                          method: 'POST',
+                          headers: { 'Authorization': `Bearer ${sessionToken}`, 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ player_name: aiName.trim(), difficulty: aiDifficulty }),
+                        });
+                        const payload = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error(payload.detail || 'Failed to add AI');
+                        setShowAddAI(false); setAiName('');
+                        await fetchLobbyStatus();
+                      } catch (e) {
+                        setError(e.message);
+                      } finally {
+                        setAddingAI(false);
+                      }
+                    }}
+                    style={{
+                      padding: '0.5rem 1rem', background: '#6a4c93', color: '#fff',
+                      border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold',
+                    }}>
+                    {addingAI ? 'Adding...' : 'Add'}
+                  </button>
+                  <button onClick={() => { setShowAddAI(false); setError(''); }}
+                    style={{
+                      padding: '0.5rem 1rem', background: '#999', color: '#fff',
+                      border: 'none', borderRadius: '6px', cursor: 'pointer',
+                    }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

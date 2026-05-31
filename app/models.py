@@ -89,6 +89,11 @@ class GamePlayer(Base):
     # Worm Infestation rule: clear the restock block on landing at any
     # Stock Sale space (not after a full circuit).
     restock_block_until_stock_sale = Column(Boolean, nullable=False, default=False)
+
+    # AI player flags. is_ai=True players have user_id=NULL and no session;
+    # the server-side autopilot drives their turns.
+    is_ai = Column(Boolean, nullable=False, default=False)
+    ai_difficulty = Column(String, nullable=True)  # 'easy' | 'medium' | 'hard'
     wool_cheque_bonus = Column(Integer, nullable=False, default=0)
     next_sell_price_modifier = Column(Integer, nullable=False, default=0)
     footrot_immune = Column(Boolean, nullable=False, default=False)
