@@ -31,7 +31,7 @@ POLL_INTERVAL_SECONDS = 3.0
 ERROR_BACKOFF_SECONDS = 5.0
 # How long to let an AI-owned pending sit on humans' screens (card popup,
 # wool-cheque breakdown, drought effect, etc.) before the AI clicks OK.
-DISPLAY_DELAY_SECONDS = 8.0
+DISPLAY_DELAY_SECONDS = 6.0
 
 
 async def run_autopilot():
