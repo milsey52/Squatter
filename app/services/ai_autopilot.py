@@ -97,8 +97,20 @@ async def _drive_one_game(game_id: int):
             )
             return
 
-        # Second: if the current player is an AI and there's no pending,
-        # roll dice for them.
+        # Second: if the current player is an AI and there's no pending
+        # for ANY player, roll dice. Mirrors the human /turns route guard:
+        # an unresolved pending (e.g., the previous player's Tucker Bag
+        # popup) blocks the next dice roll.
+        any_unresolved = (
+            session.query(models.PendingAction)
+            .filter(
+                models.PendingAction.game_id == game_id,
+                models.PendingAction.resolved_at.is_(None),
+            )
+            .first()
+        )
+        if any_unresolved is not None:
+            return
         current = session.query(models.GamePlayer).filter_by(
             game_player_id=game.current_game_player_id
         ).first()
