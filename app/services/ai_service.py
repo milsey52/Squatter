@@ -15,7 +15,11 @@ from app import models
 from app.services.decision_service import DecisionService
 from app.services.station_service import StationService
 from app.services.ledger_service import LedgerService
-from app.constants import MAX_PENS_PER_TRANSACTION
+from app.constants import (
+    MAX_PENS_PER_TRANSACTION,
+    IMPROVED_PASTURE_COST,
+    IRRIGATED_PASTURE_COST,
+)
 
 
 class AIPlayerService:
@@ -67,6 +71,56 @@ class AIPlayerService:
         except ValueError:
             pass
         return f"{action_type}:acknowledged"
+
+    # ── Station maintenance (between rolls) ────────────────────────────
+    UPGRADE_CASH_BUFFER = 1500  # don't go broke
+
+    def find_upgrade_candidate(self) -> dict | None:
+        """If the AI should upgrade a paddock RIGHT NOW (it's their turn,
+        no pending action), return {'paddock_number': N, 'target_type': T}.
+        Returns None for Easy difficulty or when no affordable upgrade is
+        available.
+        Rule: upgrades only on own turn — caller must check that."""
+        if self.difficulty == "easy":
+            return None
+
+        balance = self.ledger.player_balance(self.player.game_player_id)
+
+        # Improved → Irrigated (only when all 5 are already improved/irrigated)
+        irr_info = self.station.can_upgrade_to_irrigated(self.player.game_player_id)
+        if irr_info["can_upgrade"] and balance >= IRRIGATED_PASTURE_COST + self.UPGRADE_CASH_BUFFER:
+            paddocks = self.station.get_paddocks(self.player.game_player_id)
+            improved = [p for p in paddocks if p.paddock_type == "improved" and not p.is_mortgaged]
+            if improved:
+                # Upgrade the first one (lowest paddock number).
+                return {"paddock_number": improved[0].paddock_number, "target_type": "irrigated"}
+
+        # Natural → Improved
+        imp_info = self.station.can_upgrade_to_improved(self.player.game_player_id)
+        if imp_info["can_upgrade"] and balance >= IMPROVED_PASTURE_COST + self.UPGRADE_CASH_BUFFER:
+            paddock_no = imp_info["available_paddocks"][0]
+            return {"paddock_number": paddock_no, "target_type": "improved"}
+
+        return None
+
+    def execute_upgrade(self, paddock_number: int, target_type: str) -> str:
+        """Pay the cost and upgrade the paddock. Caller must ensure it's
+        the AI's turn and that the upgrade is currently valid."""
+        cost = IRRIGATED_PASTURE_COST if target_type == "irrigated" else IMPROVED_PASTURE_COST
+        latest_turn = (
+            self.session.query(models.Turn)
+            .filter_by(game_id=self.game_id)
+            .order_by(models.Turn.turn_id.desc())
+            .first()
+        )
+        turn_id = latest_turn.turn_id if latest_turn else None
+        self.ledger.pay_bank(
+            self.player, cost, "paddock_upgrade", turn_id,
+            notes=f"Upgraded paddock {paddock_number} to {target_type}",
+        )
+        self.station.upgrade_paddock(self.player.game_player_id, paddock_number, target_type)
+        self.session.flush()
+        return f"upgrade:{paddock_number}->{target_type}"
 
     # ── Helpers ────────────────────────────────────────────────────────
     def _consider_haystack_purchase(self, data: dict) -> bool:

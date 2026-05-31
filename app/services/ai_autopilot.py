@@ -106,7 +106,15 @@ async def _drive_one_game(game_id: int):
                     game_player_id=game.current_game_player_id
                 ).first()
                 if current and current.is_ai and current.is_active:
-                    action = ("roll", current.game_player_id)
+                    # Try a paddock upgrade first (between rolls, on AI's
+                    # turn). One upgrade per tick so the human can see it.
+                    service = AIPlayerService(session, game_id, current)
+                    upgrade = service.find_upgrade_candidate()
+                    if upgrade is not None:
+                        action = ("upgrade", current.game_player_id,
+                                  upgrade["paddock_number"], upgrade["target_type"])
+                    else:
+                        action = ("roll", current.game_player_id)
 
     if action is None:
         return
@@ -138,6 +146,34 @@ async def _drive_one_game(game_id: int):
         await events.broadcast_game_event(
             game_id, "game_state_changed",
             {"reason": "ai_acted", "action_type": action_type, "player_id": ai_id}
+        )
+        return
+
+    if action[0] == "upgrade":
+        _, ai_id, paddock_number, target_type = action
+        with SessionLocal() as session:
+            ai_player = session.query(models.GamePlayer).filter_by(
+                game_player_id=ai_id
+            ).first()
+            game = session.query(models.Game).filter_by(game_id=game_id).first()
+            # Re-verify the upgrade is still valid: AI is still current,
+            # not in drought-block etc.
+            if (not ai_player or not game or
+                    game.current_game_player_id != ai_id):
+                return
+            try:
+                AIPlayerService(session, game_id, ai_player).execute_upgrade(
+                    paddock_number, target_type
+                )
+                session.commit()
+            except Exception:
+                session.rollback()
+                traceback.print_exc()
+                return
+        await events.broadcast_game_event(
+            game_id, "game_state_changed",
+            {"reason": "paddock_upgraded", "player_id": ai_id,
+             "paddock_number": paddock_number, "target_type": target_type}
         )
         return
 
