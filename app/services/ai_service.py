@@ -162,22 +162,35 @@ class AIPlayerService:
 
     def find_mortgage_candidate(self) -> int | None:
         """Mortgage when cash is low and total stock <= 8 pens (game rule).
-        Prefer empty paddocks first, then lowest-tier ones.
+        Two trigger modes:
+          - Normal cash crunch: balance below mortgage_cash_floor — mortgage
+            a low-tier empty paddock to top up.
+          - Stuck recovery: barely any pens AND barely any cash — mortgage
+            aggressively (including Irrigated as last resort) to give the
+            AI cash to buy stock with at the next Stock Sale.
         Returns paddock_number or None."""
         if self.difficulty == "easy":
             return None
         balance = self.ledger.player_balance(self.player.game_player_id)
-        if balance >= self.t["mortgage_cash_floor"]:
-            return None
         total_pens = self.station.get_total_pens(self.player.game_player_id)
         if total_pens > 8:  # game rule
+            return None
+        stuck = self._is_stuck()
+        if balance >= self.t["mortgage_cash_floor"] and not stuck:
             return None
         paddocks = [p for p in self.station.get_paddocks(self.player.game_player_id)
                     if not p.is_mortgaged]
         if not paddocks:
             return None
-        # Mortgage selection priority: empty natural → empty improved → empty
-        # irrigated → stocked natural → stocked improved → stocked irrigated.
+        if stuck:
+            # Prefer Natural/Improved over Irrigated (preserve the win path);
+            # within each tier, lowest paddock number first.
+            naturals_improved = [p for p in paddocks if p.paddock_type in ("natural", "improved")]
+            pool = naturals_improved if naturals_improved else paddocks
+            tier_rank = {"natural": 0, "improved": 1, "irrigated": 2}
+            pool.sort(key=lambda p: (tier_rank[p.paddock_type], p.paddock_number))
+            return pool[0].paddock_number
+        # Normal cash crunch: empty paddocks first, lowest tier first.
         tier_rank = {"natural": 0, "improved": 1, "irrigated": 2}
         paddocks.sort(key=lambda p: (
             p.sheep_pens > 0,        # empty first
@@ -192,6 +205,8 @@ class AIPlayerService:
         value × 1.10."""
         if self.difficulty == "easy":
             return None
+        if self._is_stuck():
+            return None  # don't undo the recovery while stuck
         balance = self.ledger.player_balance(self.player.game_player_id)
         floor = self.t["lift_mortgage_cash_floor"]
         mortgaged = [p for p in self.station.get_paddocks(self.player.game_player_id)
@@ -324,6 +339,18 @@ class AIPlayerService:
         self.player.has_haystack = True
         self.session.flush()
         return True
+
+    # "Stuck" recovery — AI has barely any pens AND barely any cash, so
+    # going round the board just bleeds it further. Mortgage paddocks
+    # (including Irrigated as last resort) to raise cash, then spend
+    # whatever was raised on sheep at the next Stock Sale.
+    STUCK_PENS_THRESHOLD = 3
+    STUCK_CASH_THRESHOLD = 600
+
+    def _is_stuck(self) -> bool:
+        total_pens = self.station.get_total_pens(self.player.game_player_id)
+        balance = self.ledger.player_balance(self.player.game_player_id)
+        return total_pens < self.STUCK_PENS_THRESHOLD and balance < self.STUCK_CASH_THRESHOLD
 
     def _has_retained_card_by_effect(self, effect_code: str) -> bool:
         return (
@@ -561,10 +588,13 @@ class AIPlayerService:
 
         # PRIORITY 1 — Buy toward the 30-pen win condition. Keep buying
         # whenever there's room, cash above the floor, and we're under
-        # the per-difficulty target.
+        # the per-difficulty target. If "stuck" (low pens + low cash),
+        # drop the floor to $0 so the AI spends the cash it just raised
+        # by mortgaging on any pens it can afford.
+        cash_floor = 0 if self._is_stuck() else self.t["buy_floor_cash"]
         if (buy_capacity >= 1
                 and total_pens < self.t["buy_threshold_pens"]
-                and balance >= self.t["buy_floor_cash"]):
+                and balance >= cash_floor):
             qty = min(self.t.get("buy_qty", 5), buy_capacity, max_per_txn)
             try:
                 self.decision.stock_sale_buy(
