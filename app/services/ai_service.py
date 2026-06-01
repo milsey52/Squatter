@@ -31,10 +31,13 @@ from app.constants import (
 # smaller buffer, defers mortgages, and unmortgages sooner.
 THRESHOLDS = {
     "medium": {
-        "sell_threshold_pens": 12,
-        "sell_threshold_pens_hsp": 8,
-        "buy_threshold_pens": 5,
-        "buy_floor_cash": 3000,
+        # Win condition is 30 pens on all-irrigated. Sell only when very
+        # close to max; otherwise keep buying toward the win.
+        "sell_threshold_pens": 25,
+        "sell_threshold_pens_hsp": 18,
+        "buy_threshold_pens": 28,
+        "buy_qty": 8,  # buy this many pens per stock sale when affordable
+        "buy_floor_cash": 2000,
         "stud_ram_cash_buffer": 1500,
         "stud_ram_min_pens": 4,
         "drench_enhanced_min_pens": 5,
@@ -45,12 +48,13 @@ THRESHOLDS = {
         "haystack_cash_buffer": 1000,
     },
     "hard": {
-        "sell_threshold_pens": 10,
+        "sell_threshold_pens": 28,
         # HSP timing: Hard *saves* the card for a bigger sell rather than
-        # burning it at low pen count. With HSP, hold off until pens >= 14.
-        "sell_threshold_pens_hsp": 14,
-        "buy_threshold_pens": 8,
-        "buy_floor_cash": 2500,
+        # burning it at low pen count. With HSP, hold off until pens >= 25.
+        "sell_threshold_pens_hsp": 25,
+        "buy_threshold_pens": 30,  # buy until full
+        "buy_qty": 10,
+        "buy_floor_cash": 1500,
         "stud_ram_cash_buffer": 1000,
         "stud_ram_min_pens": 3,
         "drench_enhanced_min_pens": 4,
@@ -555,8 +559,24 @@ class AIPlayerService:
             self.decision.stock_sale_pass(self.player.game_player_id)
             return "stock_sale:passed_drought"
 
-        # Sell heuristic — skim profits when sheep are plentiful, especially
-        # if we have an HSP card to amplify the gain.
+        # PRIORITY 1 — Buy toward the 30-pen win condition. Keep buying
+        # whenever there's room, cash above the floor, and we're under
+        # the per-difficulty target.
+        if (buy_capacity >= 1
+                and total_pens < self.t["buy_threshold_pens"]
+                and balance >= self.t["buy_floor_cash"]):
+            qty = min(self.t.get("buy_qty", 5), buy_capacity, max_per_txn)
+            try:
+                self.decision.stock_sale_buy(
+                    self.player.game_player_id, qty,
+                    use_high_stock_prices=False,
+                )
+                return f"stock_sale:bought_{qty}"
+            except ValueError:
+                pass
+
+        # PRIORITY 2 — Sell only when very full or to burn an HSP card.
+        # Without HSP, we want the pens for the win, not the cash from a sale.
         sell_threshold = (self.t["sell_threshold_pens_hsp"] if has_hsp
                           else self.t["sell_threshold_pens"])
         if total_pens >= sell_threshold and total_pens >= 1:
@@ -586,20 +606,6 @@ class AIPlayerService:
                 return "stock_sale:sell_failed_passed"
             tag = "_hsp" if has_hsp else ""
             return f"stock_sale:sold_{total_sell}{tag}"
-
-        # Buy heuristic — restock when capacity & cash allow.
-        if (buy_capacity >= 1
-                and total_pens < self.t["buy_threshold_pens"]
-                and balance >= self.t["buy_floor_cash"]):
-            qty = min(5, buy_capacity)
-            try:
-                self.decision.stock_sale_buy(
-                    self.player.game_player_id, qty,
-                    use_high_stock_prices=False,
-                )
-                return f"stock_sale:bought_{qty}"
-            except ValueError:
-                pass
 
         self.decision.stock_sale_pass(self.player.game_player_id)
         return "stock_sale:passed"
