@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useGameEvents } from '../hooks/useGameEvents';
 import { QRCodeSVG } from 'qrcode.react';
 import TurnOrderRoll from './TurnOrderRoll';
+import { useTheme, ThemeToggle } from '../theme';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHost, onGameStarted }) {
+  const { theme } = useTheme();
   const [lobbyData, setLobbyData] = useState(null);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState('');
@@ -224,14 +226,19 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
       padding: '2rem'
     }}>
       <div style={{
-        background: '#fff',
+        background: theme.panelBg,
+        color: theme.text,
         padding: '2.5rem',
         borderRadius: '16px',
-        boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+        boxShadow: `0 10px 40px ${theme.modalShadow}`,
         maxWidth: '600px',
-        width: '100%'
+        width: '100%',
+        position: 'relative'
       }}>
-        <h1 style={{ margin: '0 0 0.5rem 0', textAlign: 'center', color: '#333' }}>
+        <div style={{ position: 'absolute', top: '1rem', right: '1rem' }}>
+          <ThemeToggle />
+        </div>
+        <h1 style={{ margin: '0 0 0.5rem 0', textAlign: 'center', color: theme.text }}>
           Game Lobby
         </h1>
 
@@ -348,8 +355,10 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
                 style={{
                   padding: '1rem',
                   marginBottom: '0.75rem',
-                  background: player.is_ready ? '#e8f5e9' : '#f5f5f5',
-                  border: `2px solid ${player.is_ready ? '#4caf50' : '#e0e0e0'}`,
+                  background: player.is_ready
+                    ? (theme.name === 'dark' ? '#1f3a2a' : '#e8f5e9')
+                    : (theme.name === 'dark' ? '#2a2a33' : '#f5f5f5'),
+                  border: `2px solid ${player.is_ready ? '#4caf50' : theme.panelBorder}`,
                   borderRadius: '8px',
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -357,7 +366,7 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
                 }}
               >
                 <div>
-                  <strong style={{ fontSize: '1.05rem', color: '#333' }}>
+                  <strong style={{ fontSize: '1.05rem', color: theme.text }}>
                     {player.player_name}
                     {player.user_id === lobbyData.host_user_id && (
                       <span style={{

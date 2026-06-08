@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useTheme } from "../theme";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
 export default function HoldingsPanel({ gameId, playerId, refreshKey, onCardClick }) {
+  const { theme } = useTheme();
   const [holdings, setHoldings] = useState(null);
 
   useEffect(() => {
@@ -64,9 +66,10 @@ export default function HoldingsPanel({ gameId, playerId, refreshKey, onCardClic
         flex: "0 0 280px",
         position: "sticky",
         top: 20,
-        background: "#fff",
+        background: theme.panelBg,
+        color: theme.text,
         borderRadius: 8,
-        border: "1px solid #ddd",
+        border: `1px solid ${theme.panelBorder}`,
         padding: "12px",
         boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
       }}

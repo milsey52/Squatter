@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useTheme } from "../theme";
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 export default function PendingActionModal({ gameId, sessionToken, userId, pendingAction, players, onResolved, activePlayerHasHighStockPrices = false }) {
+  const { theme } = useTheme();
   const [pens, setPens] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -30,8 +32,9 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
   };
   const modalStyle = {
     position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-    background: '#fff', borderRadius: '12px', padding: '2rem', minWidth: '380px',
-    maxWidth: '500px', boxShadow: '0 10px 40px rgba(0,0,0,0.3)', zIndex: 9000,
+    background: theme.modalBg, color: theme.modalText,
+    borderRadius: '12px', padding: '2rem', minWidth: '380px',
+    maxWidth: '500px', boxShadow: `0 10px 40px ${theme.modalShadow}`, zIndex: 9000,
   };
   const btnStyle = (bg) => ({
     padding: '0.6rem 1.2rem', background: bg, color: '#fff',

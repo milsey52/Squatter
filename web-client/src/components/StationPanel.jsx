@@ -1,8 +1,17 @@
 import { useState, useEffect } from "react";
+import { useTheme } from "../theme";
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 export default function StationPanel({ gameId, sessionToken, onClose, onUpdate, isMyTurn = false, inDrought = false }) {
+  const { theme } = useTheme();
+  const panelStyle = {
+    position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+    background: theme.modalBg, color: theme.modalText,
+    borderRadius: '12px', padding: '1.5rem', width: '700px',
+    maxHeight: '80vh', overflowY: 'auto',
+    boxShadow: `0 10px 40px ${theme.modalShadow}`, zIndex: 8000,
+  };
   const [station, setStation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -199,11 +208,6 @@ export default function StationPanel({ gameId, sessionToken, onClose, onUpdate, 
   );
 }
 
-const panelStyle = {
-  position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-  background: '#fff', borderRadius: '12px', padding: '1.5rem', width: '700px',
-  maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 10px 40px rgba(0,0,0,0.3)', zIndex: 8000
-};
 
 const smallBtn = (bg) => ({
   padding: '3px 8px', background: bg, color: '#fff', border: 'none',

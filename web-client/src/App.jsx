@@ -11,6 +11,7 @@ import PendingActionModal from "./components/PendingActionModal";
 import PlayerStationModal from "./components/PlayerStationModal";
 import { useGameEvents } from "./hooks/useGameEvents";
 import { Z_INDEX } from "./constants/zIndex";
+import { useTheme, ThemeToggle } from "./theme";
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -29,6 +30,7 @@ const SPACE_LABELS = [
 ];
 
 function App() {
+  const { theme } = useTheme();
   // Routing and session state
   const [screen, setScreen] = useState('selector');
   const [gameId, setGameId] = useState(null);
@@ -401,14 +403,21 @@ function App() {
   const isMissingTurn = isCurrentPlayer && (currentUserPlayer?.visiting_town_turns || 0) > 0;
 
   return (
-    <div style={{ padding: "0.5rem 1rem", fontFamily: "sans-serif", position: "relative" }}>
-      {/* Logout */}
-      <button onClick={handleLogout} style={{
+    <div style={{ padding: "0.5rem 1rem", fontFamily: "sans-serif", position: "relative",
+                  background: theme.pageBg, color: theme.text, minHeight: "100vh" }}>
+      {/* Top-right controls: Theme toggle + Logout */}
+      <div style={{
         position: "fixed", top: "1rem", right: "1rem",
-        padding: "0.6rem 1.2rem", background: "#dc3545", color: "white",
-        border: "none", borderRadius: "8px", fontSize: "0.9rem", fontWeight: "bold",
-        cursor: "pointer", zIndex: Z_INDEX.LOGOUT_BUTTON
-      }}>Logout</button>
+        display: "flex", gap: "0.5rem", alignItems: "center",
+        zIndex: Z_INDEX.LOGOUT_BUTTON
+      }}>
+        <ThemeToggle />
+        <button onClick={handleLogout} style={{
+          padding: "0.6rem 1.2rem", background: "#dc3545", color: "white",
+          border: "none", borderRadius: "8px", fontSize: "0.9rem", fontWeight: "bold",
+          cursor: "pointer",
+        }}>Logout</button>
+      </div>
 
       {/* Suspended Notice */}
       {game.status === 'suspended' && (
@@ -749,7 +758,7 @@ function App() {
 
           {/* Dice display */}
           {lastDiceRoll && (
-            <div style={{ marginBottom: "1rem", padding: "10px 14px", background: "#fff", borderRadius: 8, border: "2px solid #1982c4" }}>
+            <div style={{ marginBottom: "1rem", padding: "10px 14px", background: theme.panelBg, color: theme.text, borderRadius: 8, border: "2px solid #1982c4" }}>
               <span style={{ fontWeight: "bold" }}>Last Roll: </span>
               <span style={{ fontSize: "1.1rem", fontWeight: "bold" }}>{lastDiceRoll.dice_roll_1}</span>
               <span> + </span>
@@ -774,8 +783,9 @@ function App() {
               return (
                 <li key={p.game_player_id} style={{
                   marginBottom: 10, padding: "10px", borderRadius: "8px",
-                  background: isCurrent ? "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)" : "transparent",
-                  border: isCurrent ? "2px solid #4caf50" : "1px solid #e0e0e0"
+                  background: isCurrent ? theme.highlightBg : "transparent",
+                  color: isCurrent && theme.name === "dark" ? theme.text : undefined,
+                  border: isCurrent ? `2px solid ${theme.highlightBorder}` : `1px solid ${theme.panelBorder}`
                 }}>
                   <div
                     onClick={() => setViewingPlayerId(p.game_player_id)}
@@ -789,7 +799,7 @@ function App() {
                         color: "#fff", fontSize: "0.7rem", fontWeight: "bold",
                       }}>🤖 AI</span>
                     )}
-                    <span style={{ fontSize: "0.85rem", color: "#555" }}>{spaceLabel}</span>
+                    <span style={{ fontSize: "0.85rem", color: theme.textMuted }}>{spaceLabel}</span>
                     <span style={{ fontSize: "0.85rem", color: "#1982c4" }}>${cash}</span>
                     <span style={{ fontSize: "0.85rem", color: "#4caf50" }}>{totalPens} pens</span>
                     {p.is_in_drought && <span style={{ fontSize: "0.8rem", color: "#d32f2f" }}>DROUGHT</span>}
@@ -813,7 +823,7 @@ function App() {
 
           {/* Stud Rams */}
           {studRams.length > 0 && (
-            <div style={{ marginTop: "1rem", background: "#fff", padding: "10px", borderRadius: 8, border: "1px solid #ddd" }}>
+            <div style={{ marginTop: "1rem", background: theme.panelBg, color: theme.text, padding: "10px", borderRadius: 8, border: `1px solid ${theme.panelBorder}` }}>
               <h3 style={{ margin: "0 0 6px", fontSize: "1rem" }}>Stud Rams</h3>
               {studRams.map(ram => (
                 <div key={ram.space_id} style={{ fontSize: "0.8rem", marginBottom: 3 }}>
@@ -830,7 +840,7 @@ function App() {
           )}
 
           {/* Ledger */}
-          <div style={{ marginTop: "1.5rem", background: "#fff", padding: "10px", borderRadius: 8, border: "1px solid #ddd", maxHeight: 300, overflowY: "auto" }}>
+          <div style={{ marginTop: "1.5rem", background: theme.panelBg, color: theme.text, padding: "10px", borderRadius: 8, border: `1px solid ${theme.panelBorder}`, maxHeight: 300, overflowY: "auto" }}>
             <h3 style={{ margin: "0 0 6px", fontSize: "1rem" }}>Ledger</h3>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
               <thead>
@@ -852,7 +862,7 @@ function App() {
           </div>
 
           {/* Dice Roll Register */}
-          <div style={{ marginTop: "1rem", background: "#fff", padding: "10px", borderRadius: 8, border: "1px solid #ddd", maxHeight: 250, overflowY: "auto" }}>
+          <div style={{ marginTop: "1rem", background: theme.panelBg, color: theme.text, padding: "10px", borderRadius: 8, border: `1px solid ${theme.panelBorder}`, maxHeight: 250, overflowY: "auto" }}>
             <h3 style={{ margin: "0 0 6px", fontSize: "1rem" }}>Dice Rolls</h3>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
               <thead>

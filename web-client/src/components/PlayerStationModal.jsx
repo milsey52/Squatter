@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Z_INDEX } from "../constants/zIndex";
+import { useTheme } from "../theme";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
@@ -7,6 +8,7 @@ const TYPE_COLOR = { natural: "#8d6e63", improved: "#66bb6a", irrigated: "#42a5f
 const TYPE_LABEL = { natural: "Natural", improved: "Improved", irrigated: "Irrigated" };
 
 export default function PlayerStationModal({ gameId, playerId, playerName, onClose, onCardClick }) {
+  const { theme } = useTheme();
   const [holdings, setHoldings] = useState(null);
 
   useEffect(() => {
@@ -29,9 +31,9 @@ export default function PlayerStationModal({ gameId, playerId, playerName, onClo
     alignItems: "center", justifyContent: "center", zIndex: Z_INDEX.MODAL,
   };
   const modalStyle = {
-    background: "#fff", borderRadius: 10, padding: "18px 22px",
+    background: theme.modalBg, color: theme.modalText, borderRadius: 10, padding: "18px 22px",
     minWidth: 380, maxWidth: 520, maxHeight: "85vh", overflowY: "auto",
-    boxShadow: "0 8px 32px rgba(0,0,0,0.3)", position: "relative",
+    boxShadow: `0 8px 32px ${theme.modalShadow}`, position: "relative",
   };
   const closeBtn = {
     position: "absolute", top: 10, right: 12, background: "transparent",

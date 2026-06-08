@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Z_INDEX } from '../constants/zIndex';
+import { useTheme } from '../theme';
 
 export default function RetainedCardPopup({ card, onClose }) {
+  const { theme } = useTheme();
   if (!card) return null;
 
   const bgColor = '#6a4c93'; // Purple color for retained cards
+  const cardInnerBg = theme.name === 'dark' ? '#2c2c35' : '#f9f9f9';
 
   return (
     <div
@@ -24,12 +27,13 @@ export default function RetainedCardPopup({ card, onClose }) {
     >
       <div
         style={{
-          background: '#fff',
+          background: theme.modalBg,
+          color: theme.modalText,
           borderRadius: '12px',
           padding: '2rem',
           maxWidth: '500px',
           width: '90%',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+          boxShadow: `0 8px 32px ${theme.modalShadow}`
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -52,7 +56,7 @@ export default function RetainedCardPopup({ card, onClose }) {
         {/* Card Content */}
         <div
           style={{
-            background: '#f9f9f9',
+            background: cardInnerBg,
             border: `3px solid ${bgColor}`,
             borderRadius: '8px',
             padding: '1.5rem',
@@ -63,7 +67,7 @@ export default function RetainedCardPopup({ card, onClose }) {
           <h3
             style={{
               margin: '0 0 1rem 0',
-              color: '#333',
+              color: theme.text,
               fontSize: '1.2rem',
               textAlign: 'center'
             }}
@@ -73,7 +77,7 @@ export default function RetainedCardPopup({ card, onClose }) {
           <p
             style={{
               margin: 0,
-              color: '#555',
+              color: theme.textMuted,
               fontSize: '1rem',
               lineHeight: '1.5',
               textAlign: 'center'
