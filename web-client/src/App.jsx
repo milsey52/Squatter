@@ -830,10 +830,10 @@ function App() {
                   <span style={{ fontWeight: "bold" }}>{ram.space_name}</span>
                   {" - "}
                   {ram.owner_game_player_id
-                    ? <span style={{ color: "#4caf50" }}>{game.players?.find(p => p.game_player_id === ram.owner_game_player_id)?.player_name}</span>
-                    : <span style={{ color: "#999" }}>Available (${ram.purchase_price})</span>
+                    ? <span style={{ color: "#66bb6a" }}>{game.players?.find(p => p.game_player_id === ram.owner_game_player_id)?.player_name}</span>
+                    : <span style={{ color: theme.textMuted }}>Available (${ram.purchase_price})</span>
                   }
-                  <span style={{ color: "#666" }}> Fee: ${ram.stud_fee}</span>
+                  <span style={{ color: theme.textMuted }}> Fee: ${ram.stud_fee}</span>
                 </div>
               ))}
             </div>
@@ -844,13 +844,13 @@ function App() {
             <h3 style={{ margin: "0 0 6px", fontSize: "1rem" }}>Ledger</h3>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid #ccc" }}>
+                <tr style={{ borderBottom: `1px solid ${theme.panelBorderStrong}` }}>
                   <th align="left">Type</th><th align="left">Amount</th><th align="left">From</th><th align="left">To</th>
                 </tr>
               </thead>
               <tbody>
                 {ledger.slice(0, 10).map((txn) => (
-                  <tr key={txn.id} style={{ borderBottom: "1px solid #eee" }}>
+                  <tr key={txn.id} style={{ borderBottom: `1px solid ${theme.divider}` }}>
                     <td style={{ padding: "4px 2px" }}>{txn.type}</td>
                     <td style={{ padding: "4px 2px" }}>${txn.amount}</td>
                     <td style={{ padding: "4px 2px" }}>{txn.from}</td>
@@ -866,13 +866,13 @@ function App() {
             <h3 style={{ margin: "0 0 6px", fontSize: "1rem" }}>Dice Rolls</h3>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid #ccc" }}>
+                <tr style={{ borderBottom: `1px solid ${theme.panelBorderStrong}` }}>
                   <th align="left">#</th><th align="left">Who</th><th align="left">Dice</th><th align="left">To</th>
                 </tr>
               </thead>
               <tbody>
                 {diceRolls.map((roll) => (
-                  <tr key={roll.roll_number} style={{ borderBottom: "1px solid #eee" }}>
+                  <tr key={roll.roll_number} style={{ borderBottom: `1px solid ${theme.divider}` }}>
                     <td style={{ padding: "4px 2px" }}>{roll.roll_number}</td>
                     <td style={{ padding: "4px 2px" }}>{roll.player}</td>
                     <td style={{ padding: "4px 2px" }}>{roll.dice1}+{roll.dice2}={roll.total}</td>
