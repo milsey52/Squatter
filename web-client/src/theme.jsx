@@ -91,24 +91,31 @@ export function useTheme() {
 export function ThemeToggle({ style = {} }) {
   const { mode, setMode } = useTheme();
   const isDark = mode === "dark";
+  const labelText = isDark ? "Light theme" : "Dark theme";
   return (
     <button
       onClick={() => setMode(isDark ? "light" : "dark")}
       title={isDark ? "Switch to light theme" : "Switch to dark theme"}
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       style={{
-        padding: "0.4rem 0.7rem",
-        background: isDark ? "#3a3a45" : "#f0f0f0",
-        color: isDark ? "#ffd54f" : "#5a5a60",
-        border: `1px solid ${isDark ? "#55555f" : "#cccccc"}`,
+        padding: "0.5rem 0.9rem",
+        background: isDark ? "#3a3a45" : "#1982c4",
+        color: isDark ? "#ffd54f" : "#ffffff",
+        border: `2px solid ${isDark ? "#ffd54f" : "#1565a0"}`,
         borderRadius: 6,
         cursor: "pointer",
-        fontSize: "1rem",
+        fontSize: "0.95rem",
+        fontWeight: "bold",
         lineHeight: 1,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "0.4rem",
+        boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
         ...style,
       }}
     >
-      {isDark ? "☀" : "☾"}
+      <span style={{ fontSize: "1.1rem" }}>{isDark ? "☀" : "☾"}</span>
+      <span>{labelText}</span>
     </button>
   );
 }
