@@ -19,6 +19,16 @@ export default function HoldingsPanel({ gameId, playerId, refreshKey, onCardClic
 
   if (!holdings) return null;
 
+  const isDark = theme.name === "dark";
+  // Item-row backgrounds for the three section types. Darken slightly on
+  // dark mode so they sit on the panel without bleaching the text.
+  const paddockRowBg = isDark ? "#2a2a33" : "#fafafa";
+  const cardRowBg = isDark ? "#3a2e4d" : "#f5f0e8";
+  const cardRowBorder = isDark ? "#5a4673" : "#d4c5a3";
+  const cardTitleColor = isDark ? "#c9b6e8" : "#6a4c93";
+  const studRowBg = isDark ? "#1f3a2a" : "#e8f5e9";
+  const studRowBorder = isDark ? "#3a6e4f" : "#a5d6a7";
+
   const { cards, stud_rams: studRams, states, paddocks = [] } = holdings;
   const typeColor = { natural: "#8d6e63", improved: "#66bb6a", irrigated: "#42a5f5" };
   const typeLabel = { natural: "Natural", improved: "Improved", irrigated: "Irrigated" };
@@ -78,7 +88,7 @@ export default function HoldingsPanel({ gameId, playerId, refreshKey, onCardClic
 
       {paddocks.length > 0 && (
         <section style={{ marginBottom: "0.8rem" }}>
-          <h3 style={{ margin: "0 0 0.4rem", fontSize: "0.9rem", color: "#555" }}>
+          <h3 style={{ margin: "0 0 0.4rem", fontSize: "0.9rem", color: theme.textMuted }}>
             Paddocks ({totalPens}/{totalCap} pens)
           </h3>
           <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
@@ -86,13 +96,14 @@ export default function HoldingsPanel({ gameId, playerId, refreshKey, onCardClic
               <li key={p.paddock_number} style={{
                 display: "flex", justifyContent: "space-between", alignItems: "center",
                 padding: "4px 8px", marginBottom: 3, borderRadius: 4,
-                background: "#fafafa", borderLeft: `4px solid ${typeColor[p.paddock_type]}`,
+                background: paddockRowBg, color: theme.text,
+                borderLeft: `4px solid ${typeColor[p.paddock_type]}`,
                 opacity: p.is_mortgaged ? 0.55 : 1,
               }}>
                 <span style={{ fontSize: "0.78rem" }}>
                   <strong>#{p.paddock_number}</strong>{" "}
                   <span style={{ color: typeColor[p.paddock_type] }}>{typeLabel[p.paddock_type]}</span>
-                  {p.is_mortgaged && <span style={{ marginLeft: 4, color: "#d32f2f", fontSize: "0.7rem" }}>(mortgaged)</span>}
+                  {p.is_mortgaged && <span style={{ marginLeft: 4, color: "#ef5350", fontSize: "0.7rem" }}>(mortgaged)</span>}
                 </span>
                 <span style={{ fontSize: "0.78rem", fontFamily: "monospace" }}>
                   {p.sheep_pens}/{p.max_pens}
@@ -104,11 +115,11 @@ export default function HoldingsPanel({ gameId, playerId, refreshKey, onCardClic
       )}
 
       <section style={{ marginBottom: "0.8rem" }}>
-        <h3 style={{ margin: "0 0 0.4rem", fontSize: "0.9rem", color: "#555" }}>
+        <h3 style={{ margin: "0 0 0.4rem", fontSize: "0.9rem", color: theme.textMuted }}>
           Cards ({cards.length})
         </h3>
         {cards.length === 0 ? (
-          <p style={{ margin: 0, fontSize: "0.8rem", color: "#888" }}>None</p>
+          <p style={{ margin: 0, fontSize: "0.8rem", color: theme.textSubtle }}>None</p>
         ) : (
           <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
             {cards.map((c) => (
@@ -119,15 +130,15 @@ export default function HoldingsPanel({ gameId, playerId, refreshKey, onCardClic
                   marginBottom: 6,
                   padding: "8px 10px",
                   borderRadius: 6,
-                  background: "#f5f0e8",
-                  border: "1px solid #d4c5a3",
+                  background: cardRowBg,
+                  border: `1px solid ${cardRowBorder}`,
                   cursor: onCardClick ? "pointer" : "default",
                 }}
               >
-                <div style={{ fontWeight: "bold", fontSize: "0.85rem", color: "#6a4c93" }}>
+                <div style={{ fontWeight: "bold", fontSize: "0.85rem", color: cardTitleColor }}>
                   {c.title}
                 </div>
-                <div style={{ fontSize: "0.7rem", color: "#666", marginTop: 2 }}>
+                <div style={{ fontSize: "0.7rem", color: theme.textMuted, marginTop: 2 }}>
                   {c.deck_type === "tucker_bag" ? "Tucker Bag" : "Expense Immunity"}
                 </div>
               </li>
@@ -137,11 +148,11 @@ export default function HoldingsPanel({ gameId, playerId, refreshKey, onCardClic
       </section>
 
       <section style={{ marginBottom: "0.8rem" }}>
-        <h3 style={{ margin: "0 0 0.4rem", fontSize: "0.9rem", color: "#555" }}>
+        <h3 style={{ margin: "0 0 0.4rem", fontSize: "0.9rem", color: theme.textMuted }}>
           Stud Rams ({studRams.length})
         </h3>
         {studRams.length === 0 ? (
-          <p style={{ margin: 0, fontSize: "0.8rem", color: "#888" }}>None</p>
+          <p style={{ margin: 0, fontSize: "0.8rem", color: theme.textSubtle }}>None</p>
         ) : (
           <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
             {studRams.map((r) => (
@@ -151,12 +162,13 @@ export default function HoldingsPanel({ gameId, playerId, refreshKey, onCardClic
                   marginBottom: 6,
                   padding: "8px 10px",
                   borderRadius: 6,
-                  background: "#e8f5e9",
-                  border: "1px solid #a5d6a7",
+                  background: studRowBg,
+                  color: theme.text,
+                  border: `1px solid ${studRowBorder}`,
                 }}
               >
                 <div style={{ fontWeight: "bold", fontSize: "0.85rem" }}>{r.space_name}</div>
-                <div style={{ fontSize: "0.7rem", color: "#666" }}>
+                <div style={{ fontSize: "0.7rem", color: theme.textMuted }}>
                   Stud fee: ${r.stud_fee}
                 </div>
               </li>
@@ -167,7 +179,7 @@ export default function HoldingsPanel({ gameId, playerId, refreshKey, onCardClic
 
       {stateBadges.length > 0 && (
         <section>
-          <h3 style={{ margin: "0 0 0.4rem", fontSize: "0.9rem", color: "#555" }}>
+          <h3 style={{ margin: "0 0 0.4rem", fontSize: "0.9rem", color: theme.textMuted }}>
             Status
           </h3>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
