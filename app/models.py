@@ -57,6 +57,9 @@ class GameRule(Base):
     starting_paddock_type = Column(String, nullable=False, default="natural")
     allow_trading = Column(Boolean, nullable=False, default=True)
     notes = Column(Text)
+    # How long an AI-owned modal sits on humans' screens before the AI
+    # dismisses it. 1-10s; host adjustable via the Settings modal.
+    ai_reaction_time_seconds = Column(Integer, nullable=False, default=4)
 
     game = relationship("Game", back_populates="game_rules")
 

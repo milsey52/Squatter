@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useGameEvents } from '../hooks/useGameEvents';
 import { QRCodeSVG } from 'qrcode.react';
 import TurnOrderRoll from './TurnOrderRoll';
-import { useTheme, ThemeToggle } from '../theme';
+import { useTheme } from '../theme';
+import SettingsModal, { SettingsButton } from './SettingsModal';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -20,6 +21,20 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
   const [aiName, setAiName] = useState('');
   const [aiDifficulty, setAiDifficulty] = useState('easy');
   const [addingAI, setAddingAI] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [aiReactionSeconds, setAiReactionSeconds] = useState(4);
+
+  // Pull AI reaction time from the game's rules so Settings reflects current state.
+  useEffect(() => {
+    if (!gameId) return;
+    fetch(`${API_BASE}/games/${gameId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const s = d?.game_rules?.ai_reaction_time_seconds;
+        if (typeof s === 'number') setAiReactionSeconds(s);
+      })
+      .catch(() => { /* ignore */ });
+  }, [gameId, showSettings]);
 
   const fetchLobbyStatus = useCallback(async () => {
     if (!gameId || !sessionToken) {
@@ -236,8 +251,18 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
         position: 'relative'
       }}>
         <div style={{ position: 'absolute', top: '1rem', right: '1rem' }}>
-          <ThemeToggle />
+          <SettingsButton onClick={() => setShowSettings(true)} />
         </div>
+        {showSettings && (
+          <SettingsModal
+            gameId={gameId}
+            sessionToken={sessionToken}
+            isHost={isHost}
+            aiReactionTimeSeconds={aiReactionSeconds}
+            onClose={() => setShowSettings(false)}
+            onSettingsChanged={() => { /* refetch on next render via effect */ }}
+          />
+        )}
         <h1 style={{ margin: '0 0 0.5rem 0', textAlign: 'center', color: theme.text }}>
           Game Lobby
         </h1>

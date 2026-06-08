@@ -29,9 +29,8 @@ from app.api.routes import events
 
 POLL_INTERVAL_SECONDS = 3.0
 ERROR_BACKOFF_SECONDS = 5.0
-# How long to let an AI-owned pending sit on humans' screens (card popup,
-# wool-cheque breakdown, drought effect, etc.) before the AI clicks OK.
-DISPLAY_DELAY_SECONDS = 4.0
+# Default fallback when game_rules.ai_reaction_time_seconds is missing.
+DEFAULT_DISPLAY_DELAY_SECONDS = 4.0
 
 
 async def run_autopilot():
@@ -70,7 +69,12 @@ async def _drive_one_game(game_id: int):
     # session only for the scan, then release it so we don't block other
     # requests during the display-delay sleep.
     action = None  # ('pending', ai_id, pending_id, action_type) | ('roll', ai_id) | ('order_roll', event_payload)
+    display_delay = DEFAULT_DISPLAY_DELAY_SECONDS
     with SessionLocal() as session:
+        # Per-game AI reaction time (host-adjustable).
+        rules = session.query(models.GameRule).filter_by(game_id=game_id).first()
+        if rules and rules.ai_reaction_time_seconds:
+            display_delay = float(rules.ai_reaction_time_seconds)
         game = session.query(models.Game).filter_by(game_id=game_id).first()
         if not game:
             return
@@ -130,7 +134,7 @@ async def _drive_one_game(game_id: int):
         return
 
     # Step 2: pace the action so humans can read what's happening.
-    await asyncio.sleep(DISPLAY_DELAY_SECONDS)
+    await asyncio.sleep(display_delay)
 
     # Step 3: take the action with a fresh session.
     if action[0] == "pending":

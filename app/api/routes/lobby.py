@@ -35,6 +35,10 @@ class AddAIRequest(BaseModel):
     difficulty: str  # 'easy' | 'medium' | 'hard'
 
 
+class AIReactionTimeRequest(BaseModel):
+    seconds: int  # 1-10
+
+
 class GameCreatedResponse(BaseModel):
     game_id: int
     game_code: str
@@ -345,6 +349,40 @@ async def set_ready_status(
     )
 
     return {"success": True, "is_ready": player.is_ready}
+
+
+@router.post("/{game_id}/settings/ai-reaction-time")
+async def set_ai_reaction_time(
+    game_id: int,
+    request: AIReactionTimeRequest,
+    auth_data: tuple[int, int] = Depends(auth.verify_session_token),
+    session: Session = Depends(deps.get_session)
+):
+    """Host adjusts how long an AI-owned modal lingers before the AI
+    dismisses it (1-10 seconds). Stored on game_rules so the autopilot
+    picks it up per-game."""
+    user_id, token_game_id = auth_data
+    if token_game_id != game_id:
+        raise HTTPException(status_code=403, detail="Session token is for a different game")
+    game = deps.get_game_or_404(game_id, session)
+    if game.host_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Only the host can change this setting")
+
+    seconds = int(request.seconds)
+    if seconds < 1 or seconds > 10:
+        raise HTTPException(status_code=400, detail="seconds must be between 1 and 10")
+
+    rules = session.query(models.GameRule).filter_by(game_id=game_id).first()
+    if rules is None:
+        raise HTTPException(status_code=404, detail="Game rules not found")
+    rules.ai_reaction_time_seconds = seconds
+    session.commit()
+
+    await events.broadcast_game_event(
+        game_id, "game_state_changed",
+        {"reason": "ai_reaction_time_updated", "seconds": seconds}
+    )
+    return {"success": True, "seconds": seconds}
 
 
 @router.post("/{game_id}/lobby/add-ai")

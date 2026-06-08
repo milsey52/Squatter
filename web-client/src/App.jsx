@@ -11,7 +11,8 @@ import PendingActionModal from "./components/PendingActionModal";
 import PlayerStationModal from "./components/PlayerStationModal";
 import { useGameEvents } from "./hooks/useGameEvents";
 import { Z_INDEX } from "./constants/zIndex";
-import { useTheme, ThemeToggle } from "./theme";
+import { useTheme } from "./theme";
+import SettingsModal, { SettingsButton } from "./components/SettingsModal";
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -57,6 +58,7 @@ function App() {
   const [showStationPanel, setShowStationPanel] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
   const [viewingPlayerId, setViewingPlayerId] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
   const [holdingsRefreshKey, setHoldingsRefreshKey] = useState(0);
   const [activeTrade, setActiveTrade] = useState(null);
   const [gameOver, setGameOver] = useState(false);
@@ -405,19 +407,29 @@ function App() {
   return (
     <div style={{ padding: "0.5rem 1rem", fontFamily: "sans-serif", position: "relative",
                   background: theme.pageBg, color: theme.text, minHeight: "100vh" }}>
-      {/* Top-right controls: Theme toggle + Logout */}
+      {/* Top-right controls: Settings + Logout */}
       <div style={{
         position: "fixed", top: "1rem", right: "1rem",
         display: "flex", gap: "0.5rem", alignItems: "center",
         zIndex: Z_INDEX.LOGOUT_BUTTON
       }}>
-        <ThemeToggle />
+        <SettingsButton onClick={() => setShowSettings(true)} />
         <button onClick={handleLogout} style={{
           padding: "0.6rem 1.2rem", background: "#dc3545", color: "white",
           border: "none", borderRadius: "8px", fontSize: "0.9rem", fontWeight: "bold",
           cursor: "pointer",
         }}>Logout</button>
       </div>
+      {showSettings && (
+        <SettingsModal
+          gameId={gameId}
+          sessionToken={sessionToken}
+          isHost={isHost}
+          aiReactionTimeSeconds={game?.game_rules?.ai_reaction_time_seconds ?? 4}
+          onClose={() => setShowSettings(false)}
+          onSettingsChanged={fetchGameState}
+        />
+      )}
 
       {/* Suspended Notice */}
       {game.status === 'suspended' && (

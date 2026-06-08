@@ -27,6 +27,8 @@ STATEMENTS = [
     "ADD COLUMN IF NOT EXISTS is_ai BOOLEAN NOT NULL DEFAULT false",
     "ALTER TABLE game_players "
     "ADD COLUMN IF NOT EXISTS ai_difficulty VARCHAR",
+    "ALTER TABLE game_rules "
+    "ADD COLUMN IF NOT EXISTS ai_reaction_time_seconds INTEGER NOT NULL DEFAULT 4",
     # Legacy in-flight restock blocks (rows existing before the scope column
     # was added) default to 'irrigated' since the only path that left them
     # in production testing was Bore Dries Up. Idempotent — once scope is

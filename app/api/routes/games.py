@@ -39,7 +39,9 @@ def get_game(game_id: int, session: Session = Depends(get_session)):
             "starting_cash": rules.starting_cash if rules else 2000,
             "quick_game": rules.quick_game if rules else False,
             "allow_trading": rules.allow_trading if rules else True,
+            "ai_reaction_time_seconds": rules.ai_reaction_time_seconds if rules else 4,
         } if rules else None,
+        "host_user_id": game.host_user_id,
         "players": [
             {
                 "game_player_id": p.game_player_id,
