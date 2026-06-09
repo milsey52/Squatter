@@ -157,6 +157,64 @@ STATEMENTS = [
         WHERE notes = 'Retroactive High Stock Prices +20% correction (5 pens sale)'
     )
     """,
+    # One-off retroactive drought application: Max in game GEG2LA drew the
+    # Local Drought Tucker Bag card before commit 3c1c725, when the
+    # dispatcher couldn't find _effect_drought_local (renamed but the
+    # method wasn't). Card silently no-op'd; is_in_drought stayed false.
+    # Re-apply drought now if he's still in that game, isn't already in
+    # drought, owns at least one non-irrigated paddock, and we haven't
+    # already done this fix. Half-stock-sale is skipped because his
+    # improved paddocks were unstocked at the time (and stocked irrigated
+    # is rule-exempt).
+    """
+    DO $$
+    DECLARE
+      v_game_id INT;
+      v_player_id INT;
+      v_current_space INT;
+    BEGIN
+      SELECT game_id INTO v_game_id FROM games WHERE game_code = 'GEG2LA';
+      IF v_game_id IS NULL THEN RETURN; END IF;
+
+      SELECT game_player_id, current_space_id
+        INTO v_player_id, v_current_space
+      FROM game_players
+      WHERE game_id = v_game_id AND player_name = 'Max';
+      IF v_player_id IS NULL THEN RETURN; END IF;
+
+      IF EXISTS (
+        SELECT 1 FROM transactions
+        WHERE game_id = v_game_id
+          AND notes = 'Retroactive drought apply for Max (DROUGHT_LOCAL handler bug)'
+      ) THEN RETURN; END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM paddocks
+        WHERE game_id = v_game_id
+          AND owner_game_player_id = v_player_id
+          AND paddock_type IN ('natural','improved')
+      ) THEN RETURN; END IF;
+
+      IF EXISTS (
+        SELECT 1 FROM game_players
+        WHERE game_player_id = v_player_id AND is_in_drought = true
+      ) THEN RETURN; END IF;
+
+      UPDATE game_players SET
+        is_in_drought = true,
+        drought_spaces_remaining = 44,
+        drought_start_space = v_current_space
+      WHERE game_player_id = v_player_id;
+
+      INSERT INTO transactions (
+        game_id, player_from_id, player_to_id, amount,
+        transaction_type, notes, created_at
+      ) VALUES (
+        v_game_id, NULL, v_player_id, 0, 'admin_fix',
+        'Retroactive drought apply for Max (DROUGHT_LOCAL handler bug)', NOW()
+      );
+    END $$;
+    """,
 ]
 
 
