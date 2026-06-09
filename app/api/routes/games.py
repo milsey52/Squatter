@@ -204,6 +204,7 @@ def get_player_holdings(game_id: int, player_id: int, session: Session = Depends
             "drought_spaces_remaining": player.drought_spaces_remaining,
             "restock_blocked_until_circuit": player.restock_blocked_until_circuit,
             "restock_block_spaces_remaining": player.restock_block_spaces_remaining,
+            "restock_block_scope": player.restock_block_scope,
             "next_drought_halved": player.next_drought_halved,
             "next_sell_price_modifier": player.next_sell_price_modifier,
             "wool_cheque_bonus": player.wool_cheque_bonus,

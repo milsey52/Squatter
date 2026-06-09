@@ -92,24 +92,54 @@ export default function HoldingsPanel({ gameId, playerId, refreshKey, onCardClic
             Paddocks ({totalPens}/{totalCap} pens)
           </h3>
           <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-            {paddocks.map((p) => (
-              <li key={p.paddock_number} style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "4px 8px", marginBottom: 3, borderRadius: 4,
-                background: paddockRowBg, color: theme.text,
-                borderLeft: `4px solid ${typeColor[p.paddock_type]}`,
-                opacity: p.is_mortgaged ? 0.55 : 1,
-              }}>
-                <span style={{ fontSize: "0.78rem" }}>
-                  <strong>#{p.paddock_number}</strong>{" "}
-                  <span style={{ color: typeColor[p.paddock_type] }}>{typeLabel[p.paddock_type]}</span>
-                  {p.is_mortgaged && <span style={{ marginLeft: 4, color: "#ef5350", fontSize: "0.7rem" }}>(mortgaged)</span>}
-                </span>
-                <span style={{ fontSize: "0.78rem", fontFamily: "monospace" }}>
-                  {p.sheep_pens}/{p.max_pens}
-                </span>
-              </li>
-            ))}
+            {paddocks.map((p) => {
+              // Drought locks Natural/Improved restocking until the player
+              // completes a full circuit. Bore Dries Up (restock_block_scope
+              // === 'irrigated') locks Irrigated. Surface the lock per row.
+              const droughtLocked = states.is_in_drought
+                && (p.paddock_type === "natural" || p.paddock_type === "improved");
+              const boreLocked = states.restock_blocked_until_circuit
+                && states.restock_block_scope === "irrigated"
+                && p.paddock_type === "irrigated";
+              const fullLocked = states.restock_blocked_until_circuit
+                && states.restock_block_scope === "all";
+              const locked = droughtLocked || boreLocked || fullLocked;
+              const lockReason = droughtLocked
+                ? `Drought — restock blocked${states.drought_spaces_remaining ? ` (${states.drought_spaces_remaining} spaces left)` : ''}`
+                : boreLocked
+                  ? `Bore Dries Up — Irrigated restock blocked${states.restock_block_spaces_remaining ? ` (${states.restock_block_spaces_remaining} spaces left)` : ''}`
+                  : fullLocked
+                    ? `Restock blocked${states.restock_block_spaces_remaining ? ` (${states.restock_block_spaces_remaining} spaces left)` : ''}`
+                    : null;
+              return (
+                <li key={p.paddock_number} style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "4px 8px", marginBottom: 3, borderRadius: 4,
+                  background: paddockRowBg, color: theme.text,
+                  borderLeft: `4px solid ${typeColor[p.paddock_type]}`,
+                  opacity: p.is_mortgaged ? 0.55 : 1,
+                }}>
+                  <span style={{ fontSize: "0.78rem", display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                    <strong>#{p.paddock_number}</strong>{" "}
+                    <span style={{ color: typeColor[p.paddock_type] }}>{typeLabel[p.paddock_type]}</span>
+                    {p.is_mortgaged && <span style={{ color: "#ef5350", fontSize: "0.7rem" }}>(mortgaged)</span>}
+                    {locked && (
+                      <span title={lockReason} style={{
+                        fontSize: "0.65rem", fontWeight: "bold",
+                        padding: "1px 5px", borderRadius: 3,
+                        background: "#d32f2f", color: "#fff",
+                        letterSpacing: 0.3,
+                      }}>
+                        🚫 {droughtLocked ? "DROUGHT" : boreLocked ? "BORE" : "BLOCKED"}
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ fontSize: "0.78rem", fontFamily: "monospace" }}>
+                    {p.sheep_pens}/{p.max_pens}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
