@@ -8,173 +8,173 @@
 <text x="565" y="155" font-family="Arial" font-size="22" font-weight="bold" fill="#795548" text-anchor="middle">SPRING</text>
 <text x="920" y="565" font-family="Arial" font-size="22" font-weight="bold" fill="#795548" text-anchor="middle" transform="rotate(90 920 565)">SUMMER</text>
 <rect x="1040" y="1040" width="90" height="90" fill="#E8F5E9" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="1044" y="1051" font-family="Arial" font-size="10" fill="#aaa">0</text>
+<text x="1044" y="1051" font-family="Arial" font-size="13" font-weight="bold" fill="#555">0</text>
 <text x="1085" y="1082" font-family="Arial" font-size="13" font-weight="bold" fill="#2E7D32" text-anchor="middle">Start/Wool</text>
 <text x="1085" y="1095" font-family="Arial" font-size="13" font-weight="bold" fill="#2E7D32" text-anchor="middle">Sale</text>
 <rect x="950" y="1040" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="954" y="1051" font-family="Arial" font-size="10" fill="#aaa">1</text>
+<text x="954" y="1051" font-family="Arial" font-size="13" font-weight="bold" fill="#555">1</text>
 <text x="995" y="1088" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
 <rect x="860" y="1040" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="864" y="1051" font-family="Arial" font-size="10" fill="#aaa">2</text>
+<text x="864" y="1051" font-family="Arial" font-size="13" font-weight="bold" fill="#555">2</text>
 <text x="905" y="1082" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Sheep</text>
 <text x="905" y="1095" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Dipping</text>
 <text x="905" y="1124" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$10/pen</text>
 <rect x="770" y="1040" width="90" height="90" fill="#FFF8E1" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="774" y="1051" font-family="Arial" font-size="10" fill="#aaa">3</text>
+<text x="774" y="1051" font-family="Arial" font-size="13" font-weight="bold" fill="#555">3</text>
 <text x="815" y="1088" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">Elmsford</text>
 <text x="815" y="1124" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">Buy $500</text>
 <rect x="680" y="1040" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="684" y="1051" font-family="Arial" font-size="10" fill="#aaa">4</text>
+<text x="684" y="1051" font-family="Arial" font-size="13" font-weight="bold" fill="#555">4</text>
 <text x="725" y="1088" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
 <rect x="590" y="1040" width="90" height="90" fill="#EFEBE9" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="594" y="1051" font-family="Arial" font-size="10" fill="#aaa">5</text>
+<text x="594" y="1051" font-family="Arial" font-size="13" font-weight="bold" fill="#555">5</text>
 <text x="635" y="1082" font-family="Arial" font-size="13" font-weight="bold" fill="#4E342E" text-anchor="middle">Bore Dries</text>
 <text x="635" y="1095" font-family="Arial" font-size="13" font-weight="bold" fill="#4E342E" text-anchor="middle">Up</text>
 <rect x="500" y="1040" width="90" height="90" fill="#E3F2FD" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="504" y="1051" font-family="Arial" font-size="10" fill="#aaa">6</text>
+<text x="504" y="1051" font-family="Arial" font-size="13" font-weight="bold" fill="#555">6</text>
 <text x="545" y="1082" font-family="Arial" font-size="13" font-weight="bold" fill="#1565C0" text-anchor="middle">Visiting</text>
 <text x="545" y="1095" font-family="Arial" font-size="13" font-weight="bold" fill="#1565C0" text-anchor="middle">Town</text>
 <rect x="410" y="1040" width="90" height="90" fill="#E3F2FD" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="414" y="1051" font-family="Arial" font-size="10" fill="#aaa">7</text>
+<text x="414" y="1051" font-family="Arial" font-size="13" font-weight="bold" fill="#555">7</text>
 <text x="455" y="1082" font-family="Arial" font-size="13" font-weight="bold" fill="#1565C0" text-anchor="middle">Visiting</text>
 <text x="455" y="1095" font-family="Arial" font-size="13" font-weight="bold" fill="#1565C0" text-anchor="middle">Town</text>
 <rect x="320" y="1040" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="324" y="1051" font-family="Arial" font-size="10" fill="#aaa">8</text>
+<text x="324" y="1051" font-family="Arial" font-size="13" font-weight="bold" fill="#555">8</text>
 <text x="365" y="1088" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Worm Drench</text>
 <text x="365" y="1124" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$10/pen</text>
 <rect x="230" y="1040" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="234" y="1051" font-family="Arial" font-size="10" fill="#aaa">9</text>
+<text x="234" y="1051" font-family="Arial" font-size="13" font-weight="bold" fill="#555">9</text>
 <text x="275" y="1088" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
 <rect x="140" y="1040" width="90" height="90" fill="#E8EAF6" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="144" y="1051" font-family="Arial" font-size="10" fill="#aaa">10</text>
+<text x="144" y="1051" font-family="Arial" font-size="13" font-weight="bold" fill="#555">10</text>
 <text x="185" y="1082" font-family="Arial" font-size="13" font-weight="bold" fill="#283593" text-anchor="middle">Flood</text>
 <text x="185" y="1095" font-family="Arial" font-size="13" font-weight="bold" fill="#283593" text-anchor="middle">Damage</text>
 <rect x="50" y="1040" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="54" y="1051" font-family="Arial" font-size="10" fill="#aaa">11</text>
+<text x="54" y="1051" font-family="Arial" font-size="13" font-weight="bold" fill="#555">11</text>
 <text x="95" y="1088" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
 <rect x="50" y="950" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="54" y="961" font-family="Arial" font-size="10" fill="#aaa">12</text>
+<text x="54" y="961" font-family="Arial" font-size="13" font-weight="bold" fill="#555">12</text>
 <text x="95" y="998" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
 <rect x="50" y="860" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="54" y="871" font-family="Arial" font-size="10" fill="#aaa">13</text>
+<text x="54" y="871" font-family="Arial" font-size="13" font-weight="bold" fill="#555">13</text>
 <text x="95" y="908" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Shearing</text>
 <text x="95" y="944" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$20/pen</text>
 <rect x="50" y="770" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="54" y="781" font-family="Arial" font-size="10" fill="#aaa">14</text>
+<text x="54" y="781" font-family="Arial" font-size="13" font-weight="bold" fill="#555">14</text>
 <text x="95" y="812" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Vermin</text>
 <text x="95" y="825" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Control</text>
 <text x="95" y="854" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$50</text>
 <rect x="50" y="680" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="54" y="691" font-family="Arial" font-size="10" fill="#aaa">15</text>
+<text x="54" y="691" font-family="Arial" font-size="13" font-weight="bold" fill="#555">15</text>
 <text x="95" y="728" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
 <rect x="50" y="590" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="54" y="601" font-family="Arial" font-size="10" fill="#aaa">16</text>
+<text x="54" y="601" font-family="Arial" font-size="13" font-weight="bold" fill="#555">16</text>
 <text x="95" y="638" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Footrot</text>
 <text x="95" y="674" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$20/pen</text>
 <rect x="50" y="500" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="54" y="511" font-family="Arial" font-size="10" fill="#aaa">17</text>
+<text x="54" y="511" font-family="Arial" font-size="13" font-weight="bold" fill="#555">17</text>
 <text x="95" y="548" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
 <rect x="50" y="410" width="90" height="90" fill="#FFF8E1" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="54" y="421" font-family="Arial" font-size="10" fill="#aaa">18</text>
+<text x="54" y="421" font-family="Arial" font-size="13" font-weight="bold" fill="#555">18</text>
 <text x="95" y="458" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">Lachlan Lad</text>
 <text x="95" y="494" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">Buy $500</text>
 <rect x="50" y="320" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="54" y="331" font-family="Arial" font-size="10" fill="#aaa">19</text>
+<text x="54" y="331" font-family="Arial" font-size="13" font-weight="bold" fill="#555">19</text>
 <text x="95" y="368" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
 <rect x="50" y="230" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="54" y="241" font-family="Arial" font-size="10" fill="#aaa">20</text>
+<text x="54" y="241" font-family="Arial" font-size="13" font-weight="bold" fill="#555">20</text>
 <text x="95" y="272" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Fencing</text>
 <text x="95" y="285" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Repairs</text>
 <text x="95" y="314" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$500</text>
 <rect x="50" y="140" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="54" y="151" font-family="Arial" font-size="10" fill="#aaa">21</text>
+<text x="54" y="151" font-family="Arial" font-size="13" font-weight="bold" fill="#555">21</text>
 <text x="95" y="188" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Spray Weeds</text>
 <rect x="50" y="50" width="90" height="90" fill="#FBE9E7" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="54" y="61" font-family="Arial" font-size="10" fill="#aaa">22</text>
+<text x="54" y="61" font-family="Arial" font-size="13" font-weight="bold" fill="#555">22</text>
 <text x="95" y="92" font-family="Arial" font-size="13" font-weight="bold" fill="#BF360C" text-anchor="middle">Local</text>
 <text x="95" y="105" font-family="Arial" font-size="13" font-weight="bold" fill="#BF360C" text-anchor="middle">Drought</text>
 <rect x="140" y="50" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="144" y="61" font-family="Arial" font-size="10" fill="#aaa">23</text>
+<text x="144" y="61" font-family="Arial" font-size="13" font-weight="bold" fill="#555">23</text>
 <text x="185" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Liver Fluke</text>
 <text x="185" y="134" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$10/pen</text>
 <rect x="230" y="50" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="234" y="61" font-family="Arial" font-size="10" fill="#aaa">24</text>
+<text x="234" y="61" font-family="Arial" font-size="13" font-weight="bold" fill="#555">24</text>
 <text x="275" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
 <rect x="320" y="50" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="324" y="61" font-family="Arial" font-size="10" fill="#aaa">25</text>
+<text x="324" y="61" font-family="Arial" font-size="13" font-weight="bold" fill="#555">25</text>
 <text x="365" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
 <rect x="410" y="50" width="90" height="90" fill="#FFF8E1" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="414" y="61" font-family="Arial" font-size="10" fill="#aaa">26</text>
+<text x="414" y="61" font-family="Arial" font-size="13" font-weight="bold" fill="#555">26</text>
 <text x="455" y="92" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">King of</text>
 <text x="455" y="105" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">Warramboo</text>
 <text x="455" y="134" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">Buy $500</text>
 <rect x="500" y="50" width="90" height="90" fill="#E0F7FA" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="504" y="61" font-family="Arial" font-size="10" fill="#aaa">27</text>
+<text x="504" y="61" font-family="Arial" font-size="13" font-weight="bold" fill="#555">27</text>
 <text x="545" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#00695C" text-anchor="middle">Local Rain</text>
 <rect x="590" y="50" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="594" y="61" font-family="Arial" font-size="10" fill="#aaa">28</text>
+<text x="594" y="61" font-family="Arial" font-size="13" font-weight="bold" fill="#555">28</text>
 <text x="635" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
 <rect x="680" y="50" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="684" y="61" font-family="Arial" font-size="10" fill="#aaa">29</text>
+<text x="684" y="61" font-family="Arial" font-size="13" font-weight="bold" fill="#555">29</text>
 <text x="725" y="92" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Pulpy</text>
 <text x="725" y="105" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Kidney</text>
 <text x="725" y="134" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$20/pen</text>
 <rect x="770" y="50" width="90" height="90" fill="#FFF8E1" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="774" y="61" font-family="Arial" font-size="10" fill="#aaa">30</text>
+<text x="774" y="61" font-family="Arial" font-size="13" font-weight="bold" fill="#555">30</text>
 <text x="815" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">Winton Boy</text>
 <text x="815" y="134" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">Buy $500</text>
 <rect x="860" y="50" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="864" y="61" font-family="Arial" font-size="10" fill="#aaa">31</text>
+<text x="864" y="61" font-family="Arial" font-size="13" font-weight="bold" fill="#555">31</text>
 <text x="905" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
 <rect x="950" y="50" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="954" y="61" font-family="Arial" font-size="10" fill="#aaa">32</text>
+<text x="954" y="61" font-family="Arial" font-size="13" font-weight="bold" fill="#555">32</text>
 <text x="995" y="98" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
 <rect x="1040" y="50" width="90" height="90" fill="#FCE4EC" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="1044" y="61" font-family="Arial" font-size="10" fill="#aaa">33</text>
+<text x="1044" y="61" font-family="Arial" font-size="13" font-weight="bold" fill="#555">33</text>
 <text x="1085" y="92" font-family="Arial" font-size="13" font-weight="bold" fill="#880E4F" text-anchor="middle">Stud Ram</text>
 <text x="1085" y="105" font-family="Arial" font-size="13" font-weight="bold" fill="#880E4F" text-anchor="middle">Dies</text>
 <rect x="1040" y="140" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="1044" y="151" font-family="Arial" font-size="10" fill="#aaa">34</text>
+<text x="1044" y="151" font-family="Arial" font-size="13" font-weight="bold" fill="#555">34</text>
 <text x="1085" y="182" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Water</text>
 <text x="1085" y="195" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Drilling</text>
 <text x="1085" y="224" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$300</text>
 <rect x="1040" y="230" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="1044" y="241" font-family="Arial" font-size="10" fill="#aaa">35</text>
+<text x="1044" y="241" font-family="Arial" font-size="13" font-weight="bold" fill="#555">35</text>
 <text x="1085" y="278" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
 <rect x="1040" y="320" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="1044" y="331" font-family="Arial" font-size="10" fill="#aaa">36</text>
+<text x="1044" y="331" font-family="Arial" font-size="13" font-weight="bold" fill="#555">36</text>
 <text x="1085" y="368" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
 <rect x="1040" y="410" width="90" height="90" fill="#F1F8E9" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
 <rect x="1040" y="410" width="90" height="7" fill="#7CB342" rx="3" ry="0"/>
-<text x="1044" y="421" font-family="Arial" font-size="10" fill="#aaa">37</text>
+<text x="1044" y="421" font-family="Arial" font-size="13" font-weight="bold" fill="#555">37</text>
 <text x="1085" y="452" font-family="Arial" font-size="13" font-weight="bold" fill="#33691E" text-anchor="middle">Fertilising</text>
 <text x="1085" y="465" font-family="Arial" font-size="13" font-weight="bold" fill="#33691E" text-anchor="middle">Pasture</text>
 <rect x="1040" y="500" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
 <rect x="1040" y="500" width="90" height="7" fill="#7CB342" rx="3" ry="0"/>
-<text x="1044" y="511" font-family="Arial" font-size="10" fill="#aaa">38</text>
+<text x="1044" y="511" font-family="Arial" font-size="13" font-weight="bold" fill="#555">38</text>
 <text x="1085" y="548" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
 <rect x="1040" y="590" width="90" height="90" fill="#FFF8E1" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
 <rect x="1040" y="590" width="90" height="7" fill="#7CB342" rx="3" ry="0"/>
-<text x="1044" y="601" font-family="Arial" font-size="10" fill="#aaa">39</text>
+<text x="1044" y="601" font-family="Arial" font-size="13" font-weight="bold" fill="#555">39</text>
 <text x="1085" y="632" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">Mitchell’s</text>
 <text x="1085" y="645" font-family="Arial" font-size="13" font-weight="bold" fill="#F57F17" text-anchor="middle">Pride</text>
 <text x="1085" y="674" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">Buy $500</text>
 <rect x="1040" y="680" width="90" height="90" fill="#FFFFFF" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
 <rect x="1040" y="680" width="90" height="7" fill="#7CB342" rx="3" ry="0"/>
-<text x="1044" y="691" font-family="Arial" font-size="10" fill="#aaa">40</text>
+<text x="1044" y="691" font-family="Arial" font-size="13" font-weight="bold" fill="#555">40</text>
 <text x="1085" y="722" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Fly Strike</text>
 <text x="1085" y="735" font-family="Arial" font-size="13" font-weight="bold" fill="#333333" text-anchor="middle">Dip</text>
 <text x="1085" y="764" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">$5/pen</text>
 <rect x="1040" y="770" width="90" height="90" fill="#F3E5F5" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
 <rect x="1040" y="770" width="90" height="7" fill="#7CB342" rx="3" ry="0"/>
-<text x="1044" y="781" font-family="Arial" font-size="10" fill="#aaa">41</text>
+<text x="1044" y="781" font-family="Arial" font-size="13" font-weight="bold" fill="#555">41</text>
 <text x="1085" y="818" font-family="Arial" font-size="13" font-weight="bold" fill="#6A1B9A" text-anchor="middle">Tucker Bag</text>
 <rect x="1040" y="860" width="90" height="90" fill="#FFF3E0" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
 <rect x="1040" y="860" width="90" height="7" fill="#7CB342" rx="3" ry="0"/>
-<text x="1044" y="871" font-family="Arial" font-size="10" fill="#aaa">42</text>
+<text x="1044" y="871" font-family="Arial" font-size="13" font-weight="bold" fill="#555">42</text>
 <text x="1085" y="908" font-family="Arial" font-size="13" font-weight="bold" fill="#E65100" text-anchor="middle">Stock Sale</text>
 <rect x="1040" y="950" width="90" height="90" fill="#FBE9E7" stroke="#666" stroke-width="1.5" rx="3" ry="3"/>
-<text x="1044" y="961" font-family="Arial" font-size="10" fill="#aaa">43</text>
+<text x="1044" y="961" font-family="Arial" font-size="13" font-weight="bold" fill="#555">43</text>
 <text x="1085" y="992" font-family="Arial" font-size="13" font-weight="bold" fill="#BF360C" text-anchor="middle">Local</text>
 <text x="1085" y="1005" font-family="Arial" font-size="13" font-weight="bold" fill="#BF360C" text-anchor="middle">Drought</text>
 </svg>
