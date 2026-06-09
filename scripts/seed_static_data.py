@@ -354,7 +354,7 @@ def seed_tucker_bag_cards(session):
         },
         {
             "title": "Drought",
-            "effect_code": "DROUGHT",
+            "effect_code": "DROUGHT_LOCAL",
             "effect_params": {},
             "is_retainable": False,
         },

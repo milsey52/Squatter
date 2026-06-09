@@ -717,7 +717,7 @@ class DecisionService:
         # so create a drought_effect pending and let the existing renderer
         # (board overlay if haystack drew a Stock Sale card; centred modal
         # otherwise) display the breakdown.
-        if card.effect_code == "DROUGHT":
+        if card.effect_code == "DROUGHT_LOCAL":
             self._create_pending_action_raw(pending.turn_id, player, "drought_effect", {
                 "space_name": card.title,
                 "pens_sold": result.get("pens_sold", 0),

@@ -43,14 +43,15 @@ STATEMENTS = [
     # could never be applied. Repair the existing prod row. Idempotent.
     "UPDATE cards SET is_retainable = true "
     "WHERE effect_code = 'HIGH_STOCK_PRICES' AND is_retainable = false",
-    # New Tucker Bag card "Drought" — ensure the prod row has effect_code
-    # 'DROUGHT' so the dispatcher fires the local-drought handler.
-    # Idempotent — once effect_code='DROUGHT' the WHERE no longer matches.
+    # Tucker Bag "Local Drought" — canonical effect_code is now
+    # 'DROUGHT_LOCAL'. Migrate any earlier values ('DROUGHT',
+    # 'DROUGHT_ONLY') and back-fill nulls. Idempotent — once the row
+    # is on 'DROUGHT_LOCAL' the WHERE no longer matches.
     """
-    UPDATE cards SET effect_code = 'DROUGHT'
+    UPDATE cards SET effect_code = 'DROUGHT_LOCAL'
     WHERE deck_type = 'tucker_bag'
-      AND title = 'Drought'
-      AND (effect_code IS NULL OR effect_code <> 'DROUGHT')
+      AND title IN ('Drought', 'Local Drought')
+      AND (effect_code IS NULL OR effect_code <> 'DROUGHT_LOCAL')
     """,
     # If the card row doesn't exist at all (e.g. fresh seed without the
     # new entry, or local DB lacking it), insert it. Idempotent via the
@@ -58,12 +59,12 @@ STATEMENTS = [
     """
     INSERT INTO cards (deck_type, title, body_text, is_retainable,
                        effect_code, effect_params, one_time)
-    SELECT 'tucker_bag', 'Drought',
+    SELECT 'tucker_bag', 'Local Drought',
            'You are affected by Local Drought. Sell half of your Natural / Improved stock to the Bank at $500 per pen (or use a Haystack to receive Stock Sale prices instead — haystack consumed). Drought lasts one full circuit (44 spaces). Irrigated stock is unaffected.',
-           false, 'DROUGHT', '{}', false
+           false, 'DROUGHT_LOCAL', '{}', false
     WHERE NOT EXISTS (
         SELECT 1 FROM cards
-        WHERE deck_type = 'tucker_bag' AND title = 'Drought'
+        WHERE deck_type = 'tucker_bag' AND title IN ('Drought', 'Local Drought')
     )
     """,
     # New Tucker Bag card "Drought on ALL Stations" — applies drought to
