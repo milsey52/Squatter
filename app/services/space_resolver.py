@@ -132,6 +132,8 @@ class SpaceResolver:
             player.restock_block_spaces_remaining = 0
             player.restock_block_scope = None
             player.restock_block_until_stock_sale = False
+            player.restock_block_marker_space_id = None
+            player.restock_block_source = None
             self.session.flush()
         from app.constants import MAX_PENS_PER_TRANSACTION
         total_pens = self.station.get_total_pens(player.game_player_id)

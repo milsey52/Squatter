@@ -141,6 +141,8 @@ class TurnManager:
                 player.restock_block_scope = None
                 player.restock_block_until_stock_sale = False
                 player.bore_dried_up = False
+                player.restock_block_marker_space_id = None
+                player.restock_block_source = None
             self.session.flush()
 
         return (end_space, passed_start)

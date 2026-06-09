@@ -92,6 +92,12 @@ class GamePlayer(Base):
     # Worm Infestation rule: clear the restock block on landing at any
     # Stock Sale space (not after a full circuit).
     restock_block_until_stock_sale = Column(Boolean, nullable=False, default=False)
+    # Where the restock block began — used to draw the circuit marker on
+    # the board. NULL when no block is active.
+    restock_block_marker_space_id = Column(Integer, nullable=True)
+    # Which card triggered the block — 'lucerne_flea', 'grass_fire', or
+    # 'worm_infestation'. Drives the marker shape. NULL when no block.
+    restock_block_source = Column(String, nullable=True)
 
     # AI player flags. is_ai=True players have user_id=NULL and no session;
     # the server-side autopilot drives their turns.

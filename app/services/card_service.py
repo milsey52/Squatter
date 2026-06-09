@@ -279,6 +279,8 @@ class CardService:
             player.restock_blocked_until_circuit = True
             player.restock_block_spaces_remaining = BOARD_SIZE
             player.restock_block_scope = 'all'
+            player.restock_block_marker_space_id = player.current_space_id
+            player.restock_block_source = 'lucerne_flea'
             self.session.flush()
 
         # Choose a readable fraction label for the popup.
@@ -342,6 +344,8 @@ class CardService:
         player.restock_block_spaces_remaining = BOARD_SIZE
         player.restock_block_scope = 'all'
         player.restock_block_until_stock_sale = True
+        player.restock_block_marker_space_id = player.current_space_id
+        player.restock_block_source = 'worm_infestation'
         self.session.flush()
 
         if abs(fraction - 0.5) < 0.01:
@@ -454,6 +458,8 @@ class CardService:
             player.restock_blocked_until_circuit = True
             player.restock_block_spaces_remaining = BOARD_SIZE
             player.restock_block_scope = 'all'
+            player.restock_block_marker_space_id = player.current_space_id
+            player.restock_block_source = 'grass_fire'
         self.session.flush()
 
         return {

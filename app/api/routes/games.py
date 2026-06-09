@@ -56,6 +56,9 @@ def get_game(game_id: int, session: Session = Depends(get_session)):
                 "is_active": p.is_active,
                 "is_ai": bool(p.is_ai),
                 "ai_difficulty": p.ai_difficulty,
+                "drought_marker_space_id": p.drought_start_space,
+                "restock_block_marker_space_id": p.restock_block_marker_space_id,
+                "restock_block_source": p.restock_block_source,
             }
             for p in players
         ],

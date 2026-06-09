@@ -84,9 +84,19 @@ def upgrade() -> None:
         sa.Column('ai_reaction_time_seconds', sa.Integer(), nullable=False,
                   server_default='4'),
     )
+    op.add_column(
+        'game_players',
+        sa.Column('restock_block_marker_space_id', sa.Integer(), nullable=True),
+    )
+    op.add_column(
+        'game_players',
+        sa.Column('restock_block_source', sa.String(), nullable=True),
+    )
 
 
 def downgrade() -> None:
+    op.drop_column('game_players', 'restock_block_source')
+    op.drop_column('game_players', 'restock_block_marker_space_id')
     op.drop_column('game_rules', 'ai_reaction_time_seconds')
     op.drop_column('game_players', 'ai_difficulty')
     op.drop_column('game_players', 'is_ai')
