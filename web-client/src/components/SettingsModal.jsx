@@ -12,6 +12,8 @@ const API_BASE = import.meta.env.VITE_API_BASE || "";
 export default function SettingsModal({
   gameId, sessionToken, isHost = false,
   aiReactionTimeSeconds = 4,
+  startingCash = 2000,
+  gameStatus = "lobby",
   onClose,
   onSettingsChanged,
 }) {
@@ -19,10 +21,40 @@ export default function SettingsModal({
   const [aiSeconds, setAiSeconds] = useState(aiReactionTimeSeconds);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState(null);
+  const [kitty, setKitty] = useState(startingCash);
+  const [kittyBusy, setKittyBusy] = useState(false);
+  const [kittyError, setKittyError] = useState(null);
+
+  // Opening kitty is only adjustable before the game starts.
+  const kittyEditable = isHost && gameStatus === "lobby";
 
   useEffect(() => {
     setAiSeconds(aiReactionTimeSeconds);
   }, [aiReactionTimeSeconds]);
+
+  useEffect(() => {
+    setKitty(startingCash);
+  }, [startingCash]);
+
+  const saveKitty = async () => {
+    if (!gameId || !sessionToken || !kittyEditable) return;
+    setKittyBusy(true);
+    setKittyError(null);
+    try {
+      const res = await fetch(`${API_BASE}/games/${gameId}/settings/starting-cash`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${sessionToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: kitty }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.detail || `Failed: ${res.status}`);
+      onSettingsChanged?.();
+    } catch (e) {
+      setKittyError(e.message);
+    } finally {
+      setKittyBusy(false);
+    }
+  };
 
   const saveAiSeconds = async () => {
     if (!gameId || !sessionToken || !isHost) return;
@@ -96,6 +128,54 @@ export default function SettingsModal({
             <button style={radioBtn(mode === "dark", "#6a4c93")}
               onClick={() => setMode("dark")}>☀ Dark</button>
           </div>
+        </div>
+
+        {/* Opening kitty (lobby-only) */}
+        <div style={sectionStyle}>
+          <div style={labelStyle}>Opening kitty</div>
+          <p style={{ fontSize: "0.82rem", color: theme.textMuted, margin: "0 0 0.5rem" }}>
+            Cash each player starts with.
+            {gameStatus !== "lobby" && " Locked once the game starts."}
+            {gameStatus === "lobby" && !isHost && " Only the host can change this."}
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+            {[1000, 1500, 2000, 2500, 3000].map((amt) => {
+              const active = kitty === amt;
+              return (
+                <button key={amt}
+                  onClick={() => kittyEditable && setKitty(amt)}
+                  disabled={!kittyEditable || kittyBusy}
+                  style={{
+                    flex: "1 1 70px", padding: "0.45rem 0.4rem",
+                    background: active ? "#1982c4" : "transparent",
+                    color: active ? "#fff" : theme.text,
+                    border: `2px solid ${active ? "#1982c4" : theme.panelBorder}`,
+                    borderRadius: 6,
+                    cursor: kittyEditable ? "pointer" : "not-allowed",
+                    fontSize: "0.85rem", fontWeight: "bold",
+                    opacity: kittyEditable ? 1 : 0.7,
+                  }}>
+                  ${amt.toLocaleString()}
+                </button>
+              );
+            })}
+          </div>
+          {kittyEditable && (
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+              <button
+                onClick={saveKitty}
+                disabled={kittyBusy || kitty === startingCash}
+                style={{
+                  padding: "0.45rem 0.9rem", background: kitty === startingCash ? "#888" : "#4caf50",
+                  color: "#fff", border: "none", borderRadius: 6,
+                  cursor: (kittyBusy || kitty === startingCash) ? "not-allowed" : "pointer",
+                  fontSize: "0.85rem", fontWeight: "bold",
+                }}>
+                {kittyBusy ? "Saving..." : kitty === startingCash ? "Saved" : "Save"}
+              </button>
+              {kittyError && <span style={{ color: "#e57373", fontSize: "0.82rem", alignSelf: "center" }}>{kittyError}</span>}
+            </div>
+          )}
         </div>
 
         {/* AI reaction time */}

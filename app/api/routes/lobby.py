@@ -39,6 +39,10 @@ class AIReactionTimeRequest(BaseModel):
     seconds: int  # 1-10
 
 
+class StartingCashRequest(BaseModel):
+    amount: int  # 1000-3000, multiple of 500
+
+
 class GameCreatedResponse(BaseModel):
     game_id: int
     game_code: str
@@ -383,6 +387,44 @@ async def set_ai_reaction_time(
         {"reason": "ai_reaction_time_updated", "seconds": seconds}
     )
     return {"success": True, "seconds": seconds}
+
+
+@router.post("/{game_id}/settings/starting-cash")
+async def set_starting_cash(
+    game_id: int,
+    request: StartingCashRequest,
+    auth_data: tuple[int, int] = Depends(auth.verify_session_token),
+    session: Session = Depends(deps.get_session)
+):
+    """Host sets the opening kitty per player ($1000-$3000 in $500
+    increments). Only adjustable while the game is still in the lobby
+    — once dice have been rolled the kitty is locked in."""
+    user_id, token_game_id = auth_data
+    if token_game_id != game_id:
+        raise HTTPException(status_code=403, detail="Session token is for a different game")
+    game = deps.get_game_or_404(game_id, session)
+    if game.host_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Only the host can change this setting")
+    if game.status != "lobby":
+        raise HTTPException(status_code=400,
+                            detail="Opening kitty can only be changed before the game starts")
+
+    amount = int(request.amount)
+    if amount < 1000 or amount > 3000 or amount % 500 != 0:
+        raise HTTPException(status_code=400,
+                            detail="amount must be between $1000 and $3000 in $500 increments")
+
+    rules = session.query(models.GameRule).filter_by(game_id=game_id).first()
+    if rules is None:
+        raise HTTPException(status_code=404, detail="Game rules not found")
+    rules.starting_cash = amount
+    session.commit()
+
+    await events.broadcast_game_event(
+        game_id, "game_state_changed",
+        {"reason": "starting_cash_updated", "amount": amount}
+    )
+    return {"success": True, "amount": amount}
 
 
 @router.post("/{game_id}/lobby/add-ai")

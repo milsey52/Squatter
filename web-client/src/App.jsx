@@ -426,6 +426,8 @@ function App() {
           sessionToken={sessionToken}
           isHost={isHost}
           aiReactionTimeSeconds={game?.game_rules?.ai_reaction_time_seconds ?? 4}
+          startingCash={game?.game_rules?.starting_cash ?? 2000}
+          gameStatus={game?.status}
           onClose={() => setShowSettings(false)}
           onSettingsChanged={fetchGameState}
         />

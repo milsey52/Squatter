@@ -23,8 +23,10 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
   const [addingAI, setAddingAI] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [aiReactionSeconds, setAiReactionSeconds] = useState(4);
+  const [startingCash, setStartingCash] = useState(2000);
+  const [gameStatus, setGameStatus] = useState("lobby");
 
-  // Pull AI reaction time from the game's rules so Settings reflects current state.
+  // Pull game-level settings so the Settings modal reflects current state.
   useEffect(() => {
     if (!gameId) return;
     fetch(`${API_BASE}/games/${gameId}`)
@@ -32,6 +34,9 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
       .then(d => {
         const s = d?.game_rules?.ai_reaction_time_seconds;
         if (typeof s === 'number') setAiReactionSeconds(s);
+        const c = d?.game_rules?.starting_cash;
+        if (typeof c === 'number') setStartingCash(c);
+        if (d?.status) setGameStatus(d.status);
       })
       .catch(() => { /* ignore */ });
   }, [gameId, showSettings]);
@@ -259,6 +264,8 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
             sessionToken={sessionToken}
             isHost={isHost}
             aiReactionTimeSeconds={aiReactionSeconds}
+            startingCash={startingCash}
+            gameStatus={gameStatus}
             onClose={() => setShowSettings(false)}
             onSettingsChanged={() => { /* refetch on next render via effect */ }}
           />
