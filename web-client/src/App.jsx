@@ -809,7 +809,7 @@ function App() {
                       <span style={{
                         padding: "1px 6px", borderRadius: 4, background: "#6a4c93",
                         color: "#fff", fontSize: "0.7rem", fontWeight: "bold",
-                      }}>🤖 AI</span>
+                      }}>🤖 AI{p.ai_difficulty ? ` · ${p.ai_difficulty.toUpperCase()}` : ''}</span>
                     )}
                     <span style={{ fontSize: "0.85rem", color: theme.textMuted }}>{spaceLabel}</span>
                     <span style={{ fontSize: "0.85rem", color: "#1982c4" }}>${cash}</span>
