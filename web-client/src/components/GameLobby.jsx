@@ -27,7 +27,7 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
   const [gameStatus, setGameStatus] = useState("lobby");
 
   // Pull game-level settings so the Settings modal reflects current state.
-  useEffect(() => {
+  const fetchGameSettings = useCallback(() => {
     if (!gameId) return;
     fetch(`${API_BASE}/games/${gameId}`)
       .then(r => r.ok ? r.json() : null)
@@ -39,7 +39,11 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
         if (d?.status) setGameStatus(d.status);
       })
       .catch(() => { /* ignore */ });
-  }, [gameId, showSettings]);
+  }, [gameId]);
+
+  useEffect(() => {
+    fetchGameSettings();
+  }, [fetchGameSettings, showSettings]);
 
   const fetchLobbyStatus = useCallback(async () => {
     if (!gameId || !sessionToken) {
@@ -267,7 +271,7 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
             startingCash={startingCash}
             gameStatus={gameStatus}
             onClose={() => setShowSettings(false)}
-            onSettingsChanged={() => { /* refetch on next render via effect */ }}
+            onSettingsChanged={fetchGameSettings}
           />
         )}
         <h1 style={{ margin: '0 0 0.5rem 0', textAlign: 'center', color: theme.text }}>
