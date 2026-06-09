@@ -473,8 +473,8 @@ class CardService:
             "restock_blocked": bool(params.get("restock_blocked")),
         }
 
-    def _effect_drought(self, player, params, turn_id):
-        """Tucker Bag 'Drought' — same effect as landing on a Local Drought
+    def _effect_drought_local(self, player, params, turn_id):
+        """Tucker Bag 'Local Drought' — same effect as landing on a Local Drought
         space. Sells half of the player's Natural/Improved stock, applies a
         full-circuit drought, optionally consumes a haystack to use Stock
         Sale prices instead of the no-haystack flat rate."""
