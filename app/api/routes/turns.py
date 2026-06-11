@@ -21,7 +21,20 @@ async def play_turn(
     if token_game_id != game_id:
         raise HTTPException(status_code=403, detail="Session token is for a different game")
 
-    game = deps.get_game_or_404(game_id, session)
+    # Row-lock the game so concurrent rolls serialize (double-click, or a
+    # racing AI autopilot). The loser of the race re-reads state below and
+    # fails the it's-your-turn check instead of playing a second turn.
+    game = (
+        session.query(models.Game)
+        .filter_by(game_id=game_id)
+        .with_for_update()
+        .first()
+    )
+    if not game:
+        raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
+
+    if game.status != "in_progress":
+        raise HTTPException(status_code=400, detail=f"Game is not in progress (status: {game.status})")
 
     # Find the game_player_id for the authenticated user
     current_user_player = session.query(models.GamePlayer).filter_by(

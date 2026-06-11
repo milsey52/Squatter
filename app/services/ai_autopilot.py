@@ -33,6 +33,20 @@ ERROR_BACKOFF_SECONDS = 5.0
 DEFAULT_DISPLAY_DELAY_SECONDS = 4.0
 
 
+def _lock_game_row(session: Session, game_id: int):
+    """Row-lock the game so this action serializes against human routes
+    (POST /turns, decision endpoints) and other autopilot work. Callers
+    re-validate state AFTER acquiring the lock — that re-read is what
+    closes the race opened by the display-delay sleep. SQLite ignores
+    FOR UPDATE; Postgres enforces it. Returns the Game or None."""
+    return (
+        session.query(models.Game)
+        .filter_by(game_id=game_id)
+        .with_for_update()
+        .first()
+    )
+
+
 async def run_autopilot():
     """Top-level loop. Spawned from main.py startup."""
     while True:
@@ -140,6 +154,7 @@ async def _drive_one_game(game_id: int):
     if action[0] == "pending":
         _, ai_id, pending_id, action_type = action
         with SessionLocal() as session:
+            _lock_game_row(session, game_id)
             pending = session.query(models.PendingAction).filter_by(
                 pending_action_id=pending_id, resolved_at=None
             ).first()
@@ -166,13 +181,23 @@ async def _drive_one_game(game_id: int):
     if action[0] in ("mortgage", "lift_mortgage"):
         kind, ai_id, paddock_number = action
         with SessionLocal() as session:
+            game = _lock_game_row(session, game_id)
             ai_player = session.query(models.GamePlayer).filter_by(
                 game_player_id=ai_id
             ).first()
-            if not ai_player:
+            # Re-validate under the lock: the world may have changed during
+            # the display-delay sleep.
+            if (not game or not ai_player or game.status != "in_progress"
+                    or game.current_game_player_id != ai_id):
                 return
             try:
                 service = AIPlayerService(session, game_id, ai_player)
+                # The candidate must still be the right move (balance or
+                # paddock state may have shifted).
+                still = (service.find_mortgage_candidate() if kind == "mortgage"
+                         else service.find_lift_mortgage_candidate())
+                if still != paddock_number:
+                    return
                 if kind == "mortgage":
                     service.execute_mortgage(paddock_number)
                 else:
@@ -192,19 +217,23 @@ async def _drive_one_game(game_id: int):
     if action[0] == "upgrade":
         _, ai_id, paddock_number, target_type = action
         with SessionLocal() as session:
+            game = _lock_game_row(session, game_id)
             ai_player = session.query(models.GamePlayer).filter_by(
                 game_player_id=ai_id
             ).first()
-            game = session.query(models.Game).filter_by(game_id=game_id).first()
-            # Re-verify the upgrade is still valid: AI is still current,
-            # not in drought-block etc.
-            if (not ai_player or not game or
-                    game.current_game_player_id != ai_id):
+            # Re-verify under the lock: AI is still current, the upgrade is
+            # still the right move (drought, balance, paddock state).
+            if (not ai_player or not game or game.status != "in_progress"
+                    or game.current_game_player_id != ai_id):
                 return
             try:
-                AIPlayerService(session, game_id, ai_player).execute_upgrade(
-                    paddock_number, target_type
-                )
+                service = AIPlayerService(session, game_id, ai_player)
+                candidate = service.find_upgrade_candidate()
+                if (not candidate
+                        or candidate["paddock_number"] != paddock_number
+                        or candidate["target_type"] != target_type):
+                    return
+                service.execute_upgrade(paddock_number, target_type)
                 session.commit()
             except Exception:
                 session.rollback()
@@ -220,6 +249,24 @@ async def _drive_one_game(game_id: int):
     # action[0] == "roll"
     _, ai_id = action
     with SessionLocal() as session:
+        # Re-validate under the lock: play_turn() acts on whoever is
+        # current NOW, so if the turn advanced to a human (or a pending
+        # action appeared) during the display-delay sleep, we must NOT
+        # roll — that would play the human's dice.
+        game = _lock_game_row(session, game_id)
+        if (not game or game.status != "in_progress"
+                or game.current_game_player_id != ai_id):
+            return
+        any_unresolved = (
+            session.query(models.PendingAction)
+            .filter(
+                models.PendingAction.game_id == game_id,
+                models.PendingAction.resolved_at.is_(None),
+            )
+            .first()
+        )
+        if any_unresolved is not None:
+            return
         try:
             TurnManager(session, game_id).play_turn()
             session.commit()

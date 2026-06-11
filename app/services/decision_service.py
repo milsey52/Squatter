@@ -864,6 +864,13 @@ class DecisionService:
     # ── Helpers ──────────────────────────────────────────────────────────
 
     def _validate_pending(self, expected_type: str, player_id: int) -> models.PendingAction:
+        # Serialize all decision mutations per game: take the game row lock
+        # BEFORE reading the pending, so a double-submit (or a racing AI
+        # autopilot) waits here and then sees the already-resolved pending.
+        # SQLite (tests) ignores FOR UPDATE; Postgres enforces it.
+        self.session.query(models.Game).filter_by(
+            game_id=self.game_id
+        ).with_for_update().first()
         pending = self.get_pending_action()
         if not pending:
             raise ValueError("No pending action")
