@@ -354,6 +354,22 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
             {navigator.share ? 'Tap Share to invite friends!' : 'Share this code with friends to invite them!'}
           </div>
 
+          {lobbyData?.your_rejoin_code && (
+            <div style={{
+              marginTop: '0.75rem',
+              padding: '0.5rem 0.75rem',
+              background: 'rgba(0,0,0,0.2)',
+              borderRadius: '6px',
+              color: 'rgba(255,255,255,0.9)',
+              fontSize: '0.85rem'
+            }}>
+              Your rejoin code: <strong style={{ letterSpacing: '2px' }}>{lobbyData.your_rejoin_code}</strong>
+              <span style={{ display: 'block', color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                Keep it private — it lets you rejoin as yourself from another device.
+              </span>
+            </div>
+          )}
+
           {/* QR Code */}
           <div style={{
             marginTop: '1.5rem',

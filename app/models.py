@@ -74,6 +74,10 @@ class GamePlayer(Base):
     is_active = Column(Boolean, default=True)
     is_ready = Column(Boolean, nullable=False, default=False)
     logged_in = Column(Boolean, nullable=False, default=True)
+    # Per-player rejoin credential, issued at join time. Required to rejoin
+    # under this player's name from a device without the session token.
+    # NULL for AI players and legacy rows (which then cannot name-rejoin).
+    rejoin_code = Column(String, nullable=True)
     current_space_id = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, server_default=func.now())
 

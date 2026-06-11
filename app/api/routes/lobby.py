@@ -1,6 +1,9 @@
 """Lobby API routes for game creation and joining."""
+import hmac
+import secrets
 import uuid
 from datetime import datetime, timedelta
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -24,6 +27,8 @@ class CreateGameRequest(BaseModel):
 
 class JoinGameRequest(BaseModel):
     player_name: str
+    # Required only when rejoining as an existing player in the game.
+    rejoin_code: Optional[str] = None
 
 
 class SetReadyRequest(BaseModel):
@@ -48,6 +53,7 @@ class GameCreatedResponse(BaseModel):
     game_code: str
     session_token: str
     host_user_id: int
+    rejoin_code: str
 
 
 class GameJoinedResponse(BaseModel):
@@ -57,6 +63,22 @@ class GameJoinedResponse(BaseModel):
     user_id: int
     status: str
     current_players: list
+    rejoin_code: Optional[str] = None
+
+
+def _new_rejoin_code() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def _new_session(session: Session, user_id: int, game_id: int) -> str:
+    token = str(uuid.uuid4())
+    session.add(models.GameSession(
+        session_token=token,
+        user_id=user_id,
+        game_id=game_id,
+        expires_at=datetime.now() + timedelta(days=7),
+    ))
+    return token
 
 
 @router.post("/create", response_model=GameCreatedResponse)
@@ -65,18 +87,15 @@ def create_game(
     session: Session = Depends(deps.get_session)
 ):
     """Create a new game and return game code and session token."""
-    # Create or get user
-    user = session.query(models.User).filter_by(
-        display_name=request.host_user_name
-    ).first()
+    host_name = request.host_user_name.strip()
+    if not host_name:
+        raise HTTPException(status_code=400, detail="host_user_name is required")
 
-    if not user:
-        user = models.User(
-            display_name=request.host_user_name,
-            email=f"{request.host_user_name.lower().replace(' ', '_')}@squatter.local"
-        )
-        session.add(user)
-        session.flush()
+    # Users are per-game identities — always create a fresh row rather than
+    # matching on display name, so a name is never a credential.
+    user = models.User(display_name=host_name)
+    session.add(user)
+    session.flush()
 
     # Generate unique game code
     game_code = generate_game_code(session)
@@ -105,26 +124,21 @@ def create_game(
     session.add(game_rule)
 
     # Add host as first player
+    rejoin_code = _new_rejoin_code()
     game_player = models.GamePlayer(
         game_id=game.game_id,
         user_id=user.user_id,
-        player_name=request.host_user_name,
+        player_name=host_name,
         turn_order=1,
         current_space_id=0,
-        is_ready=False
+        is_ready=False,
+        rejoin_code=rejoin_code,
     )
     session.add(game_player)
     session.flush()
 
     # Create session token (7 day expiry)
-    session_token = str(uuid.uuid4())
-    game_session = models.GameSession(
-        session_token=session_token,
-        user_id=user.user_id,
-        game_id=game.game_id,
-        expires_at=datetime.now() + timedelta(days=7)
-    )
-    session.add(game_session)
+    session_token = _new_session(session, user.user_id, game.game_id)
 
     session.commit()
 
@@ -132,7 +146,8 @@ def create_game(
         game_id=game.game_id,
         game_code=game_code,
         session_token=session_token,
-        host_user_id=user.user_id
+        host_user_id=user.user_id,
+        rejoin_code=rejoin_code,
     )
 
 
@@ -154,37 +169,33 @@ async def join_game(
             detail=f"Cannot join game with status '{game.status}'"
         )
 
-    # Create or get user
-    user = session.query(models.User).filter_by(
-        display_name=request.player_name
-    ).first()
+    name = request.player_name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="player_name is required")
 
-    if not user:
-        user = models.User(
-            display_name=request.player_name,
-            email=f"{request.player_name.lower().replace(' ', '_')}@squatter.local"
-        )
-        session.add(user)
-        session.flush()
-
-    # Check if user already in this game
-    existing_player = session.query(models.GamePlayer).filter_by(
-        game_id=game.game_id,
-        user_id=user.user_id
+    # Identity within a game is the player row, matched case-insensitively.
+    existing_player = session.query(models.GamePlayer).filter(
+        models.GamePlayer.game_id == game.game_id,
+        func.lower(models.GamePlayer.player_name) == name.lower(),
     ).first()
 
     if existing_player:
-        # User re-joining
-        existing_player.logged_in = True
+        # Rejoining an existing seat requires that player's rejoin code —
+        # a name alone is not a credential. AI seats and legacy rows
+        # without a code can never be claimed by name.
+        supplied = (request.rejoin_code or "").strip()
+        if (existing_player.is_ai
+                or not existing_player.rejoin_code
+                or not supplied
+                or not hmac.compare_digest(existing_player.rejoin_code, supplied)):
+            raise HTTPException(
+                status_code=403,
+                detail=f"'{name}' is already a player in this game. "
+                       "To rejoin as them, enter the rejoin code issued when they first joined."
+            )
 
-        session_token = str(uuid.uuid4())
-        game_session = models.GameSession(
-            session_token=session_token,
-            user_id=user.user_id,
-            game_id=game.game_id,
-            expires_at=datetime.now() + timedelta(days=7)
-        )
-        session.add(game_session)
+        existing_player.logged_in = True
+        session_token = _new_session(session, existing_player.user_id, game.game_id)
 
         all_players = session.query(models.GamePlayer).filter_by(game_id=game.game_id).all()
         all_logged_in = all(p.logged_in for p in all_players)
@@ -202,13 +213,14 @@ async def join_game(
             game_id=game.game_id,
             game_code=game.game_code,
             session_token=session_token,
-            user_id=user.user_id,
+            user_id=existing_player.user_id,
             status=game.status,
             current_players=[{
                 "user_id": p.user_id,
                 "player_name": p.player_name,
                 "is_ready": p.is_ready
-            } for p in players]
+            } for p in players],
+            rejoin_code=existing_player.rejoin_code,
         )
 
     # New players can only join during lobby phase
@@ -229,28 +241,28 @@ async def join_game(
             detail=f"Game is full ({game.max_players} players maximum)"
         )
 
+    # Fresh per-game user for the new player (a name is never a credential).
+    user = models.User(display_name=name)
+    session.add(user)
+    session.flush()
+
     # Add new player
     next_turn_order = current_player_count + 1
+    rejoin_code = _new_rejoin_code()
     game_player = models.GamePlayer(
         game_id=game.game_id,
         user_id=user.user_id,
-        player_name=request.player_name,
+        player_name=name,
         turn_order=next_turn_order,
         current_space_id=0,
-        is_ready=False
+        is_ready=False,
+        rejoin_code=rejoin_code,
     )
     session.add(game_player)
     session.flush()
 
     # Create session token
-    session_token = str(uuid.uuid4())
-    game_session = models.GameSession(
-        session_token=session_token,
-        user_id=user.user_id,
-        game_id=game.game_id,
-        expires_at=datetime.now() + timedelta(days=7)
-    )
-    session.add(game_session)
+    session_token = _new_session(session, user.user_id, game.game_id)
 
     session.commit()
 
@@ -260,7 +272,7 @@ async def join_game(
         "player_joined",
         {
             "user_id": user.user_id,
-            "player_name": request.player_name,
+            "player_name": name,
             "turn_order": next_turn_order
         }
     )
@@ -280,7 +292,8 @@ async def join_game(
             "user_id": p.user_id,
             "player_name": p.player_name,
             "is_ready": p.is_ready
-        } for p in players]
+        } for p in players],
+        rejoin_code=rejoin_code,
     )
 
 
@@ -302,11 +315,15 @@ def get_lobby_status(
         game_id=game_id
     ).order_by(models.GamePlayer.turn_order).all()
 
+    me = next((p for p in players if p.user_id == user_id), None)
+
     return {
         "game_code": game.game_code,
         "status": game.status,
         "host_user_id": game.host_user_id,
         "max_players": game.max_players,
+        # The requesting player's own rejoin code — never anyone else's.
+        "your_rejoin_code": me.rejoin_code if me else None,
         "players": [{
             "game_player_id": p.game_player_id,
             "user_id": p.user_id,

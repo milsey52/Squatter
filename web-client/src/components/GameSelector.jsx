@@ -6,6 +6,7 @@ export default function GameSelector({ onGameJoined }) {
   const [mode, setMode] = useState('select'); // 'select', 'create', 'join'
   const [playerName, setPlayerName] = useState('');
   const [gameCode, setGameCode] = useState('');
+  const [rejoinCode, setRejoinCode] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(6);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -47,9 +48,13 @@ export default function GameSelector({ onGameJoined }) {
 
       const data = await response.json();
 
-      // Store session token
+      // Store session token + per-game rejoin code (needed to reclaim this
+      // seat from a device without the session token)
       localStorage.setItem('squatter_session_token', data.session_token);
       localStorage.setItem('squatter_player_name', playerName.trim());
+      if (data.rejoin_code) {
+        localStorage.setItem(`squatter_rejoin_${data.game_code}`, data.rejoin_code);
+      }
 
       // Notify parent component
       onGameJoined({
@@ -82,11 +87,18 @@ export default function GameSelector({ onGameJoined }) {
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE}/games/join/${gameCode.trim().toUpperCase()}`, {
+      const code = gameCode.trim().toUpperCase();
+      // Prefer an explicitly typed rejoin code; fall back to the one stored
+      // when this browser originally joined this game.
+      const storedRejoin = localStorage.getItem(`squatter_rejoin_${code}`);
+      const effectiveRejoin = rejoinCode.trim() || storedRejoin || undefined;
+
+      const response = await fetch(`${API_BASE}/games/join/${code}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          player_name: playerName.trim()
+          player_name: playerName.trim(),
+          rejoin_code: effectiveRejoin
         })
       });
 
@@ -97,9 +109,12 @@ export default function GameSelector({ onGameJoined }) {
 
       const data = await response.json();
 
-      // Store session token
+      // Store session token + per-game rejoin code
       localStorage.setItem('squatter_session_token', data.session_token);
       localStorage.setItem('squatter_player_name', playerName.trim());
+      if (data.rejoin_code) {
+        localStorage.setItem(`squatter_rejoin_${data.game_code}`, data.rejoin_code);
+      }
 
       // Notify parent component
       onGameJoined({
@@ -381,6 +396,29 @@ export default function GameSelector({ onGameJoined }) {
                   boxSizing: 'border-box'
                 }}
                 autoFocus={!!gameCode}
+              />
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', color: '#555', fontWeight: '500' }}>
+                Rejoin Code <span style={{ fontWeight: 'normal', color: '#999' }}>(only if rejoining from a new device)</span>
+              </label>
+              <input
+                type="text"
+                value={rejoinCode}
+                onChange={(e) => setRejoinCode(e.target.value)}
+                placeholder="6-digit code"
+                maxLength={6}
+                inputMode="numeric"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e0e0e0',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  letterSpacing: '2px',
+                  boxSizing: 'border-box'
+                }}
               />
             </div>
 
