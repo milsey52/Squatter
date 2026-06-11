@@ -1,7 +1,8 @@
 import asyncio
+import hmac
 import os
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Header, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy import text
@@ -69,8 +70,19 @@ if os.path.exists(static_dir):
         )
 
 
+def require_admin_secret(x_admin_secret: str = Header(None)):
+    """Guard for destructive admin endpoints. Requires the ADMIN_SECRET env
+    var to be set AND supplied by the caller in the X-Admin-Secret header.
+    With no secret configured the endpoints are disabled outright."""
+    secret = os.environ.get("ADMIN_SECRET")
+    if not secret:
+        raise HTTPException(status_code=403, detail="Admin endpoints are disabled (ADMIN_SECRET not configured)")
+    if not x_admin_secret or not hmac.compare_digest(x_admin_secret, secret):
+        raise HTTPException(status_code=403, detail="Invalid admin secret")
+
+
 # Admin endpoint to reset all game data
-@app.get("/admin/reset-all-games")
+@app.post("/admin/reset-all-games", dependencies=[Depends(require_admin_secret)])
 def reset_all_games(session=Depends(get_session)):
     session.execute(text(
         "TRUNCATE TABLE turn_order_rolls, trade_sessions, "
@@ -83,7 +95,7 @@ def reset_all_games(session=Depends(get_session)):
 
 
 # Admin endpoint to reseed static data
-@app.get("/admin/reseed-static-data")
+@app.post("/admin/reseed-static-data", dependencies=[Depends(require_admin_secret)])
 def reseed_static_data(session=Depends(get_session)):
     from scripts.seed_static_data import seed_spaces, seed_stock_cards, seed_tucker_bag_cards
 

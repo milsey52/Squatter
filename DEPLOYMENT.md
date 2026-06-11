@@ -1,4 +1,4 @@
-# Railway Deployment Guide for MonopolyPerth
+# Railway Deployment Guide for Squatter
 
 ## Prerequisites
 - GitHub account
