@@ -51,6 +51,9 @@ function App() {
   const [lastDrawnCard, setLastDrawnCard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Non-fatal action feedback (refused roll etc.) shown as a toast.
+  const [actionError, setActionError] = useState(null);
+  const actionErrorTimer = useRef(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastDiceRoll, setLastDiceRoll] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
@@ -368,7 +371,12 @@ function App() {
         throw new Error(errData.detail || `Failed: ${response.status}`);
       }
     } catch (err) {
-      setError(err.message);
+      // Transient toast — a refused roll (debt, not your turn) must not
+      // blank the game screen: the player needs the Station panel to
+      // mortgage / sell their way out of debt.
+      setActionError(err.message);
+      if (actionErrorTimer.current) clearTimeout(actionErrorTimer.current);
+      actionErrorTimer.current = setTimeout(() => setActionError(null), 8000);
     } finally {
       setIsSubmitting(false);
     }
@@ -436,6 +444,22 @@ function App() {
       {/* Suspended Notice */}
       {game.status === 'suspended' && (
         <SuspendedGameNotice gameId={gameId} sessionToken={sessionToken} />
+      )}
+
+      {/* Action feedback toast (refused roll: debt, not your turn, ...) */}
+      {actionError && (
+        <div
+          onClick={() => setActionError(null)}
+          style={{
+            position: "fixed", top: "4.5rem", left: "50%", transform: "translateX(-50%)",
+            zIndex: 3000, maxWidth: 480, cursor: "pointer",
+            background: "#b71c1c", color: "#fff", padding: "0.75rem 1.25rem",
+            borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
+            fontSize: "0.95rem", textAlign: "center",
+          }}
+        >
+          {actionError}
+        </div>
       )}
 
       <div style={{ display: "flex", gap: "2rem", justifyContent: "center", alignItems: "flex-start", maxWidth: 2000, margin: "0 auto" }}>
@@ -799,7 +823,8 @@ function App() {
                   marginBottom: 10, padding: "10px", borderRadius: "8px",
                   background: isCurrent ? theme.highlightBg : "transparent",
                   color: isCurrent && theme.name === "dark" ? theme.text : undefined,
-                  border: isCurrent ? `2px solid ${theme.highlightBorder}` : `1px solid ${theme.panelBorder}`
+                  border: isCurrent ? `2px solid ${theme.highlightBorder}` : `1px solid ${theme.panelBorder}`,
+                  opacity: p.is_active === false ? 0.5 : 1
                 }}>
                   <div
                     onClick={() => setViewingPlayerId(p.game_player_id)}
@@ -807,6 +832,12 @@ function App() {
                     style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", cursor: "pointer" }}
                   >
                     <strong style={{ textDecoration: "underline dotted", textUnderlineOffset: 3 }}>{p.player_name}</strong>
+                    {p.is_active === false && (
+                      <span style={{
+                        padding: "1px 6px", borderRadius: 4, background: "#424242",
+                        color: "#fff", fontSize: "0.7rem", fontWeight: "bold",
+                      }}>BANKRUPT</span>
+                    )}
                     {p.is_ai && (
                       <span style={{
                         padding: "1px 6px", borderRadius: 4, background: "#6a4c93",

@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.db import SessionLocal
 from app.services.ai_service import AIPlayerService
+from app.services.bankruptcy_service import InDebtError
 from app.services.decision_service import DecisionService
 from app.services.turn_manager import TurnManager
 from app.api.routes import events
@@ -126,16 +127,21 @@ async def _drive_one_game(game_id: int):
                 if current and current.is_ai and current.is_active:
                     # Station maintenance priority — one move per tick for
                     # pacing. Order:
-                    #   1. Mortgage (defensive — cash crunch)
-                    #   2. Lift mortgage (recover assets when flush)
-                    #   3. Upgrade (build station)
-                    #   4. Roll dice
+                    #   1. Mortgage (defensive — cash crunch / debt)
+                    #   2. Debt recovery sale (sheep/haystack/ram — debt
+                    #      blocks rolling, so this must clear first)
+                    #   3. Lift mortgage (recover assets when flush)
+                    #   4. Upgrade (build station)
+                    #   5. Roll dice
                     service = AIPlayerService(session, game_id, current)
                     mortgage_pn = service.find_mortgage_candidate()
+                    debt_step = service.find_debt_recovery_step()
                     lift_pn = service.find_lift_mortgage_candidate()
                     upgrade = service.find_upgrade_candidate()
                     if mortgage_pn is not None:
                         action = ("mortgage", current.game_player_id, mortgage_pn)
+                    elif debt_step is not None:
+                        action = ("debt_recovery", current.game_player_id)
                     elif lift_pn is not None:
                         action = ("lift_mortgage", current.game_player_id, lift_pn)
                     elif upgrade is not None:
@@ -214,6 +220,34 @@ async def _drive_one_game(game_id: int):
         )
         return
 
+    if action[0] == "debt_recovery":
+        _, ai_id = action
+        with SessionLocal() as session:
+            game = _lock_game_row(session, game_id)
+            ai_player = session.query(models.GamePlayer).filter_by(
+                game_player_id=ai_id
+            ).first()
+            if (not game or not ai_player or game.status != "in_progress"
+                    or game.current_game_player_id != ai_id):
+                return
+            try:
+                service = AIPlayerService(session, game_id, ai_player)
+                # Re-derive under the lock — balance/assets may have moved.
+                step = service.find_debt_recovery_step()
+                if step is None:
+                    return
+                service.execute_debt_recovery(step)
+                session.commit()
+            except Exception:
+                session.rollback()
+                traceback.print_exc()
+                return
+        await events.broadcast_game_event(
+            game_id, "game_state_changed",
+            {"reason": "ai_debt_recovery", "player_id": ai_id, "step": step[0]}
+        )
+        return
+
     if action[0] == "upgrade":
         _, ai_id, paddock_number, target_type = action
         with SessionLocal() as session:
@@ -270,6 +304,11 @@ async def _drive_one_game(game_id: int):
         try:
             TurnManager(session, game_id).play_turn()
             session.commit()
+        except InDebtError:
+            # Recoverable debt — the debt-recovery scan handles it next
+            # tick; don't roll and don't spam the log.
+            session.rollback()
+            return
         except Exception:
             session.rollback()
             traceback.print_exc()

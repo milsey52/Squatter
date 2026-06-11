@@ -24,6 +24,9 @@ from app.constants import (
     MORTGAGE_IMPROVED,
     MORTGAGE_IRRIGATED,
     MORTGAGE_INTEREST_RATE,
+    EMERGENCY_SELL_PRICE_PER_PEN,
+    STUD_RAM_SELL_PRICE,
+    HAYSTACK_SELL_PRICE,
 )
 
 
@@ -231,6 +234,74 @@ class AIPlayerService:
             if balance >= cost + floor:
                 return p.paddock_number
         return None
+
+    def find_debt_recovery_step(self) -> tuple | None:
+        """When in debt (negative balance blocks rolling), pick ONE
+        liquidation step toward solvency: sell sheep first (just enough at
+        the emergency price), then the haystack, then a stud ram. Applies
+        to every difficulty — Easy must recover too. Mortgaging is handled
+        by find_mortgage_candidate (checked before this by the autopilot).
+        Returns ('sheep', pens) | ('haystack',) | ('ram', space_id) | None."""
+        balance = self.ledger.player_balance(self.player.game_player_id)
+        if balance >= 0:
+            return None
+        total_pens = self.station.get_total_pens(self.player.game_player_id)
+        if total_pens > 0:
+            needed = -balance
+            pens = min(total_pens,
+                       -(-needed // EMERGENCY_SELL_PRICE_PER_PEN))  # ceil div
+            return ("sheep", pens)
+        if self.player.has_haystack:
+            return ("haystack",)
+        rams = self.station.get_stud_rams_owned(self.player.game_player_id)
+        if rams:
+            return ("ram", rams[0].space_id)
+        return None
+
+    def execute_debt_recovery(self, step: tuple) -> str:
+        """Perform one liquidation step (mirrors the human station routes)."""
+        latest_turn = (
+            self.session.query(models.Turn)
+            .filter_by(game_id=self.game_id)
+            .order_by(models.Turn.turn_id.desc())
+            .first()
+        )
+        turn_id = latest_turn.turn_id if latest_turn else None
+
+        if step[0] == "sheep":
+            pens = step[1]
+            self.station.sell_sheep(self.player.game_player_id, pens)
+            income = pens * EMERGENCY_SELL_PRICE_PER_PEN
+            self.ledger.receive_from_bank(
+                self.player, income, "emergency_sale", turn_id,
+                notes=f"Emergency sold {pens} pens at "
+                      f"${EMERGENCY_SELL_PRICE_PER_PEN}/pen (debt)")
+            self.session.flush()
+            return f"debt_recovery:sold_{pens}_pens"
+
+        if step[0] == "haystack":
+            self.ledger.receive_from_bank(
+                self.player, HAYSTACK_SELL_PRICE, "haystack_sale", turn_id,
+                notes="Sold haystack (debt)")
+            self.player.has_haystack = False
+            self.player.haystack_used = False
+            self.session.flush()
+            return "debt_recovery:sold_haystack"
+
+        # step[0] == "ram"
+        space_id = step[1]
+        ram_state = self.session.query(models.StudRamState).filter_by(
+            game_id=self.game_id, space_id=space_id,
+            owner_game_player_id=self.player.game_player_id,
+        ).first()
+        if ram_state:
+            self.ledger.receive_from_bank(
+                self.player, STUD_RAM_SELL_PRICE, "stud_ram_sale", turn_id,
+                notes="Sold stud ram (debt)")
+            ram_state.owner_game_player_id = None
+            ram_state.is_available = True
+            self.session.flush()
+        return "debt_recovery:sold_ram"
 
     def execute_mortgage(self, paddock_number: int) -> str:
         """Mortgage the paddock and credit the player."""

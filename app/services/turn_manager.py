@@ -10,6 +10,7 @@ from .space_resolver import SpaceResolver
 from .card_service import CardService
 from .ledger_service import LedgerService
 from .drought_service import DroughtService
+from .bankruptcy_service import BankruptcyService, InDebtError
 
 
 class TurnManager:
@@ -34,6 +35,17 @@ class TurnManager:
         player = self._current_player()
         if player is None:
             raise RuntimeError("No active player for this game.")
+
+        # Debt checkpoint. A player in the red must liquidate (emergency
+        # sheep sales, mortgages) before rolling; one whose debt exceeds
+        # even full liquidation is bankrupt and retires from the game.
+        balance = self.ledger.player_balance(player.game_player_id)
+        if balance < 0:
+            bankruptcy = BankruptcyService(self.session, self.game_id)
+            if bankruptcy.can_recover(player.game_player_id):
+                raise InDebtError(balance)
+            self._handle_bankruptcy(player, bankruptcy)
+            return
 
         # Visiting Town: skip turn and decrement counter
         if player.visiting_town_turns and player.visiting_town_turns > 0:
@@ -61,6 +73,18 @@ class TurnManager:
         return random.randint(1, 6), random.randint(1, 6)
 
     # Turn helpers -------------------------------------------------------
+
+    def _handle_bankruptcy(self, player, bankruptcy: "BankruptcyService"):
+        """Record a no-roll turn, retire the player, and either declare a
+        last-player-standing winner or pass play to the next player."""
+        turn = self._start_turn(player, 0, 0, False)
+        # Compute the successor BEFORE deactivating — _next_player locates
+        # the current player within the active list.
+        next_player = self._next_player(player)
+        bankruptcy.eliminate(player, turn.turn_id)
+        if not bankruptcy.declare_last_standing_winner(turn.turn_id):
+            self._set_current_player(next_player)
+        self.session.flush()
 
     def _handle_visiting_town(self, player):
         """Player is missing a turn — record a no-roll, no movement."""

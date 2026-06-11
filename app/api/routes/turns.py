@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.services.turn_manager import TurnManager
+from app.services.bankruptcy_service import InDebtError
 from app.services.decision_service import DecisionService
 from app.api import deps, auth
 from app import models
@@ -59,7 +60,14 @@ async def play_turn(
         )
 
     tm = TurnManager(session, game_id)
-    tm.play_turn()
+    try:
+        tm.play_turn()
+    except InDebtError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"You are ${-e.balance} in debt. Sell sheep to the bank or "
+                   "mortgage paddocks (Station panel) before rolling.",
+        )
     session.commit()
 
     turn = (
