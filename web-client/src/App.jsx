@@ -305,7 +305,7 @@ function App() {
           const movingPlayer = game?.players?.find(p => p.game_player_id === data.player_id);
 
           if (movingPlayer && diceTotal > 0) {
-            const startPosition = movingPlayer.current_space_id;
+            const startPosition = movingPlayer.current_board_index;
             animateTokenMovement(data.player_id, startPosition, diceTotal).then(() => {
               if (data.pending_action) setPendingAction(data.pending_action);
               if (data.new_position !== undefined) {
@@ -313,7 +313,7 @@ function App() {
                   ...prev,
                   players: prev.players.map(p =>
                     p.game_player_id === data.player_id
-                      ? { ...p, current_space_id: data.new_position }
+                      ? { ...p, current_board_index: data.new_position }
                       : p
                   )
                 } : prev);
@@ -811,7 +811,7 @@ function App() {
           <h2 style={{ margin: "0 0 0.5rem" }}>Players</h2>
           <ul style={{ paddingLeft: "1rem", listStyle: "none" }}>
             {game.players?.map((p) => {
-              const spaceLabel = SPACE_LABELS[p.current_space_id] || `Space ${p.current_space_id}`;
+              const spaceLabel = SPACE_LABELS[p.current_board_index] || `Space ${p.current_board_index}`;
               const cash = playerBalances[String(p.game_player_id)] ?? "?";
               const station = stations[String(p.game_player_id)] || stations[p.game_player_id];
               const totalPens = station?.total_pens ?? "?";

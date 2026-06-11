@@ -79,7 +79,7 @@ function collectMarkers(players) {
       });
     }
     const src = p.restock_block_source;
-    const blk = p.restock_block_marker_space_id;
+    const blk = p.restock_block_marker_board_index;
     if (blk !== null && blk !== undefined) {
       if (src === "lucerne_flea") {
         markers.push({
@@ -101,7 +101,7 @@ function collectMarkers(players) {
 
 export default function Board({ players = [], currentPlayerId, animatedPositions = {} }) {
   const stackMap = players.reduce((acc, player) => {
-    const idx = toBoardIndex(player.current_space_id);
+    const idx = toBoardIndex(player.current_board_index);
     if (!acc[idx]) acc[idx] = [];
     acc[idx].push(player.game_player_id);
     return acc;
@@ -146,7 +146,7 @@ export default function Board({ players = [], currentPlayerId, animatedPositions
       {players.map((player, idx) => {
         const displayPosition = animatedPositions[player.game_player_id] !== undefined
           ? animatedPositions[player.game_player_id]
-          : player.current_space_id;
+          : player.current_board_index;
 
         const boardIdx = toBoardIndex(displayPosition);
         const { left, top } = boardIndexToPixel(boardIdx);

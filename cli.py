@@ -88,7 +88,7 @@ def start_game(args):
                 user_id=user.user_id,
                 player_name=name,
                 turn_order=order,
-                current_space_id=0,
+                current_board_index=0,
                 in_jail=False,
                 jail_turns=0,
                 double_streak=0,
@@ -146,7 +146,7 @@ def show_board(args):
         )
         for p in players:
             print(
-                f"{p.player_name:10} | Space: {p.current_space_id:02} | "
+                f"{p.player_name:10} | Space: {p.current_board_index:02} | "
                 f"Jail: {p.in_jail} | Double streak: {p.double_streak}"
             )
 
@@ -163,7 +163,7 @@ def list_players(args):
             status = "active" if p.is_active else "inactive"
             print(
                 f"ID={p.game_player_id:2d} | {p.player_name:10s} "
-                f"| space={p.current_space_id:02d} | {status}"
+                f"| space={p.current_board_index:02d} | {status}"
             )
 
 def ledger(args):
@@ -253,7 +253,7 @@ def retire_player(args):
 
         # Mark inactive
         player.is_active = False
-        player.current_space_id = 0
+        player.current_board_index = 0
         player.in_jail = False
         player.jail_turns = 0
         player.double_streak = 0
@@ -383,7 +383,7 @@ def show_game_status(args):
 
             status_str = " ".join(status_flags) if status_flags else "OK"
             print(
-                f"  {p.turn_order}. {p.player_name:<12} | Space: {p.current_space_id:02d} | "
+                f"  {p.turn_order}. {p.player_name:<12} | Space: {p.current_board_index:02d} | "
                 f"Balance: ${balance:>6} | {status_str}"
             )
 

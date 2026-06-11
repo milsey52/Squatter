@@ -99,7 +99,7 @@ def test_hard_adds_drought_buffer_when_drought_imminent(session, game_factory, s
     g = game_factory(players=(("Hu", False, None), ("Hardy", True, "hard")),
                      sheep_per_paddock=0, starting_cash=2800, current="Hardy")
     hardy = session.query(models.GamePlayer).get(g.players["Hardy"])
-    hardy.current_space_id = 15  # Local Drought at 22 is within lookahead
+    hardy.current_board_index = 15  # Local Drought at 22 is within lookahead
     session.commit()
     pending = stock_sale_pending(g.game_id, g.players["Hardy"], card_prices=(700,))
     tag = handle(session, g, "Hardy", pending)

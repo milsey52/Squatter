@@ -47,7 +47,7 @@ def get_game(game_id: int, session: Session = Depends(get_session)):
                 "game_player_id": p.game_player_id,
                 "user_id": p.user_id,
                 "player_name": p.player_name,
-                "current_space_id": p.current_space_id,
+                "current_board_index": p.current_board_index,
                 "visiting_town_turns": p.visiting_town_turns,
                 "is_in_drought": p.is_in_drought,
                 "drought_spaces_remaining": p.drought_spaces_remaining,
@@ -57,7 +57,7 @@ def get_game(game_id: int, session: Session = Depends(get_session)):
                 "is_ai": bool(p.is_ai),
                 "ai_difficulty": p.ai_difficulty,
                 "drought_marker_space_id": p.drought_start_space,
-                "restock_block_marker_space_id": p.restock_block_marker_space_id,
+                "restock_block_marker_board_index": p.restock_block_marker_board_index,
                 "restock_block_source": p.restock_block_source,
             }
             for p in players

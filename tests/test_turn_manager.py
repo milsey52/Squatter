@@ -23,7 +23,7 @@ def current_player_id(session, game):
 def test_turn_moves_player_and_advances_rotation(session, game, monkeypatch):
     play(session, game, (2, 3), monkeypatch)
     hu = session.query(models.GamePlayer).get(game.players["Hu"])
-    assert hu.current_space_id == 5
+    assert hu.current_board_index == 5
     turn = session.query(models.Turn).filter_by(game_id=game.game_id).one()
     assert (turn.dice_roll_1, turn.dice_roll_2) == (2, 3)
     assert turn.active_game_player_id == game.players["Hu"]
@@ -41,11 +41,11 @@ def test_doubles_do_not_grant_extra_turn(session, game, monkeypatch):
 
 def test_passing_start_wraps_and_pays_wool_cheque(session, game, monkeypatch):
     hu = session.query(models.GamePlayer).get(game.players["Hu"])
-    hu.current_space_id = 40
+    hu.current_board_index = 40
     session.commit()
     play(session, game, (3, 3), monkeypatch)
     session.refresh(hu)
-    assert hu.current_space_id == 2  # (40 + 6) % 44
+    assert hu.current_board_index == 2  # (40 + 6) % 44
     movement = session.query(models.Movement).filter_by(
         game_player_id=hu.game_player_id).one()
     assert movement.passed_start
@@ -65,7 +65,7 @@ def test_visiting_town_skips_roll_and_decrements(session, game, monkeypatch):
     play(session, game, (6, 6), monkeypatch)  # dice must be ignored
     session.refresh(hu)
     assert hu.visiting_town_turns == 1
-    assert hu.current_space_id == 0  # did not move
+    assert hu.current_board_index == 0  # did not move
     turn = session.query(models.Turn).filter_by(game_id=game.game_id).one()
     assert (turn.dice_roll_1, turn.dice_roll_2) == (0, 0)
     assert current_player_id(session, game) == game.players["Jim"]

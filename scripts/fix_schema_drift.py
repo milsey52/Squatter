@@ -30,7 +30,7 @@ STATEMENTS = [
     "ALTER TABLE game_rules "
     "ADD COLUMN IF NOT EXISTS ai_reaction_time_seconds INTEGER NOT NULL DEFAULT 4",
     "ALTER TABLE game_players "
-    "ADD COLUMN IF NOT EXISTS restock_block_marker_space_id INTEGER",
+    "ADD COLUMN IF NOT EXISTS restock_block_marker_board_index INTEGER",
     "ALTER TABLE game_players "
     "ADD COLUMN IF NOT EXISTS restock_block_source VARCHAR",
     "ALTER TABLE game_players "
@@ -178,7 +178,7 @@ STATEMENTS = [
       SELECT game_id INTO v_game_id FROM games WHERE game_code = 'GEG2LA';
       IF v_game_id IS NULL THEN RETURN; END IF;
 
-      SELECT game_player_id, current_space_id
+      SELECT game_player_id, current_board_index
         INTO v_player_id, v_current_space
       FROM game_players
       WHERE game_id = v_game_id AND player_name = 'Max';

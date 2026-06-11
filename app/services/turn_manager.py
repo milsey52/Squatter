@@ -121,11 +121,11 @@ class TurnManager:
 
     # Movement -----------------------------------------------------------
     def _move_player(self, player, steps: int, turn: models.Turn) -> Tuple[models.Space, bool]:
-        start_board_idx = player.current_space_id
+        start_board_idx = player.current_board_index
         end_board_idx = (start_board_idx + steps) % BOARD_SIZE
         passed_start = (start_board_idx + steps) >= BOARD_SIZE
 
-        player.current_space_id = end_board_idx
+        player.current_board_index = end_board_idx
 
         # Look up actual space records
         start_space = (
@@ -141,11 +141,13 @@ class TurnManager:
 
         if end_space is None:
             raise ValueError(f"No space found for board_index={end_board_idx}")
+        if start_space is None:
+            raise ValueError(f"No space found for board_index={start_board_idx}")
 
         movement = models.Movement(
             turn_id=turn.turn_id,
             game_player_id=player.game_player_id,
-            start_space_id=start_space.space_id if start_space else 1,
+            start_space_id=start_space.space_id,
             end_space_id=end_space.space_id,
             movement_type="roll",
             distance=steps,
@@ -165,7 +167,7 @@ class TurnManager:
                 player.restock_block_scope = None
                 player.restock_block_until_stock_sale = False
                 player.bore_dried_up = False
-                player.restock_block_marker_space_id = None
+                player.restock_block_marker_board_index = None
                 player.restock_block_source = None
             self.session.flush()
 

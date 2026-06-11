@@ -24,7 +24,7 @@ class PlayerSummary(BaseModel):
     game_player_id: int
     name: str
     turn_order: int
-    current_space_id: int
+    current_board_index: int
     visiting_town_turns: int = 0
     is_in_drought: bool = False
     balance: Optional[int] = None

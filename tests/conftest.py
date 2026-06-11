@@ -97,7 +97,7 @@ def game_factory(session):
                 user_id=user_id,
                 player_name=name,
                 turn_order=order,
-                current_space_id=0,
+                current_board_index=0,
                 is_ai=is_ai,
                 ai_difficulty=diff,
             )

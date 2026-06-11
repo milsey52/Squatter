@@ -329,7 +329,7 @@ async def _drive_one_game(game_id: int):
             "player_id": turn.active_game_player_id,
             "dice_roll": [turn.dice_roll_1, turn.dice_roll_2],
             "is_double": turn.is_double,
-            "new_position": updated.current_space_id if updated else None,
+            "new_position": updated.current_board_index if updated else None,
             "visiting_town_turns": updated.visiting_town_turns if updated else 0,
             "is_in_drought": updated.is_in_drought if updated else False,
             "has_pending_action": pending_state is not None,

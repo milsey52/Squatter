@@ -78,7 +78,7 @@ class GamePlayer(Base):
     # under this player's name from a device without the session token.
     # NULL for AI players and legacy rows (which then cannot name-rejoin).
     rejoin_code = Column(String, nullable=True)
-    current_space_id = Column(Integer, nullable=False, default=0)
+    current_board_index = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, server_default=func.now())
 
     # Squatter-specific fields
@@ -98,7 +98,7 @@ class GamePlayer(Base):
     restock_block_until_stock_sale = Column(Boolean, nullable=False, default=False)
     # Where the restock block began — used to draw the circuit marker on
     # the board. NULL when no block is active.
-    restock_block_marker_space_id = Column(Integer, nullable=True)
+    restock_block_marker_board_index = Column(Integer, nullable=True)
     # Which card triggered the block — 'lucerne_flea', 'grass_fire', or
     # 'worm_infestation'. Drives the marker shape. NULL when no block.
     restock_block_source = Column(String, nullable=True)

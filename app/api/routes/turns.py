@@ -97,7 +97,7 @@ async def play_turn(
             "player_id": turn.active_game_player_id,
             "dice_roll": [turn.dice_roll_1, turn.dice_roll_2],
             "is_double": turn.is_double,
-            "new_position": updated_player.current_space_id if updated_player else None,
+            "new_position": updated_player.current_board_index if updated_player else None,
             "visiting_town_turns": updated_player.visiting_town_turns if updated_player else 0,
             "is_in_drought": updated_player.is_in_drought if updated_player else False,
             "has_pending_action": pending_action is not None,

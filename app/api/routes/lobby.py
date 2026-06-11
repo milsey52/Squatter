@@ -130,7 +130,7 @@ def create_game(
         user_id=user.user_id,
         player_name=host_name,
         turn_order=1,
-        current_space_id=0,
+        current_board_index=0,
         is_ready=False,
         rejoin_code=rejoin_code,
     )
@@ -254,7 +254,7 @@ async def join_game(
         user_id=user.user_id,
         player_name=name,
         turn_order=next_turn_order,
-        current_space_id=0,
+        current_board_index=0,
         is_ready=False,
         rejoin_code=rejoin_code,
     )
@@ -491,7 +491,7 @@ async def add_ai_player(
         user_id=None,
         player_name=name,
         turn_order=next_turn_order,
-        current_space_id=0,
+        current_board_index=0,
         is_ready=True,         # auto-ready
         logged_in=True,        # always "logged in" so they don't suspend the game
         is_ai=True,

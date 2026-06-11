@@ -450,7 +450,7 @@ class AIPlayerService:
         lookahead = self.t.get("drought_lookahead_spaces", 0)
         if lookahead <= 0:
             return False
-        pos = self.player.current_space_id or 0
+        pos = self.player.current_board_index or 0
         for offset in range(1, lookahead + 1):
             target = (pos + offset) % BOARD_SIZE
             if target in LOCAL_DROUGHT_BOARD_INDICES:

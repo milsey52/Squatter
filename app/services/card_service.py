@@ -205,7 +205,7 @@ class CardService:
         if params.get("breaks_drought") and player.is_in_drought:
             self.drought.break_drought(player, source="card")
         # Move to Wool Sale (space 0)
-        player.current_space_id = 0
+        player.current_board_index = 0
         self.session.flush()
 
         # Pay wool cheque
@@ -279,7 +279,7 @@ class CardService:
             player.restock_blocked_until_circuit = True
             player.restock_block_spaces_remaining = BOARD_SIZE
             player.restock_block_scope = 'all'
-            player.restock_block_marker_space_id = player.current_space_id
+            player.restock_block_marker_board_index = player.current_board_index
             player.restock_block_source = 'lucerne_flea'
             self.session.flush()
 
@@ -344,7 +344,7 @@ class CardService:
         player.restock_block_spaces_remaining = BOARD_SIZE
         player.restock_block_scope = 'all'
         player.restock_block_until_stock_sale = True
-        player.restock_block_marker_space_id = player.current_space_id
+        player.restock_block_marker_board_index = player.current_board_index
         player.restock_block_source = 'worm_infestation'
         self.session.flush()
 
@@ -458,7 +458,7 @@ class CardService:
             player.restock_blocked_until_circuit = True
             player.restock_block_spaces_remaining = BOARD_SIZE
             player.restock_block_scope = 'all'
-            player.restock_block_marker_space_id = player.current_space_id
+            player.restock_block_marker_board_index = player.current_board_index
             player.restock_block_source = 'grass_fire'
         self.session.flush()
 
@@ -533,7 +533,7 @@ class CardService:
 
         # No board_index for a card-triggered drought — pass the player's
         # current space so drought_start_space is recorded sensibly.
-        self.drought.apply_drought(player, player.current_space_id)
+        self.drought.apply_drought(player, player.current_board_index)
         self.session.flush()
 
         return {
@@ -623,7 +623,7 @@ class CardService:
                         p, total_income, "drought_sale", turn_id, notes=notes
                     )
 
-            self.drought.apply_drought(p, p.current_space_id)
+            self.drought.apply_drought(p, p.current_board_index)
 
             breakdowns.append({
                 "player_id": p.game_player_id,
@@ -671,7 +671,7 @@ class CardService:
 
     def _effect_move_to_stock_sale(self, player, params, turn_id):
         # Find the next stock sale space after current position
-        current = player.current_space_id
+        current = player.current_board_index
         stock_sales = (
             self.session.query(models.Space)
             .filter(models.Space.space_type == "stock_sale")
@@ -687,7 +687,7 @@ class CardService:
             next_sale = stock_sales[0]  # wrap around
 
         if next_sale:
-            player.current_space_id = next_sale.board_index
+            player.current_board_index = next_sale.board_index
             self.session.flush()
             return {"moved_to": next_sale.name, "board_index": next_sale.board_index}
         return {"moved_to": None}

@@ -34,7 +34,7 @@ def create_game_with_defaults(session: Session, host_user_id: int, player_names:
             game_id=game.game_id,
             player_name=name,
             turn_order=order,
-            current_space_id=0,
+            current_board_index=0,
         ))
 
     session.add(models.GameRule(
