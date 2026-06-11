@@ -9,6 +9,7 @@ draws.
 """
 import json
 import random
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import models
@@ -38,6 +39,9 @@ THRESHOLDS = {
         "buy_threshold_pens": 28,
         "buy_qty": 8,  # buy this many pens per stock sale when affordable
         "buy_floor_cash": 2000,
+        # Cash to still hold AFTER buying stock — cushion for expense
+        # spaces, drought, and mortgage interest ahead.
+        "buy_cash_reserve": 500,
         "stud_ram_cash_buffer": 1500,
         "stud_ram_min_pens": 4,
         "drench_enhanced_min_pens": 5,
@@ -55,6 +59,7 @@ THRESHOLDS = {
         "buy_threshold_pens": 30,  # buy until full
         "buy_qty": 10,
         "buy_floor_cash": 1500,
+        "buy_cash_reserve": 250,  # Hard runs leaner
         "stud_ram_cash_buffer": 1000,
         "stud_ram_min_pens": 3,
         "drench_enhanced_min_pens": 4,
@@ -385,6 +390,62 @@ class AIPlayerService:
         """Extra cash buffer to require when drought is imminent (Hard)."""
         return self.t.get("drought_extra_buffer", 0) if self._drought_imminent() else 0
 
+    def _stock_buy_price_range(self) -> tuple:
+        """(min, max) buy price per pen across the Stock Sale deck. This is
+        public knowledge (printed on the cards) — not a peek at the draw."""
+        lo, hi = (
+            self.session.query(
+                func.min(models.StockCard.buy_price_per_pen),
+                func.max(models.StockCard.buy_price_per_pen),
+            ).one()
+        )
+        return int(lo or 0), int(hi or 0)
+
+    def _buy_cash_reserve(self) -> int:
+        """Cash to keep in hand after buying stock. Waived during stuck
+        recovery, where every dollar raised by mortgaging should become
+        sheep. Includes Hard's drought-imminent buffer when applicable.
+        Best-effort: the price is revealed only after committing, so a
+        pricier-than-best-case card may still dip into the cushion."""
+        if self._is_stuck():
+            return 0
+        return self.t.get("buy_cash_reserve", 0) + self._cash_reserve_extra()
+
+    def _buy_with_affordability_retry(self, qty: int) -> str | None:
+        """Commit to buying qty pens. The price is revealed only after the
+        commit; if it makes qty unaffordable, retry once at the maximum
+        affordable count (allowed — retries may only reduce), and pass if
+        even one pen is out of reach. Always resolves the pending action
+        when a commit happened. Returns a result tag, or None if the buy
+        was rejected before committing (caller decides what to do next)."""
+        try:
+            result = self.decision.stock_sale_buy(
+                self.player.game_player_id, qty, use_high_stock_prices=False
+            )
+        except ValueError:
+            return None
+        if result.get("status") != "insufficient_funds":
+            return f"stock_sale:bought_{qty}"
+
+        # Reduce to what the locked price allows while keeping the cash
+        # cushion intact (max_affordable_pens is the absolute rules limit).
+        buy_price = int(result.get("buy_price") or 0)
+        spendable = max(0, int(result.get("balance") or 0) - self._buy_cash_reserve())
+        affordable = spendable // buy_price if buy_price > 0 else 0
+        affordable = min(affordable, int(result.get("max_affordable_pens") or 0))
+        if 1 <= affordable < qty:
+            try:
+                result = self.decision.stock_sale_buy(
+                    self.player.game_player_id, affordable, use_high_stock_prices=False
+                )
+                if result.get("status") != "insufficient_funds":
+                    return f"stock_sale:bought_{affordable}_reduced"
+            except ValueError:
+                pass
+        # Can't afford even one pen at the locked price — pass out.
+        self.decision.stock_sale_pass(self.player.game_player_id)
+        return "stock_sale:cant_afford_passed"
+
     def _has_high_stock_prices_card(self) -> bool:
         return (
             self.session.query(models.CardDraw)
@@ -457,14 +518,19 @@ class AIPlayerService:
 
         if action == "buy":
             pens = random.randint(1, min(buy_capacity, 5))
-            try:
-                self.decision.stock_sale_buy(self.player.game_player_id, pens,
-                                             use_high_stock_prices=False)
-            except ValueError:
-                # If unaffordable, pass instead.
+            # Don't gamble on a price we can't cover even on the cheapest
+            # card, and keep the cash cushion.
+            min_price, _ = self._stock_buy_price_range()
+            balance = self.ledger.player_balance(self.player.game_player_id)
+            spendable = max(0, balance - self._buy_cash_reserve())
+            if min_price > 0:
+                pens = min(pens, spendable // min_price)
+            tag = self._buy_with_affordability_retry(pens) if pens >= 1 else None
+            if tag is None:
+                # Rejected before committing (no space / blocked) — pass.
                 self.decision.stock_sale_pass(self.player.game_player_id)
                 return "stock_sale:buy_failed_passed"
-            return f"stock_sale:bought_{pens}"
+            return tag
 
         # action == "sell"
         target = random.randint(1, min(sell_capacity, 5))
@@ -596,14 +662,18 @@ class AIPlayerService:
                 and total_pens < self.t["buy_threshold_pens"]
                 and balance >= cash_floor):
             qty = min(self.t.get("buy_qty", 5), buy_capacity, max_per_txn)
-            try:
-                self.decision.stock_sale_buy(
-                    self.player.game_player_id, qty,
-                    use_high_stock_prices=False,
-                )
-                return f"stock_sale:bought_{qty}"
-            except ValueError:
-                pass
+            # Never commit to more pens than the cheapest possible card
+            # allows after keeping the cash cushion — the price is revealed
+            # only after committing, and a commit can be reduced but not
+            # abandoned for a sell.
+            min_price, _ = self._stock_buy_price_range()
+            spendable = max(0, balance - self._buy_cash_reserve())
+            if min_price > 0:
+                qty = min(qty, spendable // min_price)
+            if qty >= 1:
+                tag = self._buy_with_affordability_retry(qty)
+                if tag:
+                    return tag
 
         # PRIORITY 2 — Sell only when very full or to burn an HSP card.
         # Without HSP, we want the pens for the win, not the cash from a sale.

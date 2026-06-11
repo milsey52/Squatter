@@ -147,6 +147,10 @@ class DecisionService:
                 "requested_pens": pens,
                 "balance": balance,
                 "hsp_locked": hsp_locked,
+                # The price is locked once committed — tell the caller what
+                # IS affordable so they can retry smaller or pass.
+                "buy_price": buy_price,
+                "max_affordable_pens": balance // buy_price if buy_price > 0 else 0,
             }
 
         # Restock scoping. Two independent restrictions can apply at once:
