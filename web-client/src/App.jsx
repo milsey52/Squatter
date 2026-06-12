@@ -5,7 +5,6 @@ import GameLobby from "./components/GameLobby";
 import SuspendedGameNotice from "./components/SuspendedGameNotice";
 import RetainedCardPopup from "./components/RetainedCardPopup";
 import HoldingsPanel from "./components/HoldingsPanel";
-import TradingBoard from "./components/TradingBoard";
 import StationPanel from "./components/StationPanel";
 import PendingActionModal from "./components/PendingActionModal";
 import PlayerStationModal from "./components/PlayerStationModal";
@@ -47,13 +46,11 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastDiceRoll, setLastDiceRoll] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
-  const [showTradingBoard, setShowTradingBoard] = useState(false);
   const [showStationPanel, setShowStationPanel] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
   const [viewingPlayerId, setViewingPlayerId] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [holdingsRefreshKey, setHoldingsRefreshKey] = useState(0);
-  const [activeTrade, setActiveTrade] = useState(null);
   const [gameOver, setGameOver] = useState(false);
   const [winner, setWinner] = useState(null);
   const [animatedPositions, setAnimatedPositions] = useState({});
@@ -165,7 +162,7 @@ function App() {
     const headers = sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {};
 
     try {
-      const [gameRes, ledgerRes, balancesRes, stationsRes, ramsRes, cardsRes, lastCardRes, pendingRes, tradeRes, diceRes] = await Promise.all([
+      const [gameRes, ledgerRes, balancesRes, stationsRes, ramsRes, cardsRes, lastCardRes, pendingRes, diceRes] = await Promise.all([
         fetch(`${API_BASE}/games/${gameId}`, { headers, signal: abortController.signal }),
         fetch(`${API_BASE}/games/${gameId}/ledger`, { headers, signal: abortController.signal }),
         fetch(`${API_BASE}/games/${gameId}/player_balances`, { headers, signal: abortController.signal }),
@@ -174,7 +171,6 @@ function App() {
         fetch(`${API_BASE}/games/${gameId}/player_retained_cards`, { headers, signal: abortController.signal }),
         fetch(`${API_BASE}/games/${gameId}/last_drawn_card`, { headers, signal: abortController.signal }),
         fetch(`${API_BASE}/games/${gameId}/pending-action`, { headers, signal: abortController.signal }),
-        fetch(`${API_BASE}/games/${gameId}/trades/active`, { headers, signal: abortController.signal }),
         fetch(`${API_BASE}/games/${gameId}/dice_rolls`, { headers, signal: abortController.signal }),
       ]);
 
@@ -188,7 +184,6 @@ function App() {
       const cardsData = cardsRes.ok ? await cardsRes.json() : {};
       const lastCardData = lastCardRes.ok ? await lastCardRes.json() : null;
       const pendingData = pendingRes.ok ? await pendingRes.json() : { pending_action: null };
-      const tradeData = tradeRes.ok ? await tradeRes.json() : { trade: null };
       const diceData = diceRes.ok ? await diceRes.json() : { rolls: [] };
 
       setGame(gameData);
@@ -199,7 +194,6 @@ function App() {
       setPlayerRetainedCards(cardsData);
       setLastDrawnCard(lastCardData);
       setPendingAction(pendingData.pending_action);
-      setActiveTrade(tradeData.trade);
       setHoldingsRefreshKey((k) => k + 1);
 
       const rolls = diceData.rolls || [];
@@ -337,11 +331,6 @@ function App() {
         }
         break;
       case 'game_state_changed':
-      case 'trade_initiated':
-      case 'trade_status_changed':
-      case 'trade_offer_updated':
-      case 'trade_cancelled':
-      case 'trade_executed':
         fetchGameState();
         break;
       case 'game_over':
@@ -549,10 +538,6 @@ function App() {
               padding: "0.5rem 1rem", background: "#4caf50", color: "#fff",
               border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.9rem"
             }}>Station</button>
-            <button onClick={() => setShowTradingBoard(true)} style={{
-              padding: "0.5rem 1rem", background: "#6a4c93", color: "#fff",
-              border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.9rem"
-            }}>Trade</button>
             <button onClick={nextTurn} disabled={isSubmitting || pendingAction || !isCurrentPlayer} style={{
               padding: "0.5rem 1rem",
               background: (isSubmitting || pendingAction || !isCurrentPlayer) ? "#ccc" : "#1982c4",
@@ -693,28 +678,6 @@ function App() {
           isMyTurn={isCurrentPlayer}
           inDrought={!!currentUserPlayer?.is_in_drought}
         />
-      )}
-
-      {/* Trading Board */}
-      {showTradingBoard && (
-        <div style={{
-          position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-          width: "800px", maxHeight: "80vh", overflowY: "auto",
-          background: "#fff", border: "3px solid #6a4c93", borderRadius: "12px",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.3)", zIndex: Z_INDEX.PANEL
-        }}>
-          <TradingBoard
-            gameId={gameId}
-            sessionToken={sessionToken}
-            userId={userId}
-            game={game}
-            playerBalances={playerBalances}
-            allPlayerAssets={{}}
-            playerRetainedCards={playerRetainedCards}
-            activeTradeFromParent={activeTrade}
-            onClose={() => setShowTradingBoard(false)}
-          />
-        </div>
       )}
 
 {/* Player Station Modal — click any player in the list */}
