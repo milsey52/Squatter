@@ -9,26 +9,15 @@ import TradingBoard from "./components/TradingBoard";
 import StationPanel from "./components/StationPanel";
 import PendingActionModal from "./components/PendingActionModal";
 import PlayerStationModal from "./components/PlayerStationModal";
+import PlayerList from "./components/PlayerList";
+import DebtBanner from "./components/DebtBanner";
+import { StockSaleCardOverlay, TuckerBagDrawOverlay } from "./components/BoardOverlays";
 import { useGameEvents } from "./hooks/useGameEvents";
 import { Z_INDEX } from "./constants/zIndex";
 import { useTheme } from "./theme";
 import SettingsModal, { SettingsButton } from "./components/SettingsModal";
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
-
-const SPACE_LABELS = [
-  "Start/Wool Sale", "Stock Sale", "Sheep Dipping", "Stud Ram – Elmsford",
-  "Tucker Bag", "Bore Dries Up", "Visiting Town", "Visiting Town",
-  "Drench Sheep for Worms", "Tucker Bag", "Flood Damage", "Tucker Bag",
-  "Stock Sale", "Shearing Costs", "Control of Vermin", "Stock Sale",
-  "Footrot Treatment", "Stock Sale", "Stud Ram – Lachlan Lad", "Tucker Bag",
-  "Fencing Repairs", "Spray for Weeds & Insects", "Local Drought", "Liver Fluke Drench",
-  "Tucker Bag", "Stock Sale", "Stud Ram – King of Warramboo", "Local Rain",
-  "Stock Sale", "Pulpy Kidney Vaccine", "Stud Ram – Winton Boy", "Tucker Bag",
-  "Stock Sale", "Stud Ram Dies", "Water Drilling", "Tucker Bag",
-  "Stock Sale", "Fertilising Pasture", "Stock Sale", "Stud Ram – Mitchell's Pride",
-  "Fly Strike Dip", "Tucker Bag", "Stock Sale", "Local Drought"
-];
 
 function App() {
   const { theme } = useTheme();
@@ -386,9 +375,7 @@ function App() {
       // Transient toast — a refused roll (debt, not your turn) must not
       // blank the game screen: the player needs the Station panel to
       // mortgage / sell their way out of debt.
-      setActionError(err.message);
-      if (actionErrorTimer.current) clearTimeout(actionErrorTimer.current);
-      actionErrorTimer.current = setTimeout(() => setActionError(null), 8000);
+      showActionError(err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -424,38 +411,11 @@ function App() {
   const isCurrentPlayer = currentUserPlayer && currentUserPlayer.game_player_id === game.current_player_id;
   const isMissingTurn = isCurrentPlayer && (currentUserPlayer?.visiting_town_turns || 0) > 0;
 
-  // Debt notice: balances go negative when forced payments exceed cash.
-  // The server refuses rolls until the debt is cleared, so surface the
-  // obligation the moment it exists rather than waiting for a failed roll.
-  const myBalance = currentUserPlayer
-    ? playerBalances[String(currentUserPlayer.game_player_id)]
-    : undefined;
-  const myDebt = (typeof myBalance === 'number' && myBalance < 0) ? -myBalance : 0;
-  const myStation = currentUserPlayer
-    ? (stations[String(currentUserPlayer.game_player_id)] || stations[currentUserPlayer.game_player_id])
-    : null;
-  // Pens to sell at the $400 emergency price to exactly clear the debt.
-  const debtPensNeeded = myDebt > 0
-    ? Math.min(Math.ceil(myDebt / 400), myStation?.total_pens ?? 0)
-    : 0;
-
-  const emergencySellForDebt = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/games/${gameId}/station/sell-to-bank`, {
-        method: "POST",
-        headers: { 'Authorization': `Bearer ${sessionToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pens: debtPensNeeded })
-      });
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || `Failed: ${response.status}`);
-      }
-      fetchGameState();
-    } catch (err) {
-      setActionError(err.message);
-      if (actionErrorTimer.current) clearTimeout(actionErrorTimer.current);
-      actionErrorTimer.current = setTimeout(() => setActionError(null), 8000);
-    }
+  // Show a transient toast (used by the debt banner and the roll handler).
+  const showActionError = (msg) => {
+    setActionError(msg);
+    if (actionErrorTimer.current) clearTimeout(actionErrorTimer.current);
+    actionErrorTimer.current = setTimeout(() => setActionError(null), 8000);
   };
 
   return (
@@ -570,7 +530,7 @@ function App() {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${sessionToken}` },
                       });
-                    } catch (_) {}
+                    } catch { /* ignore */ }
                   }
                   setGameOver(false); setWinner(null); setScreen('selector');
                 }}
@@ -597,261 +557,28 @@ function App() {
             </div>
           )}
 
-          {/* Stock Sale card overlay — anchored to the board, below "Squatter".
-              Renders for any pending action whose data carries a Stock Sale
-              card snapshot (stock_sale_result, tucker_bag_result with card,
-              drought_effect with haystack-drawn card, etc.). */}
-          {(() => {
-            if (!pendingAction) return null;
-            const sd = pendingAction.action_data || {};
-            const at = pendingAction.action_type;
-            const overlayTypes = ['stock_sale_result', 'tucker_bag_result', 'drought_effect'];
-            const hasCard = !!(sd.card || sd.stock_card_used);
-            if (!overlayTypes.includes(at) || !hasCard) return null;
-
-            const card = sd.card || sd.stock_card_used || {};
-            const isStockResult = at === 'stock_sale_result';
-            const isBuy = sd.action === 'buy';
-            const activeIsMe = (game?.players || []).some(
-              p => p.game_player_id === pendingAction.active_player_id && p.user_id === userId
-            );
-            const activeName = (game?.players || []).find(
-              p => p.game_player_id === pendingAction.active_player_id
-            )?.player_name;
-            const ackUrl = `${API_BASE}/games/${gameId}/decisions/acknowledge`;
-            const onOk = async () => {
-              try {
-                await fetch(ackUrl, {
-                  method: 'POST',
-                  headers: { 'Authorization': `Bearer ${sessionToken}`, 'Content-Type': 'application/json' },
-                });
-                setPendingAction(null);
-                fetchGameState();
-              } catch (e) { /* surfacing handled by next poll */ }
-            };
-            const titleByType = {
-              stock_sale_result: 'Stock Sale — Card Revealed',
-              tucker_bag_result: `${sd.card_title || 'Tucker Bag'} — Stock Sale Card`,
-              drought_effect: 'Local Drought — Stock Sale Card (Haystack)',
-            };
-            return (
-              <div style={{
-                position: "absolute", top: "600px", left: "50%", transform: "translateX(-50%)",
-                background: "#fff", border: "2px solid #1982c4", borderRadius: 10,
-                padding: "14px 18px", boxShadow: "0 4px 12px rgba(0,0,0,0.2)", zIndex: 3,
-                width: 360,
-              }}>
-                <h3 style={{ margin: "0 0 8px", color: "#1982c4", fontSize: "1rem", textAlign: "center" }}>
-                  {titleByType[at] || 'Stock Sale Card'}
-                </h3>
-                <div style={{ padding: "8px", background: "#E3F2FD", borderRadius: 6, fontSize: "0.85rem" }}>
-                  <table style={{ width: "100%" }}>
-                    <tbody>
-                      {card.buy_price_per_pen !== undefined && (
-                        <tr><td>Buy</td><td style={{ textAlign: "right" }}><strong>${card.buy_price_per_pen}/pen</strong></td></tr>
-                      )}
-                      <tr><td>Sell — Natural</td><td style={{ textAlign: "right" }}><strong>${card.sell_price_natural}/pen</strong></td></tr>
-                      <tr><td>Sell — Improved/Irrigated</td><td style={{ textAlign: "right" }}><strong>${card.sell_price_improved_irrigated}/pen</strong></td></tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div style={{ marginTop: 8, padding: "8px", background: "#F1F8E9", borderRadius: 6, fontSize: "0.85rem" }}>
-                  {isStockResult ? (
-                    isBuy ? (
-                      <>Bought <strong>{sd.pens}</strong> pens at <strong>${sd.buy_price}/pen</strong> = <strong>${sd.total_cost}</strong></>
-                    ) : (
-                      <>Sold <strong>{sd.pens}</strong> pens for <strong>${sd.total_income}</strong>
-                        {Array.isArray(sd.tiers) && sd.tiers.some(([, n]) => n > 0) && (
-                          <div style={{ fontSize: "0.78rem", color: "#666", marginTop: 4 }}>
-                            {sd.tiers.filter(([, n]) => n > 0).map(([t, n]) => `${n} ${t}`).join(', ')}
-                          </div>
-                        )}
-                      </>
-                    )
-                  ) : (
-                    <>Sold <strong>{sd.pens_sold}</strong> pens for <strong>${sd.income}</strong>
-                      {sd.by_type && (
-                        <div style={{ fontSize: "0.78rem", color: "#666", marginTop: 4 }}>
-                          {Object.entries(sd.by_type).filter(([, n]) => n > 0).map(([t, n]) => `${n} ${t}`).join(', ')}
-                        </div>
-                      )}
-                      {sd.haystack_lost && (
-                        <div style={{ fontSize: "0.78rem", color: "#b71c1c", marginTop: 4 }}>
-                          Haystack lost (returned to Bank).
-                        </div>
-                      )}
-                      {sd.restock_blocked && (
-                        <div style={{ fontSize: "0.78rem", color: "#E65100", marginTop: 4, fontWeight: "bold" }}>
-                          Restock blocked until full circuit.
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-                {activeIsMe && (
-                  <div style={{ textAlign: "center", marginTop: 10 }}>
-                    <button onClick={onOk} style={{
-                      padding: "0.5rem 1.2rem", background: "#1982c4", color: "#fff",
-                      border: "none", borderRadius: 6, cursor: "pointer", fontWeight: "bold"
-                    }}>OK</button>
-                  </div>
-                )}
-                {!activeIsMe && (
-                  <p style={{ fontSize: "0.78rem", color: "#666", textAlign: "center", margin: "8px 0 0", fontStyle: "italic" }}>
-                    Waiting for {activeName}...
-                  </p>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* Tucker Bag draw — anchored to the board, below "Squatter" */}
-          {pendingAction && pendingAction.action_type === 'tucker_bag_drawn' && (() => {
-            const sd = pendingAction.action_data || {};
-            const activeIsMe = (game?.players || []).some(
-              p => p.game_player_id === pendingAction.active_player_id && p.user_id === userId
-            );
-            const activeName = (game?.players || []).find(
-              p => p.game_player_id === pendingAction.active_player_id
-            )?.player_name;
-            const tbUrl = `${API_BASE}/games/${gameId}/decisions/tucker-bag`;
-            const buyHsUrl = `${API_BASE}/games/${gameId}/station/buy-haystack`;
-            const post = async (url, body) => {
-              try {
-                await fetch(url, {
-                  method: 'POST',
-                  headers: { 'Authorization': `Bearer ${sessionToken}`, 'Content-Type': 'application/json' },
-                  body: JSON.stringify(body || {}),
-                });
-                setPendingAction(null);
-                fetchGameState();
-              } catch (e) { /* surfacing handled by next poll */ }
-            };
-            return (
-              <div style={{
-                position: "absolute", top: "600px", left: "50%", transform: "translateX(-50%)",
-                background: "#fff", border: "2px solid #6a4c93", borderRadius: 10,
-                padding: "14px 18px", boxShadow: "0 4px 12px rgba(0,0,0,0.2)", zIndex: 3,
-                width: 380,
-              }}>
-                <h3 style={{ margin: "0 0 4px", color: "#6a4c93", fontSize: "1rem", textAlign: "center" }}>
-                  Tucker Bag
-                </h3>
-                <h4 style={{ margin: "0 0 6px", textAlign: "center" }}>{sd.title}</h4>
-                <p style={{ color: "#555", lineHeight: 1.4, fontSize: "0.85rem", margin: 0 }}>{sd.body_text}</p>
-                {sd.tax_breakdown && (
-                  <div style={{ marginTop: "0.6rem", padding: "0.6rem", background: "#f5f5f5", borderRadius: 6, border: "1px solid #ddd" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
-                      <tbody>
-                        {sd.tax_breakdown.lines.map((line, i) => (
-                          <tr key={i}>
-                            <td style={{ padding: "0.2rem 0" }}>{line.label}</td>
-                            <td style={{ padding: "0.2rem 0.5rem", color: "#666", textAlign: "right" }}>
-                              {line.rate_label || `@ $${line.rate}`}
-                            </td>
-                            <td style={{ padding: "0.2rem 0", textAlign: "right", fontWeight: 500 }}>${line.amount.toLocaleString()}</td>
-                          </tr>
-                        ))}
-                        <tr style={{ borderTop: "2px solid #999" }}>
-                          <td colSpan={2} style={{ padding: "0.3rem 0", fontWeight: "bold" }}>Total Tax</td>
-                          <td style={{ padding: "0.3rem 0", textAlign: "right", fontWeight: "bold", color: "#d32f2f" }}>
-                            ${sd.tax_breakdown.total.toLocaleString()}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                {sd.is_retainable && (
-                  <p style={{ color: "#4caf50", fontWeight: "bold", fontSize: "0.85rem", marginTop: "0.5rem" }}>
-                    This card can be kept!
-                  </p>
-                )}
-                {sd.haystack_available && (
-                  <div style={{ marginTop: "0.5rem", padding: "0.6rem", background: "#F1F8E9", border: "1px solid #7CB342", borderRadius: 6, fontSize: "0.82rem", display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-                    <div style={{ flex: 1 }}>
-                      <strong style={{ color: "#33691E" }}>Haymaking Season!</strong>{" "}
-                      Haystack available for ${sd.haystack_cost}
-                      {sd.haystack_drought_premium && (
-                        <span style={{ marginLeft: 6, color: "#b71c1c", fontSize: "0.78rem" }}>(drought premium)</span>
-                      )}
-                    </div>
-                    {activeIsMe && (
-                      <button onClick={() => post(buyHsUrl, {})} style={{
-                        padding: "0.4rem 0.9rem", background: "#7CB342", color: "#fff",
-                        border: "none", borderRadius: 6, cursor: "pointer", fontWeight: "bold", fontSize: "0.82rem"
-                      }}>Buy Haystack (${sd.haystack_cost})</button>
-                    )}
-                  </div>
-                )}
-                {activeIsMe && (
-                  <div style={{ display: "flex", gap: "0.5rem", marginTop: 10, flexWrap: "wrap", justifyContent: "center" }}>
-                    {sd.is_retainable && sd.purchase_price > 0 ? (
-                      <>
-                        <button onClick={() => post(tbUrl, { buy_card: true })} style={{
-                          padding: "0.5rem 1.2rem", background: "#4caf50", color: "#fff",
-                          border: "none", borderRadius: 6, cursor: "pointer", fontWeight: "bold"
-                        }}>Buy (${sd.purchase_price})</button>
-                        <button onClick={() => post(tbUrl, { buy_card: false })} style={{
-                          padding: "0.5rem 1.2rem", background: "#666", color: "#fff",
-                          border: "none", borderRadius: 6, cursor: "pointer", fontWeight: "bold"
-                        }}>Decline</button>
-                      </>
-                    ) : (
-                      <button onClick={() => post(tbUrl, { buy_card: !!sd.is_retainable })} style={{
-                        padding: "0.5rem 1.2rem", background: "#6a4c93", color: "#fff",
-                        border: "none", borderRadius: 6, cursor: "pointer", fontWeight: "bold"
-                      }}>{sd.is_retainable ? 'Keep Card' : 'OK'}</button>
-                    )}
-                  </div>
-                )}
-                {!activeIsMe && (
-                  <p style={{ fontSize: "0.78rem", color: "#666", textAlign: "center", margin: "8px 0 0", fontStyle: "italic" }}>
-                    Waiting for {activeName}...
-                  </p>
-                )}
-              </div>
-            );
-          })()}
+          <StockSaleCardOverlay
+            gameId={gameId} sessionToken={sessionToken} userId={userId}
+            pendingAction={pendingAction} players={game.players || []}
+            onResolved={handleResolved}
+          />
+          <TuckerBagDrawOverlay
+            gameId={gameId} sessionToken={sessionToken} userId={userId}
+            pendingAction={pendingAction} players={game.players || []}
+            onResolved={handleResolved}
+          />
         </div>
 
         {/* Right: Controls and player info */}
         <div style={{ flex: 1, minWidth: 420, maxWidth: 550, position: "sticky", top: 20 }}>
-          {/* Debt notice — you must liquidate before play continues. Shown
-              only once this turn's other modals (the expense OK, etc.) are
-              acknowledged, so the order is: acknowledge -> settle -> play. */}
-          {myDebt > 0 && currentUserPlayer?.is_active !== false &&
-           (!pendingAction || pendingAction.action_type === 'debt_settlement') && (
-            <div style={{
-              background: "#b71c1c", color: "#fff", padding: "0.75rem 1rem",
-              borderRadius: 8, marginBottom: "1rem", fontSize: "0.95rem",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.3)"
-            }}>
-              <strong>⚠ You are ${myDebt} in debt.</strong>
-              <div style={{ marginTop: 4 }}>
-                You must raise cash before play continues — sell sheep to the
-                bank at $400/pen, mortgage paddocks, or sell a stud ram /
-                haystack. If your assets cannot cover the debt, your station
-                will be declared bankrupt.
-              </div>
-              <div style={{ display: "flex", gap: "0.5rem", marginTop: 8, flexWrap: "wrap" }}>
-                {debtPensNeeded > 0 && (
-                  <button onClick={emergencySellForDebt} style={{
-                    padding: "0.4rem 1rem", background: "#fff",
-                    color: "#b71c1c", border: "none", borderRadius: 6,
-                    cursor: "pointer", fontWeight: "bold", fontSize: "0.9rem"
-                  }}>
-                    Emergency Sell {debtPensNeeded} pen{debtPensNeeded > 1 ? 's' : ''} (+${debtPensNeeded * 400})
-                  </button>
-                )}
-                <button onClick={() => setShowStationPanel(true)} style={{
-                  padding: "0.4rem 1rem", background: "rgba(255,255,255,0.25)",
-                  color: "#fff", border: "1px solid rgba(255,255,255,0.6)",
-                  borderRadius: 6, cursor: "pointer", fontSize: "0.9rem"
-                }}>Station Panel</button>
-              </div>
-            </div>
-          )}
+          <DebtBanner
+            gameId={gameId} sessionToken={sessionToken}
+            currentUserPlayer={currentUserPlayer}
+            playerBalances={playerBalances} stations={stations}
+            pendingAction={pendingAction}
+            onOpenStation={() => setShowStationPanel(true)}
+            onRefresh={fetchGameState} onError={showActionError}
+          />
 
           {/* Action buttons */}
           <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
@@ -889,64 +616,14 @@ function App() {
             </div>
           )}
 
-          {/* Player list */}
-          <h2 style={{ margin: "0 0 0.5rem" }}>Players</h2>
-          <ul style={{ paddingLeft: "1rem", listStyle: "none" }}>
-            {game.players?.map((p) => {
-              const spaceLabel = SPACE_LABELS[p.current_board_index] || `Space ${p.current_board_index}`;
-              const cash = playerBalances[String(p.game_player_id)] ?? "?";
-              const station = stations[String(p.game_player_id)] || stations[p.game_player_id];
-              const totalPens = station?.total_pens ?? "?";
-              const retained = playerRetainedCards[p.game_player_id] || [];
-              const isCurrent = p.game_player_id === game.current_player_id;
-
-              return (
-                <li key={p.game_player_id} style={{
-                  marginBottom: 10, padding: "10px", borderRadius: "8px",
-                  background: isCurrent ? theme.highlightBg : "transparent",
-                  color: isCurrent && theme.name === "dark" ? theme.text : undefined,
-                  border: isCurrent ? `2px solid ${theme.highlightBorder}` : `1px solid ${theme.panelBorder}`,
-                  opacity: p.is_active === false ? 0.5 : 1
-                }}>
-                  <div
-                    onClick={() => setViewingPlayerId(p.game_player_id)}
-                    title="Click to view this player's station"
-                    style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", cursor: "pointer" }}
-                  >
-                    <strong style={{ textDecoration: "underline dotted", textUnderlineOffset: 3 }}>{p.player_name}</strong>
-                    {p.is_active === false && (
-                      <span style={{
-                        padding: "1px 6px", borderRadius: 4, background: "#424242",
-                        color: "#fff", fontSize: "0.7rem", fontWeight: "bold",
-                      }}>BANKRUPT</span>
-                    )}
-                    {p.is_ai && (
-                      <span style={{
-                        padding: "1px 6px", borderRadius: 4, background: "#6a4c93",
-                        color: "#fff", fontSize: "0.7rem", fontWeight: "bold",
-                      }}>🤖 AI{p.ai_difficulty ? ` · ${p.ai_difficulty.toUpperCase()}` : ''}</span>
-                    )}
-                    <span style={{ fontSize: "0.85rem", color: theme.textMuted }}>{spaceLabel}</span>
-                    <span style={{ fontSize: "0.85rem", color: "#1982c4" }}>${cash}</span>
-                    <span style={{ fontSize: "0.85rem", color: "#4caf50" }}>{totalPens} pens</span>
-                    {p.is_in_drought && <span style={{ fontSize: "0.8rem", color: "#d32f2f" }}>DROUGHT</span>}
-                    {p.visiting_town_turns > 0 && <span style={{ fontSize: "0.8rem", color: "#ff9800" }}>Town ({p.visiting_town_turns})</span>}
-                    {p.has_haystack && <span style={{ fontSize: "0.8rem", color: "#795548" }}>Haystack</span>}
-                  </div>
-                  {retained.length > 0 && (
-                    <div style={{ fontSize: "0.8rem", color: "#6a4c93", marginTop: "4px" }}>
-                      Cards: {retained.map((card, i) => (
-                        <button key={i} onClick={(e) => { e.stopPropagation(); setSelectedCard(card); }} style={{
-                          background: 'none', border: 'none', color: '#6a4c93',
-                          textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit'
-                        }}>{card.title}{i < retained.length - 1 ? ", " : ""}</button>
-                      ))}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+          <PlayerList
+            players={game.players || []}
+            currentPlayerId={game.current_player_id}
+            playerBalances={playerBalances} stations={stations}
+            playerRetainedCards={playerRetainedCards}
+            onViewPlayer={setViewingPlayerId}
+            onCardClick={setSelectedCard}
+          />
 
           {/* Stud Rams */}
           {studRams.length > 0 && (
