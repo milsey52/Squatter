@@ -528,6 +528,26 @@ function App() {
             pendingAction={pendingAction} players={game.players || []}
             onResolved={handleResolved}
           />
+
+          {/* AI thinking-out-loud — anchored to the lower centre of the board,
+              shown during the AI's pacing pause. */}
+          {aiThinking && (
+            <div style={{
+              position: "absolute", bottom: "150px", left: "50%", transform: "translateX(-50%)",
+              zIndex: 4, width: 620, maxWidth: "80%",
+              background: "rgba(237,231,246,0.97)", border: "3px solid #6a4c93",
+              borderRadius: 12, padding: "16px 22px", color: "#4a328c",
+              boxShadow: "0 6px 24px rgba(0,0,0,0.3)", textAlign: "center",
+            }}>
+              <div style={{ fontSize: "1.5rem", marginBottom: 6 }}>🤖💭</div>
+              <div style={{ fontSize: "1.05rem", fontWeight: "bold", marginBottom: 4 }}>
+                {aiThinking.playerName} is thinking…
+              </div>
+              <div style={{ fontSize: "1.1rem", fontStyle: "italic", lineHeight: 1.4 }}>
+                {aiThinking.text}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right: Controls and player info */}
@@ -559,18 +579,6 @@ function App() {
                 : isMissingTurn ? "Miss Turn" : "Roll Dice"}
             </button>
           </div>
-
-          {/* AI thinking-out-loud — shown during the AI's pacing pause */}
-          {aiThinking && (
-            <div style={{
-              marginBottom: "1rem", padding: "10px 14px", borderRadius: 8,
-              background: "#ede7f6", border: "2px solid #6a4c93", color: "#4a328c",
-              fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "0.5rem",
-            }}>
-              <span style={{ fontSize: "1.1rem" }}>🤖💭</span>
-              <span><strong>{aiThinking.playerName}</strong> is thinking: <em>{aiThinking.text}</em></span>
-            </div>
-          )}
 
           {/* Dice display */}
           {lastDiceRoll && (
