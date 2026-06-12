@@ -130,47 +130,13 @@ export function useGameEvents(gameId, sessionToken, onEvent) {
       callOnEvent('game_state_changed', data);
     });
 
-    // Trade events
-    eventSource.addEventListener('trade_initiated', (e) => {
-      const data = safeParse(e.data, 'trade_initiated');
+    // Event: ai_thinking — AI "thinking out loud" narration. EventSource
+    // dispatches by event name, so a new server event needs its own listener
+    // here or it is silently dropped.
+    eventSource.addEventListener('ai_thinking', (e) => {
+      const data = safeParse(e.data, 'ai_thinking');
       if (data === null) return;
-      console.log('[SSE] Trade initiated:', data);
-      callOnEvent('trade_initiated', data);
-    });
-
-    eventSource.addEventListener('trade_status_changed', (e) => {
-      const data = safeParse(e.data, 'trade_status_changed');
-      if (data === null) return;
-      console.log('[SSE] Trade status changed:', data);
-      callOnEvent('trade_status_changed', data);
-    });
-
-    eventSource.addEventListener('trade_offer_updated', (e) => {
-      const data = safeParse(e.data, 'trade_offer_updated');
-      if (data === null) return;
-      console.log('[SSE] Trade offer updated:', data);
-      callOnEvent('trade_offer_updated', data);
-    });
-
-    eventSource.addEventListener('trade_accepted', (e) => {
-      const data = safeParse(e.data, 'trade_accepted');
-      if (data === null) return;
-      console.log('[SSE] Trade accepted:', data);
-      callOnEvent('trade_accepted', data);
-    });
-
-    eventSource.addEventListener('trade_executed', (e) => {
-      const data = safeParse(e.data, 'trade_executed');
-      if (data === null) return;
-      console.log('[SSE] Trade executed:', data);
-      callOnEvent('trade_executed', data);
-    });
-
-    eventSource.addEventListener('trade_cancelled', (e) => {
-      const data = safeParse(e.data, 'trade_cancelled');
-      if (data === null) return;
-      console.log('[SSE] Trade cancelled:', data);
-      callOnEvent('trade_cancelled', data);
+      callOnEvent('ai_thinking', data);
     });
 
     eventSource.addEventListener('game_over', (e) => {
