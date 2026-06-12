@@ -424,6 +424,14 @@ function App() {
   const isCurrentPlayer = currentUserPlayer && currentUserPlayer.game_player_id === game.current_player_id;
   const isMissingTurn = isCurrentPlayer && (currentUserPlayer?.visiting_town_turns || 0) > 0;
 
+  // Debt notice: balances go negative when forced payments exceed cash.
+  // The server refuses rolls until the debt is cleared, so surface the
+  // obligation the moment it exists rather than waiting for a failed roll.
+  const myBalance = currentUserPlayer
+    ? playerBalances[String(currentUserPlayer.game_player_id)]
+    : undefined;
+  const myDebt = (typeof myBalance === 'number' && myBalance < 0) ? -myBalance : 0;
+
   return (
     <div style={{ padding: "0.5rem 1rem", fontFamily: "sans-serif", position: "relative",
                   background: theme.pageBg, color: theme.text, minHeight: "100vh" }}>
@@ -783,6 +791,28 @@ function App() {
 
         {/* Right: Controls and player info */}
         <div style={{ flex: 1, minWidth: 420, maxWidth: 550, position: "sticky", top: 20 }}>
+          {/* Debt notice — you must liquidate before you can roll again */}
+          {myDebt > 0 && currentUserPlayer?.is_active !== false && (
+            <div style={{
+              background: "#b71c1c", color: "#fff", padding: "0.75rem 1rem",
+              borderRadius: 8, marginBottom: "1rem", fontSize: "0.95rem",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.3)"
+            }}>
+              <strong>⚠ You are ${myDebt} in debt.</strong>
+              <div style={{ marginTop: 4 }}>
+                You must raise cash before your next roll — sell sheep to the
+                bank, mortgage paddocks, or sell a stud ram / haystack. If your
+                assets cannot cover the debt, your station will be declared
+                bankrupt.
+              </div>
+              <button onClick={() => setShowStationPanel(true)} style={{
+                marginTop: 8, padding: "0.4rem 1rem", background: "#fff",
+                color: "#b71c1c", border: "none", borderRadius: 6,
+                cursor: "pointer", fontWeight: "bold", fontSize: "0.9rem"
+              }}>Open Station Panel</button>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
             <button onClick={() => setShowStationPanel(true)} style={{
