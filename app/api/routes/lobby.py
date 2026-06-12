@@ -2,7 +2,8 @@
 import hmac
 import secrets
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
+from app.utils.time import utc_now
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -71,12 +72,17 @@ def _new_rejoin_code() -> str:
 
 
 def _new_session(session: Session, user_id: int, game_id: int) -> str:
+    # Opportunistic hygiene: every rejoin mints a fresh token, so without
+    # cleanup the table grows forever. Sweep expired rows on each mint.
+    session.query(models.GameSession).filter(
+        models.GameSession.expires_at < utc_now()
+    ).delete(synchronize_session=False)
     token = str(uuid.uuid4())
     session.add(models.GameSession(
         session_token=token,
         user_id=user_id,
         game_id=game_id,
-        expires_at=datetime.now() + timedelta(days=7),
+        expires_at=utc_now() + timedelta(days=7),
     ))
     return token
 

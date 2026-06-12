@@ -1,5 +1,5 @@
 """Authentication middleware for session token verification."""
-from datetime import datetime
+from app.utils.time import utc_now
 from fastapi import Header, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app import models
@@ -49,7 +49,7 @@ def verify_session_token(
         )
 
     # Check expiration
-    if game_session.expires_at < datetime.now():
+    if game_session.expires_at < utc_now():
         raise HTTPException(
             status_code=401,
             detail="Session token has expired"

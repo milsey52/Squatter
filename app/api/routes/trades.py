@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional, List
 import json
-from datetime import datetime
+from app.utils.time import utc_now
 
 from app.api import deps, auth
 from app.api.routes.events import broadcast_game_event
@@ -148,7 +148,7 @@ async def accept_trade_invite(
         trade.status = "active"
     else:
         trade.status = "cancelled"
-        trade.completed_at = datetime.now()
+        trade.completed_at = utc_now()
 
     session.commit()
 
@@ -190,7 +190,7 @@ async def cancel_trade(
         raise HTTPException(status_code=403, detail="You are not part of this trade")
 
     trade.status = "cancelled"
-    trade.completed_at = datetime.now()
+    trade.completed_at = utc_now()
     session.commit()
 
     background_tasks.add_task(
@@ -243,7 +243,7 @@ async def update_offer(
     else:
         raise HTTPException(status_code=403, detail="You are not part of this trade")
 
-    trade.updated_at = datetime.now()
+    trade.updated_at = utc_now()
     session.commit()
 
     background_tasks.add_task(
@@ -286,7 +286,7 @@ async def accept_trade(
     else:
         raise HTTPException(status_code=403, detail="You are not part of this trade")
 
-    trade.updated_at = datetime.now()
+    trade.updated_at = utc_now()
     session.commit()
 
     background_tasks.add_task(
@@ -385,7 +385,7 @@ async def execute_trade(
         ram.owner_game_player_id = initiator.game_player_id
 
     trade.status = "completed"
-    trade.completed_at = datetime.now()
+    trade.completed_at = utc_now()
 
     session.commit()
 

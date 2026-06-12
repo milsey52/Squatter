@@ -8,6 +8,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from app.api import deps, auth
 from app import models
+from app.utils.time import utc_now
 
 router = APIRouter()
 
@@ -140,8 +141,7 @@ async def game_events(
         raise HTTPException(status_code=401, detail="Invalid session token")
 
     # Check expiration
-    from datetime import datetime
-    if game_session.expires_at < datetime.now():
+    if game_session.expires_at < utc_now():
         raise HTTPException(status_code=401, detail="Session token has expired")
 
     user_id = game_session.user_id
