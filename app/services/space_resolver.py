@@ -21,6 +21,11 @@ class SpaceResolver:
         self.stock_sale = StockSaleService(session, game_id)
         self.drought = DroughtService(session, game_id)
         self.card_service = card_service
+        # Set by TurnManager before each resolve(): whether the player was
+        # in drought at the start of this turn, before track_movement may
+        # have broken it. Used so an anniversary landing on a Local Drought
+        # space extends rather than re-charges. See _handle_local_drought.
+        self.was_in_drought_at_turn_start = False
 
     def resolve(self, player: models.GamePlayer, space: models.Space, turn, passed_start: bool):
         won_on_pass = False
@@ -352,7 +357,11 @@ class SpaceResolver:
             })
             return
 
-        already_in_drought = player.is_in_drought
+        # Treat an anniversary landing as a continuation: if the player was in
+        # drought at the start of this turn, track_movement may have just
+        # broken it as the circuit completed on this very space. Either way it
+        # extends — no second half-stock sale.
+        already_in_drought = player.is_in_drought or self.was_in_drought_at_turn_start
         pens_sold = 0
         total_income = 0
         had_haystack = bool(player.has_haystack)

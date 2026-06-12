@@ -57,12 +57,21 @@ class TurnManager:
 
         turn = self._start_turn(player, d1, d2, is_double)
 
+        # Capture drought state BEFORE track_movement, which may break the
+        # drought this move (circuit complete). The space resolver needs the
+        # pre-move state so that landing on a Local Drought space exactly as
+        # the circuit completes (the "anniversary") is treated as an
+        # extension — extend the clock, no second half-stock sale — rather
+        # than a brand-new drought.
+        was_in_drought = player.is_in_drought
+
         end_space, passed_start = self._move_player(player, d1 + d2, turn)
 
         # Track drought movement (decrement spaces remaining)
         if player.is_in_drought and player.drought_spaces_remaining > 0:
             self.drought.track_movement(player, d1 + d2)
 
+        self.space_resolver.was_in_drought_at_turn_start = was_in_drought
         self.space_resolver.resolve(player, end_space, turn, passed_start)
 
         # Landing charges (expenses, mortgage interest) can leave the player
