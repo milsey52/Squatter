@@ -277,6 +277,11 @@ function App() {
 
     animatingPlayersRef.current = new Set([...animatingPlayersRef.current, playerId]);
     setAnimatingPlayers(prev => new Set([...prev, playerId]));
+    // Pin the token to its start square SYNCHRONOUSLY. Without this there
+    // is a one-step-delay window where the Board falls back to the player's
+    // state position — and if an in-flight refresh just wrote the server's
+    // new position, the token flashes at the destination before walking.
+    setAnimatedPositions(prev => ({ ...prev, [playerId]: startPosition }));
 
     for (let step = 1; step <= diceTotal; step++) {
       await new Promise(resolve => setTimeout(resolve, STEP_DELAY));
@@ -304,8 +309,15 @@ function App() {
           const diceTotal = data.dice_roll[0] + data.dice_roll[1];
           const movingPlayer = game?.players?.find(p => p.game_player_id === data.player_id);
 
-          if (movingPlayer && diceTotal > 0) {
-            const startPosition = movingPlayer.current_board_index;
+          if (movingPlayer && diceTotal > 0 &&
+              !animatingPlayersRef.current.has(data.player_id)) {
+            // Derive the start square from the event itself (destination
+            // minus the roll) — the client-side position may already have
+            // been overwritten by a racing refresh.
+            const BOARD_SIZE = 44;
+            const startPosition = data.new_position !== undefined && data.new_position !== null
+              ? ((data.new_position - diceTotal) % BOARD_SIZE + BOARD_SIZE) % BOARD_SIZE
+              : movingPlayer.current_board_index;
             animateTokenMovement(data.player_id, startPosition, diceTotal).then(() => {
               if (data.pending_action) setPendingAction(data.pending_action);
               if (data.new_position !== undefined) {
