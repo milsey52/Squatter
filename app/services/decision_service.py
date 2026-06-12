@@ -856,6 +856,12 @@ class DecisionService:
             raise ValueError("No pending action")
         if pending.active_player_id != player_id:
             raise ValueError("Not this player's decision")
+        if pending.action_type == "debt_settlement":
+            raise ValueError(
+                "Debt cannot be acknowledged away — sell sheep, mortgage "
+                "paddocks, or sell assets (Station panel) until the balance "
+                "is back above $0"
+            )
 
         data = json.loads(pending.action_data) if pending.action_data else {}
         self._resolve(pending)
@@ -883,6 +889,17 @@ class DecisionService:
     def _resolve(self, pending: models.PendingAction):
         pending.resolved_at = func.now()
         self.session.flush()
+        # Resolving a decision can charge the player (income tax card,
+        # drench options, card purchases). Gate the game on the debt
+        # immediately — don't wait for the debtor's next roll.
+        if (pending.action_type not in ("debt_settlement", "game_won")
+                and pending.active_player_id is not None):
+            from app.services.bankruptcy_service import BankruptcyService
+            player = self.session.query(models.GamePlayer).get(
+                pending.active_player_id)
+            if player is not None and player.is_active:
+                BankruptcyService(self.session, self.game_id).check_debt(
+                    player, pending.turn_id)
 
     def _calculate_sell_income(self, player_id: int, pens: int,
                                stock_card: models.StockCard, modifier_pct: int,

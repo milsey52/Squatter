@@ -181,3 +181,110 @@ def test_ai_with_nothing_left_goes_bankrupt_via_autopilot(session, game_factory,
     game = session.query(models.Game).get(g.game_id)
     assert game.current_game_player_id == g.players["Hu"]
     assert game.status == "in_progress"
+
+
+# ── Debt-settlement gate (acknowledge -> settle -> play continues) ──────
+
+def land_on_expense(session, game, cost_flat, monkeypatch):
+    """Make the current player land on an expense space costing cost_flat."""
+    from app.services.turn_manager import TurnManager
+    space = session.query(models.Space).filter_by(board_index=7).one()
+    space.space_type = "expense"
+    space.cost_flat = cost_flat
+    session.commit()
+    monkeypatch.setattr(TurnManager, "_roll_dice", staticmethod(lambda: (3, 4)))
+    TurnManager(session, game.game_id).play_turn()
+    session.commit()
+
+
+def open_pendings(session, game_id):
+    from app.services.decision_service import DecisionService
+    return (session.query(models.PendingAction)
+            .filter_by(game_id=game_id, resolved_at=None)
+            .order_by(models.PendingAction.pending_action_id).all())
+
+
+def test_debt_gate_orders_acknowledge_then_settle(session, game_factory, spaces, monkeypatch):
+    from app.services.decision_service import DecisionService
+    g = game_factory(current="Hu")  # $2000 cash, 15 pens (recoverable)
+    land_on_expense(session, g, 2300, monkeypatch)  # balance -300
+
+    # Both pendings exist; the expense modal surfaces FIRST.
+    pendings = open_pendings(session, g.game_id)
+    assert [p.action_type for p in pendings] == ["expense_payment", "debt_settlement"]
+    svc = DecisionService(session, g.game_id)
+    assert svc.get_pending_action().action_type == "expense_payment"
+
+    # Acknowledge the expense -> the debt gate surfaces next.
+    svc.expense_acknowledge(g.players["Hu"])
+    session.commit()
+    assert svc.get_pending_action().action_type == "debt_settlement"
+
+    # The gate cannot be acknowledged away.
+    with pytest.raises(ValueError, match="Debt cannot be acknowledged"):
+        svc.acknowledge(g.players["Hu"])
+
+    # Raising cash resolves the gate (here: an emergency-sale credit).
+    from app.services.bankruptcy_service import BankruptcyService
+    session.add(models.Transaction(
+        game_id=g.game_id, player_from_id=None, player_to_id=g.players["Hu"],
+        amount=400, transaction_type="emergency_sale"))
+    session.flush()
+    assert BankruptcyService(session, g.game_id).clear_debt_pending_if_solvent(
+        g.players["Hu"])
+    session.commit()
+    assert svc.get_pending_action() is None  # play continues
+
+
+def test_debt_gate_blocks_all_rolls(session, game_factory, spaces, monkeypatch):
+    from app.services.decision_service import DecisionService
+    g = game_factory(players=(("Hu", False, None), ("Bo", False, None)),
+                     current="Hu")
+    land_on_expense(session, g, 2300, monkeypatch)
+    DecisionService(session, g.game_id).expense_acknowledge(g.players["Hu"])
+    session.commit()
+    # Turn has advanced to Bo, but Hu's open debt gate blocks Bo's roll.
+    token = "gate-test-token"
+    session.add(models.GameSession(
+        session_token=token,
+        user_id=session.query(models.GamePlayer).get(g.players["Bo"]).user_id,
+        game_id=g.game_id, expires_at=datetime.now() + timedelta(days=1)))
+    session.commit()
+    client = TestClient(main.app)
+    r = client.post(f"/games/{g.game_id}/turns",
+                    headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 400
+    assert "pending" in r.json()["detail"].lower()
+
+
+def test_unrecoverable_landing_debt_bankrupts_immediately(session, game_factory, spaces, monkeypatch):
+    g = game_factory(players=(("Hu", False, None), ("Bo", False, None),
+                              ("Jim", True, "medium")),
+                     sheep_per_paddock=0, current="Jim")
+    mortgage_all(session, g, "Jim")
+    land_on_expense(session, g, 2600, monkeypatch)  # balance -600, nothing to sell
+
+    jim = session.query(models.GamePlayer).get(g.players["Jim"])
+    assert not jim.is_active
+    # No lingering pendings (the expense modal died with the player).
+    assert open_pendings(session, g.game_id) == []
+    game = session.query(models.Game).get(g.game_id)
+    assert game.current_game_player_id != g.players["Jim"]
+    assert game.status == "in_progress"
+
+
+def test_ai_settles_its_own_debt_gate(session, game_factory, spaces, monkeypatch):
+    g = game_factory(sheep_per_paddock=3, current="Jim")  # AI, 15 pens
+    land_on_expense(session, g, 2700, monkeypatch)  # balance -700, gate created
+    # Resolve the expense modal (the AI autopilot pending branch would do
+    # this; resolve directly to isolate the debt-gate behaviour).
+    from app.services.decision_service import DecisionService
+    DecisionService(session, g.game_id).expense_acknowledge(g.players["Jim"])
+    session.commit()
+
+    drive(g.game_id, monkeypatch)  # autopilot tick: AI sells toward solvency
+    session.expire_all()
+    from app.services.bankruptcy_service import BankruptcyService
+    assert BankruptcyService(session, g.game_id).find_open_debt_pending(
+        g.players["Jim"]) is None
+    assert LedgerService(session, g.game_id).player_balance(g.players["Jim"]) >= 0

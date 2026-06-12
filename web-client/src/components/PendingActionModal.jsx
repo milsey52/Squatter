@@ -1289,6 +1289,32 @@ export default function PendingActionModal({ gameId, sessionToken, userId, pendi
     );
   }
 
+  if (pendingAction.action_type === 'debt_settlement') {
+    // The game is gated until the debtor raises cash — there is no OK
+    // button; the pending resolves itself once their balance is >= $0.
+    // (The debtor's own client suppresses this modal and shows the red
+    // debt banner with Station access instead.)
+    return (
+      <div style={modalStyle}>
+        <h2 style={{ margin: '0 0 1rem', color: '#b71c1c' }}>Debt Must Be Settled</h2>
+        <p>
+          <strong>{data.player_name || activePlayer?.player_name}</strong> is{' '}
+          <strong>${data.debt}</strong> in debt and must sell sheep, mortgage
+          paddocks, or sell assets before play can continue.
+        </p>
+        {isMyAction ? (
+          <p style={{ color: '#b71c1c', fontWeight: 'bold' }}>
+            Open your Station panel to raise the cash.
+          </p>
+        ) : (
+          <p style={{ fontStyle: 'italic', color: '#666' }}>
+            Waiting for {data.player_name || activePlayer?.player_name} to settle the debt...
+          </p>
+        )}
+      </div>
+    );
+  }
+
   // Generic informational actions (drought, flood, etc.)
   const titleMap = {
     drought_effect: 'Local Drought!',

@@ -791,8 +791,11 @@ function App() {
 
         {/* Right: Controls and player info */}
         <div style={{ flex: 1, minWidth: 420, maxWidth: 550, position: "sticky", top: 20 }}>
-          {/* Debt notice — you must liquidate before you can roll again */}
-          {myDebt > 0 && currentUserPlayer?.is_active !== false && (
+          {/* Debt notice — you must liquidate before play continues. Shown
+              only once this turn's other modals (the expense OK, etc.) are
+              acknowledged, so the order is: acknowledge -> settle -> play. */}
+          {myDebt > 0 && currentUserPlayer?.is_active !== false &&
+           (!pendingAction || pendingAction.action_type === 'debt_settlement') && (
             <div style={{
               background: "#b71c1c", color: "#fff", padding: "0.75rem 1rem",
               borderRadius: 8, marginBottom: "1rem", fontSize: "0.95rem",
@@ -982,8 +985,13 @@ function App() {
         )}
       </div>
 
-      {/* Pending Action Modal */}
-      {animatingPlayers.size === 0 && pendingAction && (
+      {/* Pending Action Modal. The debtor's own debt_settlement gate is NOT
+          shown as a modal — the red debt banner takes its place, because the
+          debtor needs the Station panel (which a modal would cover) to sell
+          their way out. Everyone else sees the modal ("waiting for X..."). */}
+      {animatingPlayers.size === 0 && pendingAction &&
+        !(pendingAction.action_type === 'debt_settlement' &&
+          pendingAction.active_player_id === currentUserPlayer?.game_player_id) && (
         <PendingActionModal
           gameId={gameId}
           sessionToken={sessionToken}

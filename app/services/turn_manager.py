@@ -65,6 +65,16 @@ class TurnManager:
 
         self.space_resolver.resolve(player, end_space, turn, passed_start)
 
+        # Landing charges (expenses, mortgage interest) can leave the player
+        # in the red. Gate the game on settlement: the debt_settlement
+        # pending blocks everyone's rolls until the debtor raises the cash,
+        # surfacing AFTER this turn's own modals (pendings show oldest
+        # first). Unrecoverable debt bankrupts on the spot.
+        status = BankruptcyService(self.session, self.game_id).check_debt(
+            player, turn.turn_id)
+        if status == "bankrupt":
+            return  # check_debt advanced the turn past the eliminated player
+
         self._maybe_advance_turn(player, is_double)
 
     # Dice utilities -----------------------------------------------------

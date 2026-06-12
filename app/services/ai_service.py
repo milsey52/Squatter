@@ -113,6 +113,8 @@ class AIPlayerService:
         # the main action.
         self._consider_haystack_purchase(data)
 
+        if action_type == "debt_settlement":
+            return self._settle_debt(pending)
         if action_type == "tucker_bag_drawn":
             return self._tucker_bag_drawn(data)
         if action_type == "stock_sale_decision":
@@ -256,6 +258,14 @@ class AIPlayerService:
         rams = self.station.get_stud_rams_owned(self.player.game_player_id)
         if rams:
             return ("ram", rams[0].space_id)
+        # No stock left (pens are 0 here, so the 8-pen mortgage rule is
+        # satisfied) — mortgage paddocks, lowest tier first.
+        unmortgaged = [p for p in self.station.get_paddocks(self.player.game_player_id)
+                       if not p.is_mortgaged]
+        if unmortgaged:
+            tier_rank = {"natural": 0, "improved": 1, "irrigated": 2}
+            unmortgaged.sort(key=lambda p: (tier_rank[p.paddock_type], p.paddock_number))
+            return ("mortgage", unmortgaged[0].paddock_number)
         return None
 
     def execute_debt_recovery(self, step: tuple) -> str:
@@ -288,6 +298,9 @@ class AIPlayerService:
             self.session.flush()
             return "debt_recovery:sold_haystack"
 
+        if step[0] == "mortgage":
+            return self.execute_mortgage(step[1])
+
         # step[0] == "ram"
         space_id = step[1]
         ram_state = self.session.query(models.StudRamState).filter_by(
@@ -302,6 +315,23 @@ class AIPlayerService:
             ram_state.is_available = True
             self.session.flush()
         return "debt_recovery:sold_ram"
+
+    def _settle_debt(self, pending: models.PendingAction) -> str:
+        """The debt gate blocks the whole game — liquidate one asset per
+        tick (paced like other AI moves) until solvent, then resolve the
+        pending. If nothing is left to sell, re-run the debt check, which
+        declares bankruptcy rather than deadlocking the game."""
+        from app.services.bankruptcy_service import BankruptcyService
+        bankruptcy = BankruptcyService(self.session, self.game_id)
+        step = self.find_debt_recovery_step()
+        if step is not None:
+            tag = self.execute_debt_recovery(step)
+            bankruptcy.clear_debt_pending_if_solvent(self.player.game_player_id)
+            return tag
+        # Already solvent (e.g. a trade came through), or truly out of assets.
+        if not bankruptcy.clear_debt_pending_if_solvent(self.player.game_player_id):
+            bankruptcy.check_debt(self.player, pending.turn_id)
+        return "debt_settlement:checked"
 
     def execute_mortgage(self, paddock_number: int) -> str:
         """Mortgage the paddock and credit the player."""

@@ -9,6 +9,7 @@ from app.api.routes import events
 from app import models
 from app.services.station_service import StationService
 from app.services.ledger_service import LedgerService
+from app.services.bankruptcy_service import BankruptcyService
 from app.constants import (
     HAYSTACK_COST, HAYSTACK_SELL_PRICE,
     STUD_RAM_SELL_PRICE, EMERGENCY_SELL_PRICE_PER_PEN,
@@ -199,6 +200,7 @@ async def mortgage_paddock(
 
     ledger_svc.receive_from_bank(player, mortgage_value, "mortgage", turn_id,
                                   notes=f"Mortgaged paddock {paddock.paddock_number}")
+    BankruptcyService(session, game_id).clear_debt_pending_if_solvent(player.game_player_id)
     session.commit()
 
     await events.broadcast_game_event(
@@ -312,6 +314,7 @@ async def sell_sheep_to_bank(
 
     ledger_svc.receive_from_bank(player, income, "emergency_sale", turn_id,
                                   notes=f"Emergency sold {body.pens} pens at ${EMERGENCY_SELL_PRICE_PER_PEN}/pen")
+    BankruptcyService(session, game_id).clear_debt_pending_if_solvent(player.game_player_id)
     session.commit()
 
     await events.broadcast_game_event(
@@ -414,6 +417,7 @@ async def sell_haystack(
                                   notes="Sold haystack")
     player.has_haystack = False
     player.haystack_used = False
+    BankruptcyService(session, game_id).clear_debt_pending_if_solvent(player.game_player_id)
     session.commit()
 
     await events.broadcast_game_event(
@@ -464,6 +468,7 @@ async def sell_stud_ram(
                                   notes="Sold stud ram")
     ram_state.owner_game_player_id = None
     ram_state.is_available = True
+    BankruptcyService(session, game_id).clear_debt_pending_if_solvent(player.game_player_id)
     session.commit()
 
     await events.broadcast_game_event(

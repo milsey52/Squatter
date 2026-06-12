@@ -387,6 +387,12 @@ async def execute_trade(
     trade.status = "completed"
     trade.completed_at = utc_now()
 
+    # Trade cash can lift a player out of debt — clear the debt gate.
+    from app.services.bankruptcy_service import BankruptcyService
+    bankruptcy = BankruptcyService(session, game_id)
+    bankruptcy.clear_debt_pending_if_solvent(initiator.game_player_id)
+    bankruptcy.clear_debt_pending_if_solvent(counterparty.game_player_id)
+
     session.commit()
 
     background_tasks.add_task(
