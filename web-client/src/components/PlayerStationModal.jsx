@@ -57,7 +57,8 @@ export default function PlayerStationModal({ gameId, playerId, playerName, onClo
     );
 
     const stateBadges = [];
-    if (states.has_haystack) stateBadges.push({ label: states.haystack_used ? "Haystack (used)" : "Haystack", color: "#a67c00" });
+    if (states.haystack_pasture) stateBadges.push({ label: "Pasture haystack", color: "#a67c00" });
+    if (states.haystack_irrigated) stateBadges.push({ label: "Irrigated haystack", color: "#0277bd" });
     if (states.footrot_immune) stateBadges.push({ label: "Footrot immune", color: "#388e3c" });
     if (states.is_in_drought) stateBadges.push({ label: `Drought (${states.drought_spaces_remaining} spaces left)`, color: "#d32f2f" });
     if (states.restock_blocked_until_circuit) stateBadges.push({
@@ -86,7 +87,8 @@ export default function PlayerStationModal({ gameId, playerId, playerName, onClo
             {finRow("Sheep", `${fin.sheep_pens} pens (${(fin.sheep_count ?? 0).toLocaleString()} head)`)}
             {finRow("Paddocks", `${fin.paddocks_owned}${fin.paddocks_mortgaged ? ` (${fin.paddocks_mortgaged} mortgaged)` : ""}`)}
             {finRow("Stud rams", fin.stud_rams)}
-            {finRow("Haystack", fin.has_haystack ? "Yes" : "No")}
+            {finRow("Haystacks", [fin.haystack_pasture && "pasture", fin.haystack_irrigated && "irrigated"]
+              .filter(Boolean).join(", ") || "none")}
             <div style={{ borderTop: "1px solid #d4c5a3", margin: "5px 0" }} />
             {finRow("Liquidation value", money(fin.liquidation_value),
               { color: "#555" })}

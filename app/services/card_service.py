@@ -162,18 +162,19 @@ class CardService:
 
         self.ledger.pay_bank(player, cost, "fire_damage", turn_id)
 
-        haystack_lost = False
-        if player.has_haystack:
-            player.has_haystack = False
-            player.haystack_used = False
+        # Fire burns hay regardless of which pasture it was set aside for —
+        # both haystacks are lost.
+        haystack_lost = player.haystack_pasture or player.haystack_irrigated
+        if haystack_lost:
+            player.haystack_pasture = False
+            player.haystack_irrigated = False
             self.session.flush()
-            haystack_lost = True
 
         return {
             "protected": False,
             "protection_card": protection,
             "cost": cost,
-            "haystack_lost": haystack_lost,
+            "haystack_lost": bool(haystack_lost),
         }
 
     def _effect_income_tax(self, player, params, turn_id):
@@ -445,12 +446,11 @@ class CardService:
                 "sell_price_improved_irrigated": card.sell_price_improved_irrigated,
             }
 
-        # Card text: "Grass fire destroys Haystack" — return to Bank if owned.
-        haystack_lost = False
-        if player.has_haystack:
-            player.has_haystack = False
-            player.haystack_used = False
-            haystack_lost = True
+        # Card text: "Grass fire destroys Haystack" — burns both if owned.
+        haystack_lost = player.haystack_pasture or player.haystack_irrigated
+        if haystack_lost:
+            player.haystack_pasture = False
+            player.haystack_irrigated = False
 
         if params.get("restock_blocked"):
             from app.constants import BOARD_SIZE
@@ -491,7 +491,7 @@ class CardService:
                 "pens_sold": 0,
                 "income": 0,
                 "drought_spaces": 0,
-                "had_haystack": bool(player.has_haystack),
+                "had_haystack": bool(player.haystack_pasture),
                 "extended": False,
                 "by_type": {"natural": 0, "improved": 0, "irrigated": 0},
                 "no_haystack_price_per_pen": DROUGHT_SELL_PRICE_NO_HAYSTACK,
@@ -499,7 +499,8 @@ class CardService:
             }
 
         already_in_drought = player.is_in_drought
-        had_haystack = bool(player.has_haystack)
+        # Local Drought hits Natural/Improved — the pasture haystack offsets it.
+        had_haystack = bool(player.haystack_pasture)
         pens_sold = 0
         total_income = 0
         stock_card_drawn = None
@@ -520,9 +521,8 @@ class CardService:
                         + by_type["irrigated"] * stock_card_drawn.sell_price_improved_irrigated
                     )
                     notes = (f"Drought (card): sold {pens_sold} pens at Stock Sale prices "
-                             f"(haystack consumed)")
-                    player.has_haystack = False
-                    player.haystack_used = False
+                             f"(pasture haystack consumed)")
+                    player.haystack_pasture = False
                 else:
                     total_income = pens_sold * DROUGHT_SELL_PRICE_NO_HAYSTACK
                     notes = (f"Drought (card): sold {pens_sold} pens at "
@@ -585,13 +585,14 @@ class CardService:
                     "income": 0,
                     "by_type": {"natural": 0, "improved": 0, "irrigated": 0},
                     "drought_spaces": 0,
-                    "had_haystack": bool(p.has_haystack),
+                    "had_haystack": bool(p.haystack_pasture),
                     "stock_card_used": None,
                 })
                 continue
 
             already_in_drought = p.is_in_drought
-            had_haystack = bool(p.has_haystack)
+            # General Drought hits Natural/Improved — pasture haystack offsets.
+            had_haystack = bool(p.haystack_pasture)
             pens_sold = 0
             total_income = 0
             stock_card_drawn = None
@@ -612,9 +613,8 @@ class CardService:
                             + by_type["irrigated"] * stock_card_drawn.sell_price_improved_irrigated
                         )
                         notes = (f"General Drought: sold {pens_sold} pens at Stock Sale "
-                                 f"prices (haystack consumed)")
-                        p.has_haystack = False
-                        p.haystack_used = False
+                                 f"prices (pasture haystack consumed)")
+                        p.haystack_pasture = False
                     else:
                         total_income = pens_sold * DROUGHT_SELL_PRICE_NO_HAYSTACK
                         notes = (f"General Drought: sold {pens_sold} pens at "

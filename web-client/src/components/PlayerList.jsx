@@ -64,7 +64,8 @@ export default function PlayerList({
                 <span style={{ fontSize: "0.85rem", color: "#4caf50" }}>{totalPens} pens</span>
                 {p.is_in_drought && <span style={{ fontSize: "0.8rem", color: "#d32f2f" }}>DROUGHT</span>}
                 {p.visiting_town_turns > 0 && <span style={{ fontSize: "0.8rem", color: "#ff9800" }}>Town ({p.visiting_town_turns})</span>}
-                {p.has_haystack && <span style={{ fontSize: "0.8rem", color: "#795548" }}>Haystack</span>}
+                {p.haystack_pasture && <span style={{ fontSize: "0.8rem", color: "#795548" }}>Hay-P</span>}
+                {p.haystack_irrigated && <span style={{ fontSize: "0.8rem", color: "#0277bd" }}>Hay-I</span>}
               </div>
               {retained.length > 0 && (
                 <div style={{ fontSize: "0.8rem", color: "#6a4c93", marginTop: "4px" }}>

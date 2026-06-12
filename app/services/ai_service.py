@@ -364,8 +364,10 @@ class AIPlayerService:
             pens = min(total_pens,
                        -(-needed // EMERGENCY_SELL_PRICE_PER_PEN))  # ceil div
             return ("sheep", pens)
-        if self.player.has_haystack:
-            return ("haystack",)
+        if self.player.haystack_pasture:
+            return ("haystack", "pasture")
+        if self.player.haystack_irrigated:
+            return ("haystack", "irrigated")
         rams = self.station.get_stud_rams_owned(self.player.game_player_id)
         if rams:
             return ("ram", rams[0].space_id)
@@ -401,11 +403,12 @@ class AIPlayerService:
             return f"debt_recovery:sold_{pens}_pens"
 
         if step[0] == "haystack":
+            haystack_type = step[1]
+            attr = "haystack_pasture" if haystack_type == "pasture" else "haystack_irrigated"
             self.ledger.receive_from_bank(
                 self.player, HAYSTACK_SELL_PRICE, "haystack_sale", turn_id,
-                notes="Sold haystack (debt)")
-            self.player.has_haystack = False
-            self.player.haystack_used = False
+                notes=f"Sold {haystack_type} haystack (debt)")
+            setattr(self.player, attr, False)
             self.session.flush()
             return "debt_recovery:sold_haystack"
 
@@ -515,14 +518,24 @@ class AIPlayerService:
 
     # ── Helpers ────────────────────────────────────────────────────────
     def _consider_haystack_purchase(self, data: dict) -> bool:
-        """If a haystack is on offer and the AI should buy it given its
-        difficulty + cash, do so inline (deduct cash, set has_haystack).
+        """If a useful haystack is on offer and the AI should buy it given its
+        difficulty + cash, do so inline. Buys one type per call (the most
+        relevant); a second can be picked up at a later Haymaking landing.
         Returns True if bought."""
-        if not data.get("haystack_available"):
+        offers = data.get("haystack_offers") or []
+        if not offers:
             return False
-        if self.player.has_haystack:
+        # Prefer the pasture haystack while in drought (Local Drought hits
+        # Natural/Improved); otherwise take pasture first, then irrigated.
+        order = ["pasture", "irrigated"]
+        offer = next((o for t in order for o in offers if o["type"] == t), None)
+        if offer is None:
             return False
-        cost = int(data.get("haystack_cost") or 0)
+        haystack_type = offer["type"]
+        attr = "haystack_pasture" if haystack_type == "pasture" else "haystack_irrigated"
+        if getattr(self.player, attr):
+            return False
+        cost = int(offer.get("cost") or 0)
         if cost <= 0:
             return False
         balance = self.ledger.player_balance(self.player.game_player_id)
@@ -534,9 +547,9 @@ class AIPlayerService:
             if random.random() < 0.5:
                 return False
         else:
-            # Medium / Hard: buy when comfortably affordable. Always grab
-            # one if in drought (already paying the drought premium means
-            # we badly need offset capacity for future drought sales).
+            # Medium / Hard: buy when comfortably affordable. Always grab one
+            # if in drought (already paying the premium means we badly need
+            # offset capacity for future drought sales).
             if self.player.is_in_drought:
                 buffer = 0
             else:
@@ -551,9 +564,10 @@ class AIPlayerService:
             .first()
         )
         turn_id = latest_turn.turn_id if latest_turn else None
-        notes = "Bought haystack" + (" (drought premium)" if self.player.is_in_drought else "")
+        notes = (f"Bought {haystack_type} haystack"
+                 + (" (drought premium)" if self.player.is_in_drought else ""))
         self.ledger.pay_bank(self.player, cost, "haystack_purchase", turn_id, notes=notes)
-        self.player.has_haystack = True
+        setattr(self.player, attr, True)
         self.session.flush()
         return True
 

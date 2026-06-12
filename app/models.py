@@ -86,8 +86,11 @@ class GamePlayer(Base):
     is_in_drought = Column(Boolean, nullable=False, default=False)
     drought_start_space = Column(Integer)
     drought_spaces_remaining = Column(Integer, nullable=False, default=0)
-    has_haystack = Column(Boolean, nullable=False, default=False)
-    haystack_used = Column(Boolean, nullable=False, default=False)
+    # Two hazard-keyed haystacks ("Max's rule"): the pasture haystack offsets
+    # Local Drought / Drought on ALL Stations (Natural & Improved stock); the
+    # irrigated haystack offsets Bore Dries Up (Irrigated stock).
+    haystack_pasture = Column(Boolean, nullable=False, default=False)
+    haystack_irrigated = Column(Boolean, nullable=False, default=False)
     bore_dried_up = Column(Boolean, nullable=False, default=False)
     restock_blocked_until_circuit = Column(Boolean, nullable=False, default=False)
     restock_block_spaces_remaining = Column(Integer, nullable=False, default=0)
@@ -116,6 +119,14 @@ class GamePlayer(Base):
     game = relationship("Game", back_populates="players", foreign_keys=[game_id])
     user = relationship("User", back_populates="players")
     paddocks = relationship("Paddock", back_populates="owner")
+
+    @property
+    def has_any_haystack(self) -> bool:
+        return bool(self.haystack_pasture or self.haystack_irrigated)
+
+    @property
+    def haystack_count(self) -> int:
+        return int(bool(self.haystack_pasture)) + int(bool(self.haystack_irrigated))
 
     __table_args__ = (
         UniqueConstraint("game_id", "turn_order", name="uq_game_player_turn"),

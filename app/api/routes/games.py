@@ -52,7 +52,9 @@ def get_game(game_id: int, session: Session = Depends(get_session)):
                 "visiting_town_turns": p.visiting_town_turns,
                 "is_in_drought": p.is_in_drought,
                 "drought_spaces_remaining": p.drought_spaces_remaining,
-                "has_haystack": p.has_haystack,
+                "has_haystack": p.has_any_haystack,
+                "haystack_pasture": p.haystack_pasture,
+                "haystack_irrigated": p.haystack_irrigated,
                 "turn_order": p.turn_order,
                 "is_active": p.is_active,
                 "is_ai": bool(p.is_ai),
@@ -186,7 +188,9 @@ def get_player_holdings(game_id: int, player_id: int, session: Session = Depends
             "paddocks_owned": len(paddocks),
             "paddocks_mortgaged": mortgaged,
             "stud_rams": len(rams),
-            "has_haystack": bool(player.has_haystack),
+            "has_haystack": player.has_any_haystack,
+            "haystack_pasture": player.haystack_pasture,
+            "haystack_irrigated": player.haystack_irrigated,
             # What full liquidation of all assets would raise (sheep at the
             # emergency price + mortgage values + ram/haystack sale-backs).
             "liquidation_value": liquidation_value,
@@ -224,8 +228,9 @@ def get_player_holdings(game_id: int, player_id: int, session: Session = Depends
             for p in paddocks
         ],
         "states": {
-            "has_haystack": player.has_haystack,
-            "haystack_used": player.haystack_used,
+            "has_haystack": player.has_any_haystack,
+            "haystack_pasture": player.haystack_pasture,
+            "haystack_irrigated": player.haystack_irrigated,
             "footrot_immune": player.footrot_immune,
             "is_in_drought": player.is_in_drought,
             "drought_spaces_remaining": player.drought_spaces_remaining,
@@ -283,7 +288,9 @@ def get_standings(game_id: int, session: Session = Depends(get_session)):
             "paddocks_owned": len(paddocks),
             "paddocks_mortgaged": sum(1 for pad in paddocks if pad.is_mortgaged),
             "stud_rams": ram_count,
-            "has_haystack": bool(p.has_haystack),
+            "has_haystack": p.has_any_haystack,
+            "haystack_pasture": p.haystack_pasture,
+            "haystack_irrigated": p.haystack_irrigated,
             "liquidation_value": liquidation,
             "net_worth": cash + liquidation,
         })

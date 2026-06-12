@@ -12,26 +12,37 @@ export function ErrorLine({ error }) {
   return <p style={{ color: 'red', marginTop: '0.5rem' }}>{error}</p>;
 }
 
-/* Haymaking-season rider: many pendings carry haystack_available so the
-   purchase can ride along on whatever modal is up. */
+// "Max's rule": two hazard-keyed haystacks.
+const HAYSTACK_LABEL = {
+  pasture: 'Pasture haystack (Local Drought)',
+  irrigated: 'Irrigated haystack (Bore Dries Up)',
+};
+
+/* Haymaking-season rider: pendings carry haystack_offers (a list of the
+   useful, not-yet-held haystack types) so the purchase can ride along on
+   whatever modal is up. */
 export function HaystackOffer({ data, isMyAction, chrome }) {
-  if (!data.haystack_available) return null;
+  const offers = data.haystack_offers || [];
+  if (offers.length === 0) return null;
   return (
-    <div style={{ marginTop: '0.5rem', padding: '0.6rem', background: '#F1F8E9', border: '1px solid #7CB342', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-      <div style={{ flex: 1 }}>
+    <div style={{ marginTop: '0.5rem', padding: '0.6rem', background: '#F1F8E9', border: '1px solid #7CB342', borderRadius: '6px' }}>
+      <div>
         <strong style={{ color: '#33691E' }}>Haymaking Season!</strong>
-        <span style={{ marginLeft: '0.5rem', fontSize: '0.9rem' }}>Haystack available for ${data.haystack_cost}</span>
         {data.haystack_drought_premium && (
           <span style={{ marginLeft: '0.5rem', fontSize: '0.8rem', color: '#b71c1c', fontWeight: 'bold' }}>
-            (drought premium — normally $500)
+            (drought premium — normally $500/haystack)
           </span>
         )}
       </div>
       {isMyAction && (
-        <button style={chrome.btnStyle('#7CB342')} disabled={chrome.submitting}
-          onClick={() => chrome.doAction('station/buy-haystack', {})}>
-          Buy Haystack (${data.haystack_cost})
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+          {offers.map((o) => (
+            <button key={o.type} style={chrome.btnStyle('#7CB342')} disabled={chrome.submitting}
+              onClick={() => chrome.doAction('station/buy-haystack', { haystack_type: o.type })}>
+              Buy {HAYSTACK_LABEL[o.type]} (${o.cost})
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );

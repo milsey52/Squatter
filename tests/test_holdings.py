@@ -17,7 +17,7 @@ def client():
 def test_holdings_reports_financials(client, session, game_factory):
     g = game_factory(sheep_per_paddock=2)  # 10 natural pens, 5 paddocks
     jim = session.query(models.GamePlayer).get(g.players["Jim"])
-    jim.has_haystack = True
+    jim.haystack_pasture = True
     session.commit()
 
     r = client.get(f"/games/{g.game_id}/players/{g.players['Jim']}/holdings")

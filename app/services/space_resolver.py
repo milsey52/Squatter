@@ -53,11 +53,12 @@ class SpaceResolver:
             self._maybe_offer_haystack(player, space, turn)
 
     def _maybe_offer_haystack(self, player, space, turn):
-        if space.season != "Haymaking" or player.has_haystack:
+        if space.season != "Haymaking":
             return
-
-        from app.constants import haystack_buy_price
-        cost = haystack_buy_price(player)
+        # Offer only haystack types the player can use and doesn't already hold.
+        offers = self.station.useful_haystack_offers(player)
+        if not offers:
+            return
 
         # Attach to whatever pending action this turn already has; otherwise
         # create a standalone offer so the modal can present it.
@@ -74,16 +75,14 @@ class SpaceResolver:
         )
         if pending:
             data = json.loads(pending.action_data) if pending.action_data else {}
-            data["haystack_available"] = True
-            data["haystack_cost"] = cost
+            data["haystack_offers"] = offers
             data["haystack_drought_premium"] = bool(player.is_in_drought)
             pending.action_data = json.dumps(data)
             self.session.flush()
         else:
             self._create_pending_action(turn, player, "haystack_offer", {
                 "space_name": space.name,
-                "haystack_available": True,
-                "haystack_cost": cost,
+                "haystack_offers": offers,
                 "haystack_drought_premium": bool(player.is_in_drought),
             })
 
@@ -350,7 +349,7 @@ class SpaceResolver:
                 "pens_sold": 0,
                 "income": 0,
                 "drought_spaces": 0,
-                "had_haystack": bool(player.has_haystack),
+                "had_haystack": bool(player.haystack_pasture),
                 "extended": False,
                 "no_effect": True,
                 "reason": "All paddocks are Irrigated — drought has no effect.",
@@ -364,7 +363,9 @@ class SpaceResolver:
         already_in_drought = player.is_in_drought or self.was_in_drought_at_turn_start
         pens_sold = 0
         total_income = 0
-        had_haystack = bool(player.has_haystack)
+        # Local Drought hits Natural/Improved stock, so the PASTURE haystack
+        # offsets it (the irrigated haystack is for Bore Dries Up).
+        had_haystack = bool(player.haystack_pasture)
         stock_card_drawn = None
         by_type = {"natural": 0, "improved": 0, "irrigated": 0}
 
@@ -388,11 +389,9 @@ class SpaceResolver:
                         + by_type["irrigated"] * stock_card_drawn.sell_price_improved_irrigated
                     )
                     notes = (f"Drought: sold {pens_sold} pens at Stock Sale prices "
-                             f"(haystack consumed)")
-                    # Rule: haystack is "used" when it offsets a Local Drought.
-                    # Returned to Bank (player no longer owns it).
-                    player.has_haystack = False
-                    player.haystack_used = False
+                             f"(pasture haystack consumed)")
+                    # Pasture haystack is "used" when it offsets a Local Drought.
+                    player.haystack_pasture = False
                     self.session.flush()
                 else:
                     total_income = pens_sold * DROUGHT_SELL_PRICE_NO_HAYSTACK
@@ -443,7 +442,9 @@ class SpaceResolver:
         affected = self.drought.apply_bore_dries_up(player)
         pens_sold = 0
         total_income = 0
-        had_haystack = bool(player.has_haystack)
+        # Bore Dries Up hits Irrigated stock, so the IRRIGATED haystack offsets
+        # it (the pasture haystack is for Local Drought).
+        had_haystack = bool(player.haystack_irrigated)
         price_per_pen = 0
         halved = False
 
@@ -456,10 +457,9 @@ class SpaceResolver:
                 if had_haystack:
                     price_per_pen = BORE_DRIES_UP_PRICE_WITH_HAYSTACK
                     notes = (f"Bore dried up: sold {pens_sold} irrigated pens "
-                             f"at ${price_per_pen}/pen (haystack consumed)")
-                    # Haystack consumed when it offsets the bore.
-                    player.has_haystack = False
-                    player.haystack_used = False
+                             f"at ${price_per_pen}/pen (irrigated haystack consumed)")
+                    # Irrigated haystack consumed when it offsets the bore.
+                    player.haystack_irrigated = False
                 else:
                     price_per_pen = BORE_DRIES_UP_PRICE_NO_HAYSTACK
                     notes = (f"Bore dried up: sold {pens_sold} irrigated pens "

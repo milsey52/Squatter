@@ -35,7 +35,7 @@ def mortgage_all(session, game, name, leave=0):
 def test_liquidation_value_counts_all_assets(session, game_factory):
     g = game_factory(sheep_per_paddock=2)  # 10 pens, 5 unmortgaged natural
     jim = session.query(models.GamePlayer).get(g.players["Jim"])
-    jim.has_haystack = True
+    jim.haystack_pasture = True
     session.commit()
     bk = BankruptcyService(session, g.game_id)
     # 10 pens x $400 + 5 x $100 mortgage + $350 haystack
@@ -158,13 +158,13 @@ def test_ai_sells_haystack_when_no_sheep_or_paddocks(session, game_factory, monk
     g = game_factory(sheep_per_paddock=0, current="Jim")
     mortgage_all(session, g, "Jim")
     jim = session.query(models.GamePlayer).get(g.players["Jim"])
-    jim.has_haystack = True
+    jim.haystack_pasture = True
     session.commit()
     drain_cash(session, g.game_id, g.players["Jim"], 2200)  # balance -200
     drive(g.game_id, monkeypatch)
     session.expire_all()
     jim = session.query(models.GamePlayer).get(g.players["Jim"])
-    assert not jim.has_haystack
+    assert not jim.haystack_pasture
     assert LedgerService(session, g.game_id).player_balance(g.players["Jim"]) == 150
     assert jim.is_active
 

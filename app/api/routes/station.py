@@ -42,6 +42,11 @@ class SellStudRamRequest(BaseModel):
     space_id: int
 
 
+class HaystackRequest(BaseModel):
+    # 'pasture' (Local Drought) or 'irrigated' (Bore Dries Up).
+    haystack_type: str
+
+
 @router.get("")
 def get_my_station(
     game_id: int,
@@ -325,17 +330,31 @@ async def sell_sheep_to_bank(
     return {"status": "sold", "pens": body.pens, "income": income}
 
 
+def _haystack_attr(haystack_type: str) -> str:
+    if haystack_type == "pasture":
+        return "haystack_pasture"
+    if haystack_type == "irrigated":
+        return "haystack_irrigated"
+    raise HTTPException(status_code=400,
+                        detail="haystack_type must be 'pasture' or 'irrigated'")
+
+
 @router.post("/buy-haystack")
 async def buy_haystack(
     game_id: int,
+    body: HaystackRequest,
     auth_data: tuple[int, int] = Depends(auth.verify_session_token),
     session: Session = Depends(deps.get_session)
 ):
-    """Buy a haystack for drought protection."""
+    """Buy a haystack — 'pasture' (Local Drought) or 'irrigated' (Bore Dries
+    Up). A player may hold one of each, but only for a hazard their pasture is
+    exposed to."""
     user_id, token_game_id = auth_data
 
     if token_game_id != game_id:
         raise HTTPException(status_code=403, detail="Session token is for a different game")
+
+    attr = _haystack_attr(body.haystack_type)
 
     player = session.query(models.GamePlayer).filter_by(
         game_id=game_id, user_id=user_id
@@ -344,8 +363,18 @@ async def buy_haystack(
     if not player:
         raise HTTPException(status_code=404, detail="Player not found")
 
-    if player.has_haystack:
-        raise HTTPException(status_code=400, detail="Already have a haystack")
+    if getattr(player, attr):
+        raise HTTPException(status_code=400,
+                            detail=f"Already have a {body.haystack_type} haystack")
+
+    # Only sell a type the player can actually use (owns vulnerable pasture).
+    station_svc = StationService(session, game_id)
+    offerable = {o["type"] for o in station_svc.useful_haystack_offers(player)}
+    if body.haystack_type not in offerable:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"A {body.haystack_type} haystack is no use without "
+                    f"{'Natural/Improved' if body.haystack_type == 'pasture' else 'Irrigated'} pasture"))
 
     ledger_svc = LedgerService(session, game_id)
     balance = ledger_svc.player_balance(player.game_player_id)
@@ -359,18 +388,20 @@ async def buy_haystack(
     ).order_by(models.Turn.turn_id.desc()).first()
     turn_id = turn.turn_id if turn else None
 
-    notes = "Bought haystack" + (" (drought premium)" if player.is_in_drought else "")
+    notes = (f"Bought {body.haystack_type} haystack"
+             + (" (drought premium)" if player.is_in_drought else ""))
     ledger_svc.pay_bank(player, cost, "haystack_purchase", turn_id, notes=notes)
-    player.has_haystack = True
+    setattr(player, attr, True)
 
-    # Auto-resolve a standalone haystack_offer pending action so the modal closes.
+    # Auto-resolve a standalone haystack_offer pending once nothing useful is
+    # left to buy, so the modal closes.
     standalone = session.query(models.PendingAction).filter_by(
         game_id=game_id,
         active_player_id=player.game_player_id,
         action_type="haystack_offer",
         resolved_at=None,
     ).first()
-    if standalone:
+    if standalone and not station_svc.useful_haystack_offers(player):
         from sqlalchemy import func as sa_func
         standalone.resolved_at = sa_func.now()
 
@@ -381,20 +412,24 @@ async def buy_haystack(
         {"reason": "haystack_bought", "player_id": player.game_player_id}
     )
 
-    return {"status": "purchased", "cost": cost}
+    return {"status": "purchased", "cost": cost, "haystack_type": body.haystack_type}
 
 
 @router.post("/sell-haystack")
 async def sell_haystack(
     game_id: int,
+    body: HaystackRequest,
     auth_data: tuple[int, int] = Depends(auth.verify_session_token),
     session: Session = Depends(deps.get_session)
 ):
-    """Sell haystack back."""
+    """Sell a haystack back ($350) — e.g. a pasture haystack stranded after
+    upgrading every paddock to Irrigated."""
     user_id, token_game_id = auth_data
 
     if token_game_id != game_id:
         raise HTTPException(status_code=403, detail="Session token is for a different game")
+
+    attr = _haystack_attr(body.haystack_type)
 
     player = session.query(models.GamePlayer).filter_by(
         game_id=game_id, user_id=user_id
@@ -403,8 +438,9 @@ async def sell_haystack(
     if not player:
         raise HTTPException(status_code=404, detail="Player not found")
 
-    if not player.has_haystack:
-        raise HTTPException(status_code=400, detail="No haystack to sell")
+    if not getattr(player, attr):
+        raise HTTPException(status_code=400,
+                            detail=f"No {body.haystack_type} haystack to sell")
 
     ledger_svc = LedgerService(session, game_id)
 
@@ -414,9 +450,8 @@ async def sell_haystack(
     turn_id = turn.turn_id if turn else None
 
     ledger_svc.receive_from_bank(player, HAYSTACK_SELL_PRICE, "haystack_sale", turn_id,
-                                  notes="Sold haystack")
-    player.has_haystack = False
-    player.haystack_used = False
+                                  notes=f"Sold {body.haystack_type} haystack")
+    setattr(player, attr, False)
     BankruptcyService(session, game_id).clear_debt_pending_if_solvent(player.game_player_id)
     session.commit()
 
@@ -425,7 +460,7 @@ async def sell_haystack(
         {"reason": "haystack_sold", "player_id": player.game_player_id}
     )
 
-    return {"status": "sold", "income": HAYSTACK_SELL_PRICE}
+    return {"status": "sold", "income": HAYSTACK_SELL_PRICE, "haystack_type": body.haystack_type}
 
 
 @router.post("/sell-stud-ram")

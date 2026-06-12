@@ -36,8 +36,10 @@ export default function HoldingsPanel({ gameId, playerId, refreshKey, onCardClic
   const totalCap = paddocks.reduce((s, p) => s + p.max_pens, 0);
 
   const stateBadges = [];
-  if (states.has_haystack)
-    stateBadges.push({ label: states.haystack_used ? "Haystack (used)" : "Haystack", color: "#a67c00" });
+  if (states.haystack_pasture)
+    stateBadges.push({ label: "Pasture haystack", color: "#a67c00" });
+  if (states.haystack_irrigated)
+    stateBadges.push({ label: "Irrigated haystack", color: "#0277bd" });
   if (states.footrot_immune)
     stateBadges.push({ label: "Footrot immune", color: "#388e3c" });
   if (states.is_in_drought)

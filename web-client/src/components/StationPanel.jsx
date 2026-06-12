@@ -217,7 +217,14 @@ export default function StationPanel({ gameId, sessionToken, onClose, onUpdate, 
       {/* Quick actions */}
       <h3 style={{ margin: '1rem 0 0.5rem' }}>Actions</h3>
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-        <button onClick={() => doAction('sell-haystack')} style={smallBtn('#a1887f')}>Sell Haystack ($350)</button>
+        {station.haystack_pasture && (
+          <button onClick={() => doAction('sell-haystack', { haystack_type: 'pasture' })}
+            style={smallBtn('#a1887f')}>Sell Pasture Haystack ($350)</button>
+        )}
+        {station.haystack_irrigated && (
+          <button onClick={() => doAction('sell-haystack', { haystack_type: 'irrigated' })}
+            style={smallBtn('#a1887f')}>Sell Irrigated Haystack ($350)</button>
+        )}
         <button onClick={() => {
           const amt = prompt('How many pens to sell? (Emergency $400/pen)');
           if (amt && Number(amt) > 0) doAction('sell-to-bank', { pens: Number(amt) });

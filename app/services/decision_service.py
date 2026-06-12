@@ -52,14 +52,13 @@ class DecisionService:
         if pending.action_data:
             data = json.loads(pending.action_data)
 
-            # Dynamically update haystack availability and price based on current player state
-            if data.get("haystack_available"):
-                from app.constants import haystack_buy_price
+            # Refresh haystack offers (type + price) against current state so a
+            # purchase made elsewhere this turn is reflected and the offer
+            # disappears once nothing useful remains.
+            if "haystack_offers" in data:
                 player = self.session.query(models.GamePlayer).get(pending.active_player_id)
-                if player and player.has_haystack:
-                    data["haystack_available"] = False
-                elif player:
-                    data["haystack_cost"] = haystack_buy_price(player)
+                if player:
+                    data["haystack_offers"] = self.station.useful_haystack_offers(player)
                     data["haystack_drought_premium"] = bool(player.is_in_drought)
 
             # Refresh drought + restock-block flags on the stock sale modal so

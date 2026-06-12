@@ -37,7 +37,7 @@ export function HaystackOfferModal({ gameId, sessionToken, data, activePlayer, i
     <div style={modalStyle}>
       <h2 style={{ margin: '0 0 1rem', color: '#33691E' }}>Haymaking Season</h2>
       <p><strong>{data.space_name}</strong></p>
-      <p>You may purchase a haystack for <strong>${data.haystack_cost}</strong>.</p>
+      <p>You may buy a haystack to protect against drought.</p>
       <HaystackOffer data={data} isMyAction={isMyAction} chrome={chrome} />
       {isMyAction && (
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>

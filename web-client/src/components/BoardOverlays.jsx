@@ -164,20 +164,27 @@ export function TuckerBagDrawOverlay(props) {
           This card can be kept!
         </p>
       )}
-      {sd.haystack_available && (
-        <div style={{ marginTop: "0.5rem", padding: "0.6rem", background: "#F1F8E9", border: "1px solid #7CB342", borderRadius: 6, fontSize: "0.82rem", display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-          <div style={{ flex: 1 }}>
-            <strong style={{ color: "#33691E" }}>Haymaking Season!</strong>{" "}
-            Haystack available for ${sd.haystack_cost}
+      {(sd.haystack_offers || []).length > 0 && (
+        <div style={{ marginTop: "0.5rem", padding: "0.6rem", background: "#F1F8E9", border: "1px solid #7CB342", borderRadius: 6, fontSize: "0.82rem" }}>
+          <div>
+            <strong style={{ color: "#33691E" }}>Haymaking Season!</strong>
             {sd.haystack_drought_premium && (
               <span style={{ marginLeft: 6, color: "#b71c1c", fontSize: "0.78rem" }}>(drought premium)</span>
             )}
           </div>
           {activeIsMe && (
-            <button onClick={() => post('station/buy-haystack', {})} style={{
-              padding: "0.4rem 0.9rem", background: "#7CB342", color: "#fff",
-              border: "none", borderRadius: 6, cursor: "pointer", fontWeight: "bold", fontSize: "0.82rem"
-            }}>Buy Haystack (${sd.haystack_cost})</button>
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.4rem", flexWrap: "wrap" }}>
+              {sd.haystack_offers.map((o) => (
+                <button key={o.type}
+                  onClick={() => post('station/buy-haystack', { haystack_type: o.type })}
+                  style={{
+                    padding: "0.4rem 0.9rem", background: "#7CB342", color: "#fff",
+                    border: "none", borderRadius: 6, cursor: "pointer", fontWeight: "bold", fontSize: "0.82rem"
+                  }}>
+                  Buy {o.type === 'pasture' ? 'Pasture' : 'Irrigated'} Haystack (${o.cost})
+                </button>
+              ))}
+            </div>
           )}
         </div>
       )}

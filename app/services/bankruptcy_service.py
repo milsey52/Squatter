@@ -62,8 +62,8 @@ class BankruptcyService:
             if not paddock.is_mortgaged:
                 value += MORTGAGE_VALUES[paddock.paddock_type]
         value += len(self.station.get_stud_rams_owned(player_id)) * STUD_RAM_SELL_PRICE
-        if player and player.has_haystack:
-            value += HAYSTACK_SELL_PRICE
+        if player:
+            value += player.haystack_count * HAYSTACK_SELL_PRICE
         return value
 
     def can_recover(self, player_id: int) -> bool:
