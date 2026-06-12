@@ -1,16 +1,43 @@
-"""Idempotent backfill for columns missed by the consolidated squatter_schema
-migration. Safe to run on every container start; uses ADD COLUMN IF NOT EXISTS.
+"""fold scripts/fix_schema_drift.py into the migration chain
 
-Exists because some deployment paths skipped the follow-up alembic migration
-that added these columns.
+The drift script ran on every container start to backfill columns missed
+by older deploys and patch seeded/static data. Carrying it forever meant
+the migration history and the real schema could diverge silently. All of
+its (idempotent) statements now run exactly once, here.
+
+Three statement categories, all safe as a one-shot:
+- schema columns: ADD COLUMN IF NOT EXISTS (no-ops where migrations
+  already created them);
+- static-data patches: the seed CSVs/scripts have carried these fixes
+  for some time, so they only matter for databases seeded before that.
+  The two card INSERTs additionally require the Tucker Bag deck to
+  already exist — on a fresh database the seeder provides those cards,
+  and inserting them here first would trip the seeder's
+  skip-if-any-rows guard and leave the deck unseeded (a latent bug in
+  the old boot order, fixed by this guard);
+- one-off production data corrections: each guarded by a unique marker.
+
+Postgres-only (the SQL uses DO blocks / IF NOT EXISTS); on other
+dialects (SQLite tests build schema from the models) this is a no-op.
+
+Revision ID: d4e5f6a7b8c9
+Revises: c9d0e1f2a3b4
+Create Date: 2026-06-12 09:00:00.000000
+
 """
-import os
-import sys
+from typing import Sequence, Union
 
-import psycopg2
+from alembic import op
+
+
+revision: str = 'd4e5f6a7b8c9'
+down_revision: Union[str, Sequence[str], None] = 'c9d0e1f2a3b4'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
 STATEMENTS = [
+    # ── Schema columns missed by older deploys ──────────────────────────
     "ALTER TABLE games "
     "ADD COLUMN IF NOT EXISTS current_turn_order_round INTEGER NOT NULL DEFAULT 1",
     "ALTER TABLE game_players "
@@ -35,33 +62,28 @@ STATEMENTS = [
     "ADD COLUMN IF NOT EXISTS restock_block_source VARCHAR",
     "ALTER TABLE game_players "
     "ADD COLUMN IF NOT EXISTS rejoin_code VARCHAR",
-    # Legacy in-flight restock blocks (rows existing before the scope column
-    # was added) default to 'irrigated' since the only path that left them
-    # in production testing was Bore Dries Up. Idempotent — once scope is
-    # set, the IS NULL clause fails.
+    # ── Legacy game-state repairs (guarded, no-op once applied) ─────────
+    # Legacy in-flight restock blocks default to 'irrigated' (the only
+    # path that left them in production was Bore Dries Up).
     """
     UPDATE game_players SET restock_block_scope = 'irrigated'
     WHERE restock_blocked_until_circuit = true
       AND restock_block_scope IS NULL
     """,
-    # High Stock Prices was incorrectly seeded with is_retainable=False, so
-    # drawing it never put the card in the player's hand and the +20% bonus
-    # could never be applied. Repair the existing prod row. Idempotent.
+    # ── Static-data patches for databases seeded before the fixes ───────
+    # High Stock Prices was seeded with is_retainable=false, so the card
+    # never reached the player's hand.
     "UPDATE cards SET is_retainable = true "
     "WHERE effect_code = 'HIGH_STOCK_PRICES' AND is_retainable = false",
-    # Tucker Bag "Local Drought" — canonical effect_code is now
-    # 'DROUGHT_LOCAL'. Migrate any earlier values ('DROUGHT',
-    # 'DROUGHT_ONLY') and back-fill nulls. Idempotent — once the row
-    # is on 'DROUGHT_LOCAL' the WHERE no longer matches.
+    # Canonical effect_code for the Local Drought card is DROUGHT_LOCAL.
     """
     UPDATE cards SET effect_code = 'DROUGHT_LOCAL'
     WHERE deck_type = 'tucker_bag'
       AND title IN ('Drought', 'Local Drought')
       AND (effect_code IS NULL OR effect_code <> 'DROUGHT_LOCAL')
     """,
-    # If the card row doesn't exist at all (e.g. fresh seed without the
-    # new entry, or local DB lacking it), insert it. Idempotent via the
-    # NOT EXISTS guard.
+    # Insert Local Drought ONLY into an already-seeded deck that lacks it
+    # (fresh databases get it from the seeder — see module docstring).
     """
     INSERT INTO cards (deck_type, title, body_text, is_retainable,
                        effect_code, effect_params, one_time)
@@ -72,9 +94,9 @@ STATEMENTS = [
         SELECT 1 FROM cards
         WHERE deck_type = 'tucker_bag' AND title IN ('Drought', 'Local Drought')
     )
+    AND EXISTS (SELECT 1 FROM cards WHERE deck_type = 'tucker_bag')
     """,
-    # New Tucker Bag card "Drought on ALL Stations" — applies drought to
-    # every active player. INSERT IF NOT EXISTS, idempotent.
+    # Same for Drought on ALL Stations.
     """
     INSERT INTO cards (deck_type, title, body_text, is_retainable,
                        effect_code, effect_params, one_time)
@@ -85,9 +107,8 @@ STATEMENTS = [
         SELECT 1 FROM cards
         WHERE deck_type = 'tucker_bag' AND title = 'Drought on ALL Stations'
     )
+    AND EXISTS (SELECT 1 FROM cards WHERE deck_type = 'tucker_bag')
     """,
-    # In case the row exists but effect_code wasn't set (e.g. manually
-    # added without the right code), back-fill. Idempotent.
     """
     UPDATE cards SET effect_code = 'DROUGHT_ALL_STATIONS'
     WHERE deck_type = 'tucker_bag'
@@ -95,8 +116,7 @@ STATEMENTS = [
       AND (effect_code IS NULL OR effect_code <> 'DROUGHT_ALL_STATIONS')
     """,
     # Swap Fly Strike Dip (was board_index 13) with Shearing Costs (was
-    # board_index 40). Idempotent — the IF guards by checking the current
-    # name at board_index 13; once swapped, it no longer matches Fly Strike.
+    # 40). Current Properties.csv seeds the swapped layout directly.
     """
     DO $$
     BEGIN
@@ -111,25 +131,19 @@ STATEMENTS = [
     END $$;
     """,
     # Haymaking belongs to the BOARD POSITION (37-42), not the space's
-    # contents. The swap above carried the Haymaking flag with Shearing
-    # over to position 13 — pin it back to position 40. Idempotent via
-    # the WHERE guards.
+    # contents — re-pin after the swap above.
     "UPDATE spaces SET season = NULL "
     "WHERE board_index = 13 AND season = 'Haymaking'",
     "UPDATE spaces SET season = 'Haymaking' "
     "WHERE board_index = 40 AND season IS NULL",
-    # Reset any stale negative wool_cheque_bonus values caused by the old
-    # blowfly bug (decremented bonus instead of using a dedicated flag).
+    # Reset stale negative wool_cheque_bonus values from the old blowfly
+    # bug, and cap drought length at one full circuit.
     "UPDATE game_players SET wool_cheque_bonus = 0 WHERE wool_cheque_bonus < 0",
-    # Cap drought_spaces_remaining at one full circuit. Old apply_drought
-    # extended by += BOARD_SIZE on subsequent Local Drought landings; the
-    # rule is to reset to BOARD_SIZE. Idempotent — once values are <=44,
-    # no rows match.
     "UPDATE game_players SET drought_spaces_remaining = 44 "
     "WHERE drought_spaces_remaining > 44 AND is_in_drought = true",
-    # One-off retroactive credit: Jim (game 2, player 3) was shorted $375
-    # on each of three wool cheques (ids 6, 22, 28) by the Blowfly Wave bug.
-    # Idempotent via the unique notes string.
+    # ── One-off production data corrections (idempotent via markers) ────
+    # Jim (game 2, player 3): shorted $375 on three wool cheques by the
+    # Blowfly Wave bug.
     """
     INSERT INTO transactions (
         game_id, player_from_id, player_to_id, amount,
@@ -137,16 +151,14 @@ STATEMENTS = [
     )
     SELECT 2, NULL, 3, 1125, 'wool_cheque_correction',
            'Retroactive ram bonus correction (Blowfly Wave bug)', NOW()
-    WHERE NOT EXISTS (
+    WHERE EXISTS (SELECT 1 FROM games WHERE game_id = 2)
+      AND NOT EXISTS (
         SELECT 1 FROM transactions
         WHERE notes = 'Retroactive ram bonus correction (Blowfly Wave bug)'
     )
     """,
-    # One-off retroactive credit: George (game 9, player 18) sold 5 pens at
-    # $770/pen ($3,850) but should have applied his High Stock Prices card
-    # for +20% ($4,620). HSP was never retained because of the
-    # is_retainable=false seed bug (now fixed above), so the checkbox never
-    # showed in the modal. Credit the $770 difference. Idempotent.
+    # George (game 9, player 18): High Stock Prices +20% never applied to
+    # a 5-pen sale because of the is_retainable seed bug.
     """
     INSERT INTO transactions (
         game_id, player_from_id, player_to_id, amount,
@@ -154,20 +166,14 @@ STATEMENTS = [
     )
     SELECT 9, NULL, 18, 770, 'stock_sale_correction',
            'Retroactive High Stock Prices +20% correction (5 pens sale)', NOW()
-    WHERE NOT EXISTS (
+    WHERE EXISTS (SELECT 1 FROM games WHERE game_id = 9)
+      AND NOT EXISTS (
         SELECT 1 FROM transactions
         WHERE notes = 'Retroactive High Stock Prices +20% correction (5 pens sale)'
     )
     """,
-    # One-off retroactive drought application: Max in game GEG2LA drew the
-    # Local Drought Tucker Bag card before commit 3c1c725, when the
-    # dispatcher couldn't find _effect_drought_local (renamed but the
-    # method wasn't). Card silently no-op'd; is_in_drought stayed false.
-    # Re-apply drought now if he's still in that game, isn't already in
-    # drought, owns at least one non-irrigated paddock, and we haven't
-    # already done this fix. Half-stock-sale is skipped because his
-    # improved paddocks were unstocked at the time (and stocked irrigated
-    # is rule-exempt).
+    # Max in game GEG2LA: Local Drought card silently no-op'd before
+    # commit 3c1c725 (renamed handler). Re-apply if still applicable.
     """
     DO $$
     DECLARE
@@ -220,22 +226,14 @@ STATEMENTS = [
 ]
 
 
-def main() -> int:
-    url = os.environ.get("DATABASE_URL")
-    if not url:
-        print("fix_schema_drift: DATABASE_URL not set; skipping", flush=True)
-        return 0
-
-    conn = psycopg2.connect(url)
-    try:
-        with conn, conn.cursor() as cur:
-            for stmt in STATEMENTS:
-                print(f"fix_schema_drift: {stmt}", flush=True)
-                cur.execute(stmt)
-    finally:
-        conn.close()
-    return 0
+def upgrade() -> None:
+    if op.get_bind().dialect.name != 'postgresql':
+        return
+    for stmt in STATEMENTS:
+        op.execute(stmt)
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def downgrade() -> None:
+    # Data patches and backfilled columns are not reversible in any
+    # meaningful way; the columns are owned by earlier migrations.
+    pass

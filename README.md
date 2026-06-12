@@ -9,7 +9,7 @@ AI opponents, and Server-Sent Events for real-time play.
 - `app/` — API routes, SQLAlchemy models, game-rule services
   (turn manager, space resolver, stock sale, cards, AI)
 - `web-client/` — React frontend (built into the backend's static mount)
-- `alembic/` + `scripts/fix_schema_drift.py` — schema migrations
+- `alembic/` — schema migrations (run on every boot via `start.sh`)
 - `data/` — board, card, and price data seeded at startup
 - `tests/` — pytest suite (see below)
 
