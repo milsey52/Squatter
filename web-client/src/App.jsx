@@ -431,6 +431,32 @@ function App() {
     ? playerBalances[String(currentUserPlayer.game_player_id)]
     : undefined;
   const myDebt = (typeof myBalance === 'number' && myBalance < 0) ? -myBalance : 0;
+  const myStation = currentUserPlayer
+    ? (stations[String(currentUserPlayer.game_player_id)] || stations[currentUserPlayer.game_player_id])
+    : null;
+  // Pens to sell at the $400 emergency price to exactly clear the debt.
+  const debtPensNeeded = myDebt > 0
+    ? Math.min(Math.ceil(myDebt / 400), myStation?.total_pens ?? 0)
+    : 0;
+
+  const emergencySellForDebt = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/games/${gameId}/station/sell-to-bank`, {
+        method: "POST",
+        headers: { 'Authorization': `Bearer ${sessionToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pens: debtPensNeeded })
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || `Failed: ${response.status}`);
+      }
+      fetchGameState();
+    } catch (err) {
+      setActionError(err.message);
+      if (actionErrorTimer.current) clearTimeout(actionErrorTimer.current);
+      actionErrorTimer.current = setTimeout(() => setActionError(null), 8000);
+    }
+  };
 
   return (
     <div style={{ padding: "0.5rem 1rem", fontFamily: "sans-serif", position: "relative",
@@ -803,16 +829,27 @@ function App() {
             }}>
               <strong>⚠ You are ${myDebt} in debt.</strong>
               <div style={{ marginTop: 4 }}>
-                You must raise cash before your next roll — sell sheep to the
-                bank, mortgage paddocks, or sell a stud ram / haystack. If your
-                assets cannot cover the debt, your station will be declared
-                bankrupt.
+                You must raise cash before play continues — sell sheep to the
+                bank at $400/pen, mortgage paddocks, or sell a stud ram /
+                haystack. If your assets cannot cover the debt, your station
+                will be declared bankrupt.
               </div>
-              <button onClick={() => setShowStationPanel(true)} style={{
-                marginTop: 8, padding: "0.4rem 1rem", background: "#fff",
-                color: "#b71c1c", border: "none", borderRadius: 6,
-                cursor: "pointer", fontWeight: "bold", fontSize: "0.9rem"
-              }}>Open Station Panel</button>
+              <div style={{ display: "flex", gap: "0.5rem", marginTop: 8, flexWrap: "wrap" }}>
+                {debtPensNeeded > 0 && (
+                  <button onClick={emergencySellForDebt} style={{
+                    padding: "0.4rem 1rem", background: "#fff",
+                    color: "#b71c1c", border: "none", borderRadius: 6,
+                    cursor: "pointer", fontWeight: "bold", fontSize: "0.9rem"
+                  }}>
+                    Emergency Sell {debtPensNeeded} pen{debtPensNeeded > 1 ? 's' : ''} (+${debtPensNeeded * 400})
+                  </button>
+                )}
+                <button onClick={() => setShowStationPanel(true)} style={{
+                  padding: "0.4rem 1rem", background: "rgba(255,255,255,0.25)",
+                  color: "#fff", border: "1px solid rgba(255,255,255,0.6)",
+                  borderRadius: 6, cursor: "pointer", fontSize: "0.9rem"
+                }}>Station Panel</button>
+              </div>
             </div>
           )}
 
