@@ -7,6 +7,7 @@ from app.api import deps, auth
 from app import models
 from app.services.ledger_service import LedgerService
 from app.services.station_service import StationService
+from app.services.bankruptcy_service import BankruptcyService
 
 router = APIRouter()
 
@@ -164,8 +165,34 @@ def get_player_holdings(game_id: int, player_id: int, session: Session = Depends
         .all()
     )
 
+    # Financial statement — useful as a post-mortem for bankrupt players,
+    # whose holdings are frozen (elimination doesn't liquidate them).
+    from app.constants import SHEEP_PER_PEN
+    ledger = LedgerService(session, game_id)
+    bankruptcy = BankruptcyService(session, game_id)
+    cash = ledger.player_balance(player_id)
+    total_pens = sum(p.sheep_pens for p in paddocks)
+    mortgaged = sum(1 for p in paddocks if p.is_mortgaged)
+    liquidation_value = bankruptcy.liquidation_value(player_id)
+
     return {
         "player_id": player_id,
+        "player_name": player.player_name,
+        "is_active": player.is_active,
+        "financials": {
+            "cash": cash,
+            "sheep_pens": total_pens,
+            "sheep_count": total_pens * SHEEP_PER_PEN,
+            "paddocks_owned": len(paddocks),
+            "paddocks_mortgaged": mortgaged,
+            "stud_rams": len(rams),
+            "has_haystack": bool(player.has_haystack),
+            # What full liquidation of all assets would raise (sheep at the
+            # emergency price + mortgage values + ram/haystack sale-backs).
+            "liquidation_value": liquidation_value,
+            # Cash plus everything sellable — negative for a bankrupt station.
+            "net_worth": cash + liquidation_value,
+        },
         "cards": [
             {
                 "card_draw_id": d.card_draw_id,

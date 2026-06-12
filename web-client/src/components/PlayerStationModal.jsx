@@ -43,9 +43,18 @@ export default function PlayerStationModal({ gameId, playerId, playerName, onClo
   const renderBody = () => {
     if (!holdings) return <p style={{ margin: 0 }}>Loading...</p>;
 
-    const { cards = [], stud_rams: studRams = [], states = {}, paddocks = [] } = holdings;
+    const { cards = [], stud_rams: studRams = [], states = {}, paddocks = [], financials } = holdings;
     const totalPens = paddocks.reduce((s, p) => s + p.sheep_pens, 0);
     const totalCap = paddocks.reduce((s, p) => s + p.max_pens, 0);
+
+    const fin = financials || {};
+    const money = (n) => `${n < 0 ? "-$" : "$"}${Math.abs(n ?? 0).toLocaleString()}`;
+    const finRow = (label, value, opts = {}) => (
+      <div style={{ display: "flex", justifyContent: "space-between", padding: "2px 0", fontSize: "0.85rem" }}>
+        <span style={{ color: "#555" }}>{label}</span>
+        <span style={{ fontFamily: "monospace", fontWeight: opts.bold ? "bold" : "normal", color: opts.color }}>{value}</span>
+      </div>
+    );
 
     const stateBadges = [];
     if (states.has_haystack) stateBadges.push({ label: states.haystack_used ? "Haystack (used)" : "Haystack", color: "#a67c00" });
@@ -67,6 +76,25 @@ export default function PlayerStationModal({ gameId, playerId, playerName, onClo
 
     return (
       <>
+        {financials && (
+          <section style={{
+            marginBottom: "0.8rem", padding: "8px 12px", borderRadius: 6,
+            background: "#f5f0e8", border: "1px solid #d4c5a3",
+          }}>
+            <h3 style={{ margin: "0 0 0.4rem", fontSize: "0.95rem", color: "#555" }}>Finances</h3>
+            {finRow("Cash held", money(fin.cash), { bold: true, color: fin.cash < 0 ? "#d32f2f" : "#1b5e20" })}
+            {finRow("Sheep", `${fin.sheep_pens} pens (${(fin.sheep_count ?? 0).toLocaleString()} head)`)}
+            {finRow("Paddocks", `${fin.paddocks_owned}${fin.paddocks_mortgaged ? ` (${fin.paddocks_mortgaged} mortgaged)` : ""}`)}
+            {finRow("Stud rams", fin.stud_rams)}
+            {finRow("Haystack", fin.has_haystack ? "Yes" : "No")}
+            <div style={{ borderTop: "1px solid #d4c5a3", margin: "5px 0" }} />
+            {finRow("Liquidation value", money(fin.liquidation_value),
+              { color: "#555" })}
+            {finRow("Net worth", money(fin.net_worth),
+              { bold: true, color: fin.net_worth < 0 ? "#d32f2f" : "#1b5e20" })}
+          </section>
+        )}
+
         <section style={{ marginBottom: "0.8rem" }}>
           <h3 style={{ margin: "0 0 0.4rem", fontSize: "0.95rem", color: "#555" }}>
             Paddocks ({totalPens}/{totalCap} pens)
@@ -168,6 +196,13 @@ export default function PlayerStationModal({ gameId, playerId, playerName, onClo
         <button style={closeBtn} onClick={onClose} aria-label="Close">×</button>
         <h2 style={{ margin: "0 0 0.8rem", fontSize: "1.15rem" }}>
           {playerName ? `${playerName}'s Station` : "Station"}
+          {holdings && holdings.is_active === false && (
+            <span style={{
+              marginLeft: 8, padding: "2px 8px", borderRadius: 4,
+              background: "#424242", color: "#fff", fontSize: "0.7rem", fontWeight: "bold",
+              verticalAlign: "middle",
+            }}>BANKRUPT</span>
+          )}
         </h2>
         {renderBody()}
       </div>
