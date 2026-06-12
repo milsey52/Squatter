@@ -1,21 +1,58 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../theme";
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 export default function StationPanel({ gameId, sessionToken, onClose, onUpdate, isMyTurn = false, inDrought = false }) {
   const { theme } = useTheme();
+  const [station, setStation] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [actionMsg, setActionMsg] = useState(null);
+
+  // Draggable window. pos === null → centred (default); once dragged it holds
+  // an explicit viewport position so the player can move the panel off the
+  // Ledger / Dice / Stud Rams panels behind it.
+  const panelRef = useRef(null);
+  const [pos, setPos] = useState(null);
+  const [drag, setDrag] = useState(null); // {dx, dy}: pointer offset within panel
+
+  useEffect(() => {
+    if (!drag) return;
+    const onMove = (e) => {
+      // Keep a margin so the panel can't be lost off-screen.
+      const x = Math.min(Math.max(e.clientX - drag.dx, 0), window.innerWidth - 120);
+      const y = Math.min(Math.max(e.clientY - drag.dy, 0), window.innerHeight - 60);
+      setPos({ left: x, top: y });
+    };
+    const onUp = () => setDrag(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [drag]);
+
+  const startDrag = (e) => {
+    const rect = panelRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    // Lock the current rendered position, then track the pointer from there
+    // (no jump on the first drag, which starts from the centred position).
+    setPos({ left: rect.left, top: rect.top });
+    setDrag({ dx: e.clientX - rect.left, dy: e.clientY - rect.top });
+  };
+
   const panelStyle = {
-    position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+    position: 'fixed',
+    ...(pos
+      ? { left: pos.left, top: pos.top, transform: 'none' }
+      : { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }),
     background: theme.modalBg, color: theme.modalText,
     borderRadius: '12px', padding: '1.5rem', width: '700px',
     maxHeight: '80vh', overflowY: 'auto',
     boxShadow: `0 10px 40px ${theme.modalShadow}`, zIndex: 8000,
   };
-  const [station, setStation] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [actionMsg, setActionMsg] = useState(null);
 
   const headers = {
     'Authorization': `Bearer ${sessionToken}`,
@@ -70,10 +107,18 @@ export default function StationPanel({ gameId, sessionToken, onClose, onUpdate, 
   if (!station) return null;
 
   return (
-    <div style={panelStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h2 style={{ margin: 0, color: '#2d5016' }}>My Station</h2>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>X</button>
+    <div ref={panelRef} style={panelStyle}>
+      <div
+        onMouseDown={startDrag}
+        title="Drag to move"
+        style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          marginBottom: '1rem', cursor: 'move', userSelect: 'none',
+        }}
+      >
+        <h2 style={{ margin: 0, color: '#2d5016' }}>⠿ My Station</h2>
+        <button onClick={onClose} onMouseDown={(e) => e.stopPropagation()}
+          style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>X</button>
       </div>
 
       {/* Summary */}
