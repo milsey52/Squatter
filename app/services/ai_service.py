@@ -100,6 +100,117 @@ class AIPlayerService:
         # Hard inherits Medium's threshold dict for any keys it doesn't override.
         self.t = THRESHOLDS.get(self.difficulty, THRESHOLDS["medium"])
 
+    # ── "Thinking out loud" narration ──────────────────────────────────
+    # Truthful, rule-derived summaries of what the AI is about to do and why,
+    # shown during the autopilot's display-delay pause. These read the same
+    # state/thresholds the decisions use; they never mutate anything.
+    def _name(self) -> str:
+        return self.player.player_name
+
+    def thinking_summary(self, action) -> str:
+        """Narrate a station-maintenance or roll action (action tuple from
+        the autopilot scan)."""
+        kind = action[0]
+        balance = self.ledger.player_balance(self.player.game_player_id)
+        pens = self.station.get_total_pens(self.player.game_player_id)
+
+        if kind == "mortgage":
+            pn = action[2]
+            return (f"Cash is tight (${balance:,}) — mortgaging paddock {pn} "
+                    f"to free up funds.")
+        if kind == "debt_recovery":
+            step = self.find_debt_recovery_step()
+            if step and step[0] == "sheep":
+                return (f"${-balance:,} in the red — selling {step[1]} pen(s) "
+                        f"to the bank to settle the debt.")
+            if step and step[0] == "haystack":
+                return f"${-balance:,} in the red — selling the haystack to settle up."
+            if step and step[0] == "ram":
+                return f"${-balance:,} in the red — selling a stud ram to settle up."
+            if step and step[0] == "mortgage":
+                return f"${-balance:,} in the red — mortgaging a paddock to settle up."
+            return f"${-balance:,} in the red — raising cash to settle the debt."
+        if kind == "lift_mortgage":
+            pn = action[2]
+            return (f"Flush at ${balance:,} — lifting the mortgage on paddock {pn} "
+                    f"to get it earning again.")
+        if kind == "upgrade":
+            pn, target = action[2], action[3]
+            return (f"Building the station — upgrading paddock {pn} to {target} "
+                    f"to grow toward the 30-pen win.")
+
+        # kind == "roll": explain what was weighed and why it's just rolling.
+        if self.difficulty == "easy":
+            return f"{self._name()} sizes up the board and rolls."
+        bits = []
+        # Why not upgrade? (only relevant for medium/hard, not in drought)
+        if self.player.is_in_drought:
+            bits.append("in drought, so holding off on upgrades and restocking")
+        else:
+            imp = self.station.can_upgrade_to_improved(self.player.game_player_id)
+            irr = self.station.can_upgrade_to_irrigated(self.player.game_player_id)
+            buffer = self.t["upgrade_cash_buffer"] + self._cash_reserve_extra()
+            if irr.get("can_upgrade"):
+                need = IRRIGATED_PASTURE_COST + buffer
+                if balance < need:
+                    bits.append(f"wants to irrigate but is short of the ${need:,} cushion")
+            elif imp.get("can_upgrade"):
+                need = IMPROVED_PASTURE_COST + buffer
+                if balance < need:
+                    bits.append(f"wants to improve a paddock but is short of the ${need:,} cushion")
+        mortgaged = [p for p in self.station.get_paddocks(self.player.game_player_id)
+                     if p.is_mortgaged]
+        if mortgaged and balance < self.t["lift_mortgage_cash_floor"]:
+            bits.append("not flush enough to lift a mortgage yet")
+        reason = "; ".join(bits) if bits else "station's in good order"
+        return f"{self._name()}: {reason} — rolling the dice (${balance:,}, {pens} pens)."
+
+    def pending_thinking_summary(self, pending: models.PendingAction) -> str:
+        """Narrate how the AI is leaning on a pending decision."""
+        data = json.loads(pending.action_data) if pending.action_data else {}
+        at = pending.action_type
+        balance = self.ledger.player_balance(self.player.game_player_id)
+        pens = self.station.get_total_pens(self.player.game_player_id)
+
+        if at == "stock_sale_decision":
+            if self.difficulty == "easy":
+                return f"{self._name()} mulls the stock sale."
+            if bool(data.get("in_drought")):
+                return ("In drought — Natural/Improved would sell at half price, "
+                        "so leaning toward passing.")
+            if pens < self.t["buy_threshold_pens"] and balance >= self.t["buy_floor_cash"]:
+                return (f"Under the {self.t['buy_threshold_pens']}-pen goal with "
+                        f"${balance:,} in hand — looking to buy more stock.")
+            if pens >= self.t["sell_threshold_pens"]:
+                return (f"Stocked up at {pens} pens — weighing a sell to bank the cash.")
+            return f"Holding cash (${balance:,}) — likely to pass this stock sale."
+        if at == "stud_ram_purchase":
+            price = int(data.get("purchase_price", 0) or 0)
+            if self.difficulty == "easy":
+                return f"{self._name()} eyes the stud ram (${price:,})."
+            affordable = balance >= price + self.t["stud_ram_cash_buffer"]
+            enough_pens = pens >= self.t["stud_ram_min_pens"]
+            if affordable and enough_pens and not self.player.is_in_drought:
+                return (f"A stud ram for ${price:,} would boost wool cheques across "
+                        f"{pens} pens — inclined to buy.")
+            if not enough_pens:
+                return (f"A stud ram's on offer, but with only {pens} pens the wool "
+                        f"bonus wouldn't pay back — likely passing.")
+            return f"A stud ram for ${price:,} is tempting, but cash is too tight — likely passing."
+        if at == "expense_payment":
+            if data.get("alternative_payment"):
+                return "Choosing how to treat the flock for worms."
+            cost = int(data.get("total_cost", 0) or 0)
+            return f"Settling a ${cost:,} expense."
+        if at == "tucker_bag_drawn":
+            return f"{self._name()} reads the Tucker Bag card."
+        if at in ("fire_fighting_offer", "fire_fighting_auction"):
+            return "Sizing up the fire-fighting equipment on offer."
+        if at == "debt_settlement":
+            return f"${-balance:,} in debt — raising cash before play can continue."
+        # Informational acknowledgements (wool cheque, drought result, etc.)
+        return f"{self._name()} reviews what just happened."
+
     # ── Pending-action dispatch ────────────────────────────────────────
     def handle_pending(self, pending: models.PendingAction) -> str:
         """Resolve one pending action belonging to this AI. Returns a short

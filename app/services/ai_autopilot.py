@@ -85,6 +85,8 @@ async def _drive_one_game(game_id: int):
     # requests during the display-delay sleep.
     action = None  # ('pending', ai_id, pending_id, action_type) | ('roll', ai_id) | ('order_roll', event_payload)
     display_delay = DEFAULT_DISPLAY_DELAY_SECONDS
+    # ("Thinking out loud" narration shown during the pacing pause below.)
+    thinking = None  # (player_id, player_name, text) or None
     with SessionLocal() as session:
         # Per-game AI reaction time (host-adjustable).
         rules = session.query(models.GameRule).filter_by(game_id=game_id).first()
@@ -109,6 +111,11 @@ async def _drive_one_game(game_id: int):
             ai_player, pending = pending_for_ai
             action = ("pending", ai_player.game_player_id,
                       pending.pending_action_id, pending.action_type)
+            try:
+                text = AIPlayerService(session, game_id, ai_player).pending_thinking_summary(pending)
+                thinking = (ai_player.game_player_id, ai_player.player_name, text)
+            except Exception:
+                thinking = None
         else:
             # Mirror the human /turns route: don't roll while any pending
             # action is unresolved.
@@ -150,10 +157,24 @@ async def _drive_one_game(game_id: int):
                     else:
                         action = ("roll", current.game_player_id)
 
+                    if action is not None:
+                        try:
+                            text = service.thinking_summary(action)
+                            thinking = (current.game_player_id, current.player_name, text)
+                        except Exception:
+                            thinking = None
+
     if action is None:
         return
 
-    # Step 2: pace the action so humans can read what's happening.
+    # Step 2: pace the action so humans can read what's happening — and,
+    # during the pause, narrate what the AI is thinking.
+    if thinking is not None:
+        await events.broadcast_game_event(game_id, "ai_thinking", {
+            "player_id": thinking[0],
+            "player_name": thinking[1],
+            "text": thinking[2],
+        })
     await asyncio.sleep(display_delay)
 
     # Step 3: take the action with a fresh session.

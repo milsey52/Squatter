@@ -45,6 +45,8 @@ function App() {
   const actionErrorTimer = useRef(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastDiceRoll, setLastDiceRoll] = useState(null);
+  // AI "thinking out loud" narration, shown during its pacing pause.
+  const [aiThinking, setAiThinking] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
   const [showStationPanel, setShowStationPanel] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
@@ -280,7 +282,13 @@ function App() {
   // Handle real-time game events
   const handleGameEvent = useCallback((eventType, data) => {
     switch (eventType) {
+      case 'ai_thinking':
+        // Narration shown during the AI's pacing pause. Cleared when the
+        // action lands (turn_played / game_state_changed below).
+        setAiThinking({ playerName: data.player_name, text: data.text });
+        break;
       case 'turn_played':
+        setAiThinking(null);
         if (data.dice_roll && data.dice_roll.length === 2) {
           setLastDiceRoll({
             dice_roll_1: data.dice_roll[0],
@@ -331,6 +339,7 @@ function App() {
         }
         break;
       case 'game_state_changed':
+        setAiThinking(null);
         fetchGameState();
         break;
       case 'game_over':
@@ -550,6 +559,18 @@ function App() {
                 : isMissingTurn ? "Miss Turn" : "Roll Dice"}
             </button>
           </div>
+
+          {/* AI thinking-out-loud — shown during the AI's pacing pause */}
+          {aiThinking && (
+            <div style={{
+              marginBottom: "1rem", padding: "10px 14px", borderRadius: 8,
+              background: "#ede7f6", border: "2px solid #6a4c93", color: "#4a328c",
+              fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "0.5rem",
+            }}>
+              <span style={{ fontSize: "1.1rem" }}>🤖💭</span>
+              <span><strong>{aiThinking.playerName}</strong> is thinking: <em>{aiThinking.text}</em></span>
+            </div>
+          )}
 
           {/* Dice display */}
           {lastDiceRoll && (
