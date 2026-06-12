@@ -11,6 +11,7 @@ import PendingActionModal from "./components/PendingActionModal";
 import PlayerStationModal from "./components/PlayerStationModal";
 import PlayerList from "./components/PlayerList";
 import DebtBanner from "./components/DebtBanner";
+import WinnerBanner from "./components/WinnerBanner";
 import { StockSaleCardOverlay, TuckerBagDrawOverlay } from "./components/BoardOverlays";
 import { useGameEvents } from "./hooks/useGameEvents";
 import { Z_INDEX } from "./constants/zIndex";
@@ -496,54 +497,16 @@ function App() {
             animatedPositions={animatedPositions}
           />
 
-          {/* Winner banner — spans the board horizontally.
-              Triggers on either the game_over SSE event OR a game_won
-              pending action, since the backend only creates the latter. */}
-          {(() => {
-            const gameWonPending = pendingAction?.action_type === 'game_won' ? pendingAction : null;
-            const winnerName = winner || gameWonPending?.action_data?.winner_name;
-            const showBanner = (gameOver || !!gameWonPending) && !!winnerName;
-            if (!showBanner) return null;
-            return (
-              <div style={{
-                position: "absolute", top: "50%", left: 0, right: 0,
-                transform: "translateY(-50%)", zIndex: Z_INDEX.GAME_OVER,
-                background: "linear-gradient(135deg, #ff6f00 0%, #ffb300 50%, #ff6f00 100%)",
-                border: "6px double #fff", boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
-                padding: "1.4rem 1rem", textAlign: "center",
-              }}>
-                <div style={{
-                  fontSize: "2.8rem", fontWeight: 900, color: "#fff",
-                  textShadow: "2px 3px 8px rgba(0,0,0,0.5)", letterSpacing: 2,
-                  fontFamily: "'Georgia', serif",
-                }}>
-                  {winnerName} is WINNER!!!!
-                </div>
-                <div style={{ fontSize: "0.95rem", color: "#fff8e1", marginTop: 6, fontStyle: "italic" }}>
-                  6,000 sheep on a fully irrigated farm
-                </div>
-                <button onClick={async () => {
-                  // Resolve the lingering pending action if present so future joiners don't see it.
-                  if (gameWonPending) {
-                    try {
-                      await fetch(`${API_BASE}/games/${gameId}/decisions/acknowledge`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${sessionToken}` },
-                      });
-                    } catch { /* ignore */ }
-                  }
-                  setGameOver(false); setWinner(null); setScreen('selector');
-                }}
-                  style={{
-                    marginTop: 12, padding: "0.6rem 1.4rem", background: "#fff",
-                    color: "#ff6f00", border: "none", borderRadius: 8,
-                    fontSize: "1rem", fontWeight: "bold", cursor: "pointer",
-                  }}>
-                  Return to Menu
-                </button>
-              </div>
-            );
-          })()}
+          {/* Winner banner + final standings table. */}
+          <WinnerBanner
+            gameId={gameId}
+            sessionToken={sessionToken}
+            pendingAction={pendingAction}
+            winner={winner}
+            gameOver={gameOver}
+            zIndex={Z_INDEX.GAME_OVER}
+            onReturnToMenu={() => { setGameOver(false); setWinner(null); setScreen('selector'); }}
+          />
           {/* Last Tucker Bag card */}
           {lastDrawnCard && (
             <div style={{

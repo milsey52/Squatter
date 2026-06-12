@@ -240,6 +240,59 @@ def get_player_holdings(game_id: int, player_id: int, session: Session = Depends
     }
 
 
+@router.get("/{game_id}/standings")
+def get_standings(game_id: int, session: Session = Depends(get_session)):
+    """Final/standings financial table for every player, richest first.
+    Used by the end-of-game banner; valid any time. Bankrupt players keep
+    their frozen holdings, so their figures are an accurate record."""
+    deps.get_game_or_404(game_id, session)
+    from app.constants import SHEEP_PER_PEN
+
+    ledger = LedgerService(session, game_id)
+    bankruptcy = BankruptcyService(session, game_id)
+    players = (
+        session.query(models.GamePlayer)
+        .filter_by(game_id=game_id)
+        .order_by(models.GamePlayer.turn_order)
+        .all()
+    )
+
+    rows = []
+    for p in players:
+        paddocks = (
+            session.query(models.Paddock)
+            .filter_by(game_id=game_id, owner_game_player_id=p.game_player_id)
+            .all()
+        )
+        ram_count = (
+            session.query(models.StudRamState)
+            .filter_by(game_id=game_id, owner_game_player_id=p.game_player_id)
+            .count()
+        )
+        cash = ledger.player_balance(p.game_player_id)
+        total_pens = sum(pad.sheep_pens for pad in paddocks)
+        liquidation = bankruptcy.liquidation_value(p.game_player_id)
+        rows.append({
+            "game_player_id": p.game_player_id,
+            "player_name": p.player_name,
+            "is_ai": bool(p.is_ai),
+            "is_active": bool(p.is_active),
+            "cash": cash,
+            "sheep_pens": total_pens,
+            "sheep_count": total_pens * SHEEP_PER_PEN,
+            "paddocks_owned": len(paddocks),
+            "paddocks_mortgaged": sum(1 for pad in paddocks if pad.is_mortgaged),
+            "stud_rams": ram_count,
+            "has_haystack": bool(p.has_haystack),
+            "liquidation_value": liquidation,
+            "net_worth": cash + liquidation,
+        })
+
+    # Richest first; bankrupt (inactive) players sink to the bottom.
+    rows.sort(key=lambda r: (r["is_active"], r["net_worth"]), reverse=True)
+    return {"standings": rows}
+
+
 @router.get("/{game_id}/dice_rolls")
 def get_dice_rolls(game_id: int, session: Session = Depends(get_session)):
     """Get history of dice rolls for a game."""
