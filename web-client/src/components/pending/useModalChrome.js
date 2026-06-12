@@ -15,11 +15,17 @@ export function useModalChrome({ gameId, sessionToken, onResolved }) {
     'Authorization': `Bearer ${sessionToken}`,
     'Content-Type': 'application/json',
   };
+  // Anchored to the centre of the board container (its parent is
+  // position:relative), NOT the viewport — so modals sit in the board's open
+  // area below the SQUATTER title and never cover the Ledger / Dice panels.
+  // Capped to the board height and scrollable in case a tall modal (e.g. the
+  // stock-sale declare step) exceeds it.
   const modalStyle = {
-    position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
     background: theme.modalBg, color: theme.modalText,
     borderRadius: '12px', padding: '2rem', minWidth: '380px',
-    maxWidth: '500px', boxShadow: `0 10px 40px ${theme.modalShadow}`, zIndex: 9000,
+    maxWidth: '500px', maxHeight: '88%', overflowY: 'auto',
+    boxShadow: `0 10px 40px ${theme.modalShadow}`, zIndex: 50,
   };
   const btnStyle = (bg) => ({
     padding: '0.6rem 1.2rem', background: bg, color: '#fff',

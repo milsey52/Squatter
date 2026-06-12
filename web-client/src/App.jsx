@@ -548,6 +548,28 @@ function App() {
               </div>
             </div>
           )}
+
+          {/* Pending Action Modal — anchored to the board's open centre (below
+              the SQUATTER title), NOT the viewport, so it never covers the
+              Ledger / Dice panels on the right. The debtor's own
+              debt_settlement gate is suppressed here; the red debt banner takes
+              its place since they need the Station panel to recover. */}
+          {animatingPlayers.size === 0 && pendingAction &&
+            !(pendingAction.action_type === 'debt_settlement' &&
+              pendingAction.active_player_id === currentUserPlayer?.game_player_id) && (
+            <PendingActionModal
+              gameId={gameId}
+              sessionToken={sessionToken}
+              userId={userId}
+              pendingAction={pendingAction}
+              players={game.players || []}
+              onResolved={handleResolved}
+              activePlayerHasHighStockPrices={
+                (playerRetainedCards[pendingAction.active_player_id] || [])
+                  .some(c => c.title === 'High Stock Prices')
+              }
+            />
+          )}
         </div>
 
         {/* Right: Controls and player info */}
@@ -675,27 +697,6 @@ function App() {
           />
         )}
       </div>
-
-      {/* Pending Action Modal. The debtor's own debt_settlement gate is NOT
-          shown as a modal — the red debt banner takes its place, because the
-          debtor needs the Station panel (which a modal would cover) to sell
-          their way out. Everyone else sees the modal ("waiting for X..."). */}
-      {animatingPlayers.size === 0 && pendingAction &&
-        !(pendingAction.action_type === 'debt_settlement' &&
-          pendingAction.active_player_id === currentUserPlayer?.game_player_id) && (
-        <PendingActionModal
-          gameId={gameId}
-          sessionToken={sessionToken}
-          userId={userId}
-          pendingAction={pendingAction}
-          players={game.players || []}
-          onResolved={handleResolved}
-          activePlayerHasHighStockPrices={
-            (playerRetainedCards[pendingAction.active_player_id] || [])
-              .some(c => c.title === 'High Stock Prices')
-          }
-        />
-      )}
 
       {/* Station Panel */}
       {showStationPanel && (
