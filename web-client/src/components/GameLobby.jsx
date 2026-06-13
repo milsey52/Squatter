@@ -247,17 +247,17 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #2d5016 0%, #4a7c23 100%)',
+      background: 'linear-gradient(135deg, #11200a 0%, #2d5016 100%)',
       fontFamily: 'sans-serif',
       padding: '2rem'
     }}>
       <div style={{
         background: theme.panelBg,
         color: theme.text,
-        padding: '2.5rem',
+        padding: '3rem',
         borderRadius: '16px',
         boxShadow: `0 10px 40px ${theme.modalShadow}`,
-        maxWidth: '600px',
+        maxWidth: '760px',
         width: '100%',
         position: 'relative'
       }}>
