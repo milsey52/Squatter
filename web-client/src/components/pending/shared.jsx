@@ -28,18 +28,13 @@ export function HaystackOffer({ data, isMyAction, chrome }) {
     <div style={{ marginTop: '0.5rem', padding: '0.6rem', background: '#F1F8E9', border: '1px solid #7CB342', borderRadius: '6px' }}>
       <div>
         <strong style={{ color: '#33691E' }}>Haymaking Season!</strong>
-        {data.haystack_drought_premium && (
-          <span style={{ marginLeft: '0.5rem', fontSize: '0.8rem', color: '#b71c1c', fontWeight: 'bold' }}>
-            (drought premium — normally $500/haystack)
-          </span>
-        )}
       </div>
       {isMyAction && (
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
           {offers.map((o) => (
             <button key={o.type} style={chrome.btnStyle('#7CB342')} disabled={chrome.submitting}
               onClick={() => chrome.doAction('station/buy-haystack', { haystack_type: o.type })}>
-              Buy {HAYSTACK_LABEL[o.type]} (${o.cost})
+              Buy {HAYSTACK_LABEL[o.type]} (${o.cost}{o.premium ? ', drought premium' : ''})
             </button>
           ))}
         </div>

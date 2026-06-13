@@ -79,17 +79,22 @@ class StationService:
         """Haystack types this player should be offered: a type they don't yet
         hold AND own pasture vulnerable to its hazard. 'pasture' protects
         Natural/Improved (Local Drought); 'irrigated' protects Irrigated (Bore
-        Dries Up). Returns [{"type", "cost"}, ...] at the current buy price."""
-        from app.constants import haystack_buy_price
+        Dries Up). Each is priced for its OWN hazard, so the drought premium
+        only applies to the haystack whose hazard is currently active.
+        Returns [{"type", "cost", "premium"}, ...]."""
+        from app.constants import haystack_buy_price, haystack_premium_active
         paddocks = self.get_paddocks(player.game_player_id)
         owns_pasture = any(p.paddock_type in ("natural", "improved") for p in paddocks)
         owns_irrigated = any(p.paddock_type == "irrigated" for p in paddocks)
-        cost = haystack_buy_price(player)
         offers = []
         if owns_pasture and not player.haystack_pasture:
-            offers.append({"type": "pasture", "cost": cost})
+            offers.append({"type": "pasture",
+                           "cost": haystack_buy_price(player, "pasture"),
+                           "premium": haystack_premium_active(player, "pasture")})
         if owns_irrigated and not player.haystack_irrigated:
-            offers.append({"type": "irrigated", "cost": cost})
+            offers.append({"type": "irrigated",
+                           "cost": haystack_buy_price(player, "irrigated"),
+                           "premium": haystack_premium_active(player, "irrigated")})
         return offers
 
     def get_total_pens(self, game_player_id: int) -> int:

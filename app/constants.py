@@ -33,9 +33,25 @@ HAYSTACK_COST_DROUGHT = 1000  # rule: cost doubles when the purchasing player is
 HAYSTACK_SELL_PRICE = 350
 
 
-def haystack_buy_price(player) -> int:
-    """Return the haystack purchase price for this player ($1000 if in drought, else $500)."""
-    return HAYSTACK_COST_DROUGHT if (player and player.is_in_drought) else HAYSTACK_COST
+def haystack_premium_active(player, haystack_type=None) -> bool:
+    """Whether the drought premium applies to a haystack of this type.
+    The premium is keyed to the type's OWN hazard being active on the player:
+    a pasture haystack is premium-priced only during Local Drought; an
+    irrigated haystack only when the player is under Bore Dries Up. With no
+    type given, premium if either hazard is active (legacy callers)."""
+    if not player:
+        return False
+    if haystack_type == "pasture":
+        return bool(player.is_in_drought)
+    if haystack_type == "irrigated":
+        return bool(player.bore_dried_up)
+    return bool(player.is_in_drought or player.bore_dried_up)
+
+
+def haystack_buy_price(player, haystack_type=None) -> int:
+    """Haystack purchase price: $1000 if the matching hazard is active on the
+    player (drought premium), else $500."""
+    return HAYSTACK_COST_DROUGHT if haystack_premium_active(player, haystack_type) else HAYSTACK_COST
 
 # Stock sale
 MAX_PENS_PER_TRANSACTION = 15

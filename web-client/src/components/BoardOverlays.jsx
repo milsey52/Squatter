@@ -181,7 +181,7 @@ export function TuckerBagDrawOverlay(props) {
                     padding: "0.4rem 0.9rem", background: "#7CB342", color: "#fff",
                     border: "none", borderRadius: 6, cursor: "pointer", fontWeight: "bold", fontSize: "0.82rem"
                   }}>
-                  Buy {o.type === 'pasture' ? 'Pasture' : 'Irrigated'} Haystack (${o.cost})
+                  Buy {o.type === 'pasture' ? 'Pasture' : 'Irrigated'} Haystack (${o.cost}{o.premium ? ', drought premium' : ''})
                 </button>
               ))}
             </div>

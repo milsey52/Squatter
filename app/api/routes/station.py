@@ -379,7 +379,10 @@ async def buy_haystack(
     ledger_svc = LedgerService(session, game_id)
     balance = ledger_svc.player_balance(player.game_player_id)
 
-    cost = haystack_buy_price(player)
+    # Price for THIS haystack's hazard — the drought premium only applies to
+    # the type whose hazard (Local Drought / Bore Dries Up) is active.
+    cost = haystack_buy_price(player, body.haystack_type)
+    premium = cost > HAYSTACK_COST
     if balance < cost:
         raise HTTPException(status_code=400, detail=f"Insufficient funds: need ${cost}, have ${balance}")
 
@@ -389,7 +392,7 @@ async def buy_haystack(
     turn_id = turn.turn_id if turn else None
 
     notes = (f"Bought {body.haystack_type} haystack"
-             + (" (drought premium)" if player.is_in_drought else ""))
+             + (" (drought premium)" if premium else ""))
     ledger_svc.pay_bank(player, cost, "haystack_purchase", turn_id, notes=notes)
     setattr(player, attr, True)
 

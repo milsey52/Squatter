@@ -160,3 +160,58 @@ def test_sell_stranded_pasture_haystack(session, game_factory):
                     json={"haystack_type": "pasture"}, headers=headers)
     assert r.status_code == 200 and r.json()["income"] == 350
     assert not session.query(models.GamePlayer).get(g.players["Hu"]).haystack_pasture
+
+
+# ── Per-type drought premium (regression) ───────────────────────────────
+
+def test_premium_applies_only_to_the_hazard_in_effect(session, game_factory):
+    """Max-in-Local-Drought owns both pasture and irrigated: the pasture
+    haystack is premium ($1000), the irrigated one stays $500 (his irrigated
+    pasture is not under Bore Dries Up)."""
+    g = game_factory(players=(("Max", False, None),), paddock_type="natural")
+    max_p = session.query(models.GamePlayer).get(g.players["Max"])
+    # One improved + the rest, plus an irrigated paddock; in Local Drought.
+    pads = session.query(models.Paddock).filter_by(
+        game_id=g.game_id, owner_game_player_id=max_p.game_player_id).all()
+    pads[0].paddock_type = "improved"
+    pads[1].paddock_type = "irrigated"
+    max_p.is_in_drought = True
+    max_p.bore_dried_up = False
+    session.commit()
+
+    offers = {o["type"]: o for o in StationService(session, g.game_id).useful_haystack_offers(max_p)}
+    assert offers["pasture"]["cost"] == 1000 and offers["pasture"]["premium"] is True
+    assert offers["irrigated"]["cost"] == 500 and offers["irrigated"]["premium"] is False
+
+
+def test_premium_flips_under_bore_dries_up(session, game_factory):
+    g = game_factory(players=(("Max", False, None),), paddock_type="natural")
+    max_p = session.query(models.GamePlayer).get(g.players["Max"])
+    pads = session.query(models.Paddock).filter_by(
+        game_id=g.game_id, owner_game_player_id=max_p.game_player_id).all()
+    pads[0].paddock_type = "irrigated"
+    max_p.is_in_drought = False
+    max_p.bore_dried_up = True
+    session.commit()
+    offers = {o["type"]: o for o in StationService(session, g.game_id).useful_haystack_offers(max_p)}
+    assert offers["irrigated"]["cost"] == 1000 and offers["irrigated"]["premium"] is True
+    assert offers["pasture"]["cost"] == 500 and offers["pasture"]["premium"] is False
+
+
+def test_buy_charges_per_type_price(session, game_factory):
+    g = game_factory(players=(("Max", False, None),), paddock_type="natural")
+    max_p = session.query(models.GamePlayer).get(g.players["Max"])
+    pads = session.query(models.Paddock).filter_by(
+        game_id=g.game_id, owner_game_player_id=max_p.game_player_id).all()
+    pads[0].paddock_type = "irrigated"
+    max_p.is_in_drought = True
+    session.commit()
+    from app.services.ledger_service import LedgerService
+    before = LedgerService(session, g.game_id).player_balance(max_p.game_player_id)
+    client = TestClient(main.app)
+    headers = token_for(session, g, "Max")
+    r = client.post(f"/games/{g.game_id}/station/buy-haystack",
+                    json={"haystack_type": "irrigated"}, headers=headers)
+    assert r.status_code == 200 and r.json()["cost"] == 500
+    after = LedgerService(session, g.game_id).player_balance(max_p.game_player_id)
+    assert before - after == 500
