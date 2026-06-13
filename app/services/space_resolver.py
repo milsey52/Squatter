@@ -475,6 +475,10 @@ class SpaceResolver:
             # restocking onto Irrigated pasture; Natural/Improved are free.
             player.restock_blocked_until_circuit = True
             player.restock_block_scope = 'irrigated'
+            # Board marker: pin where the bore dried up so the circuit is
+            # visible (cleared when the block lifts — see TurnManager).
+            player.restock_block_marker_board_index = space.board_index
+            player.restock_block_source = 'bore_dries_up'
             if player.next_drought_halved:
                 player.restock_block_spaces_remaining = BOARD_SIZE // 2
                 player.next_drought_halved = False

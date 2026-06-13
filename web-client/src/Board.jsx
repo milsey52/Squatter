@@ -61,6 +61,17 @@ function MarkerShape({ kind, color, textColor, initial }) {
       </svg>
     );
   }
+  if (kind === "droplet") {
+    // Water droplet — Bore Dries Up. Pointed top, round bottom.
+    return (
+      <svg width={s} height={s} viewBox="0 0 22 22">
+        <path d="M 11 1 C 4 11 4 14 4 15 A 7 7 0 0 0 18 15 C 18 14 18 11 11 1 Z"
+              fill={color} stroke={stroke} strokeWidth="1.5"
+              strokeLinejoin="round" />
+        <text x="11" y="15" {...textProps}>{initial}</text>
+      </svg>
+    );
+  }
   return null;
 }
 
@@ -92,6 +103,12 @@ function collectMarkers(players) {
           playerId: p.game_player_id, kind: "haystack",
           spaceId: blk, color, textColor, initial,
           label: `${p.player_name} — Grass Fire circuit`,
+        });
+      } else if (src === "bore_dries_up") {
+        markers.push({
+          playerId: p.game_player_id, kind: "droplet",
+          spaceId: blk, color, textColor, initial,
+          label: `${p.player_name} — Bore Dries Up circuit`,
         });
       }
     }

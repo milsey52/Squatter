@@ -215,3 +215,21 @@ def test_buy_charges_per_type_price(session, game_factory):
     assert r.status_code == 200 and r.json()["cost"] == 500
     after = LedgerService(session, g.game_id).player_balance(max_p.game_player_id)
     assert before - after == 500
+
+
+# ── Bore Dries Up board marker ───────────────────────────────────────────
+
+def test_bore_dries_up_sets_circuit_marker(session, game_factory, hazard_board, monkeypatch):
+    """Landing on Bore Dries Up pins a circuit marker (source + board index)
+    so the board can draw it, like Drought / Lucerne Flea / Grass Fire."""
+    g = game_factory(sheep_per_paddock=3, paddock_type="irrigated", current="Hu")
+    hu = session.query(models.GamePlayer).get(g.players["Hu"])
+    hu.current_board_index = 2
+    session.commit()
+
+    play_roll(session, g, 1, 2, monkeypatch)  # land on 5 (bore dries up)
+
+    session.refresh(hu)
+    assert hu.restock_blocked_until_circuit
+    assert hu.restock_block_source == "bore_dries_up"
+    assert hu.restock_block_marker_board_index == BORE_INDEX
