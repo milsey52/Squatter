@@ -404,6 +404,17 @@ const SECTIONS = [
       </>
     ),
   },
+  {
+    key: "disclaimer",
+    title: "Acknowledgement & Disclaimer",
+    body: (
+      <p>
+        Squatter was originally produced by The Woolmark Company Pty Ltd and is
+        copyright Robert Crofton Lloyd, 1961. This is a private version, made for
+        personal use only and not for resale.
+      </p>
+    ),
+  },
 ];
 
 export default function Manual({ onClose, initialSection }) {

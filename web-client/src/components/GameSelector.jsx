@@ -199,6 +199,15 @@ export default function GameSelector({ onGameJoined }) {
           >
             Join Existing Game
           </button>
+
+          <p style={{
+            marginTop: '1.5rem', marginBottom: 0, fontSize: '0.7rem',
+            color: '#999', textAlign: 'center', lineHeight: 1.4,
+          }}>
+            Squatter was originally produced by The Woolmark Company Pty Ltd and is
+            copyright Robert Crofton Lloyd, 1961. This is a private version, made
+            for personal use only and not for resale.
+          </p>
         </div>
       </div>
     );
