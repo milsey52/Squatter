@@ -64,6 +64,11 @@ class TurnManager:
         # extension — extend the clock, no second half-stock sale — rather
         # than a brand-new drought.
         was_in_drought = player.is_in_drought
+        # Same for an active Bore Dries Up restriction: _move_player may clear
+        # it as the circuit completes, so capture it pre-move. Used so landing
+        # on Bore Dries Up while restricted (or at the anniversary) is a no-op
+        # rather than a re-trigger.
+        was_bore_blocked = bool(player.bore_dried_up)
 
         end_space, passed_start = self._move_player(player, d1 + d2, turn)
 
@@ -72,6 +77,7 @@ class TurnManager:
             self.drought.track_movement(player, d1 + d2)
 
         self.space_resolver.was_in_drought_at_turn_start = was_in_drought
+        self.space_resolver.was_bore_blocked_at_turn_start = was_bore_blocked
         self.space_resolver.resolve(player, end_space, turn, passed_start)
 
         # Landing charges (expenses, mortgage interest) can leave the player

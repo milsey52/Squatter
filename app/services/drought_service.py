@@ -9,31 +9,29 @@ class DroughtService:
         self.session = session
         self.game_id = game_id
 
-    def apply_drought(self, player: models.GamePlayer, board_index: int):
-        """Apply local drought to a player. Haystack consumption (if any) is
+    def apply_drought(self, player: models.GamePlayer, board_index: int) -> bool:
+        """Start a Local Drought for a player. Haystack consumption (if any) is
         handled by the caller (see space_resolver._handle_local_drought) since
         per the rules a haystack is only "used" when it actually offsets a sale.
 
-        Rule: landing on a Local Drought (whether new or while already in
-        drought) requires a fresh full circuit (BOARD_SIZE spaces) to clear.
-        Per-player "next drought halved" only applies on the very first
-        drought (consumed there); a subsequent extension still requires
-        the full circuit.
+        Max's rule (no extension): a drought lasts exactly one full circuit
+        (BOARD_SIZE spaces) and is NEVER extended. Landing on Local Drought
+        again, or drawing a drought card, while already in drought has no
+        effect — the original clock runs to completion and the restriction
+        ends there. Returns True if a fresh drought was started, False if the
+        player was already in drought (no-op).
         """
         if player.is_in_drought:
-            # Restart the clock from this space — another full circuit.
-            player.drought_spaces_remaining = BOARD_SIZE
-            player.drought_start_space = board_index
+            return False
+        player.is_in_drought = True
+        player.drought_start_space = board_index
+        if player.next_drought_halved:
+            player.drought_spaces_remaining = BOARD_SIZE // 2
+            player.next_drought_halved = False
         else:
-            player.is_in_drought = True
-            player.drought_start_space = board_index
-            if player.next_drought_halved:
-                player.drought_spaces_remaining = BOARD_SIZE // 2
-                player.next_drought_halved = False
-            else:
-                player.drought_spaces_remaining = BOARD_SIZE
-
+            player.drought_spaces_remaining = BOARD_SIZE
         self.session.flush()
+        return True
 
     def track_movement(self, player: models.GamePlayer, spaces_moved: int):
         """After each move, decrement drought counter. Break if complete."""

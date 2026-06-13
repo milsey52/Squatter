@@ -26,6 +26,8 @@ class SpaceResolver:
         # have broken it. Used so an anniversary landing on a Local Drought
         # space extends rather than re-charges. See _handle_local_drought.
         self.was_in_drought_at_turn_start = False
+        # Likewise for an active Bore Dries Up restriction (set by TurnManager).
+        self.was_bore_blocked_at_turn_start = False
 
     def resolve(self, player: models.GamePlayer, space: models.Space, turn, passed_start: bool):
         won_on_pass = False
@@ -403,14 +405,22 @@ class SpaceResolver:
                 )
             # else: no Natural/Improved stock to sell → haystack preserved per rule
 
-        self.drought.apply_drought(player, space.board_index)
+            # Start the drought only on a fresh landing. Max's rule: an
+            # existing drought is never extended — landing again (or at the
+            # circuit anniversary) has no effect and the original clock runs out.
+            self.drought.apply_drought(player, space.board_index)
 
         self._create_pending_action(turn, player, "drought_effect", {
             "pens_sold": pens_sold,
             "income": total_income,
             "drought_spaces": player.drought_spaces_remaining,
             "had_haystack": had_haystack,
-            "extended": already_in_drought,
+            "extended": False,
+            # Already in drought (or completing the circuit this turn): no sale,
+            # no extension — surface it as a no-op so the modal explains it.
+            "no_effect": already_in_drought,
+            "reason": ("Already in drought — landing again has no effect and "
+                       "does not extend it." if already_in_drought else None),
             "by_type": by_type,
             "no_haystack_price_per_pen": DROUGHT_SELL_PRICE_NO_HAYSTACK,
             "stock_card_used": (
@@ -439,7 +449,11 @@ class SpaceResolver:
         from app.constants import (BORE_DRIES_UP_PRICE_NO_HAYSTACK,
                                    BORE_DRIES_UP_PRICE_WITH_HAYSTACK,
                                    BOARD_SIZE)
-        affected = self.drought.apply_bore_dries_up(player)
+        # Max's rule: an active Bore Dries Up restriction is never extended.
+        # Landing on Bore Dries Up again while still restricted (or at the
+        # circuit anniversary) has no effect — the original block runs out.
+        already_blocked = bool(player.bore_dried_up) or self.was_bore_blocked_at_turn_start
+
         pens_sold = 0
         total_income = 0
         # Bore Dries Up hits Irrigated stock, so the IRRIGATED haystack offsets
@@ -447,6 +461,10 @@ class SpaceResolver:
         had_haystack = bool(player.haystack_irrigated)
         price_per_pen = 0
         halved = False
+
+        affected = False
+        if not already_blocked:
+            affected = self.drought.apply_bore_dries_up(player)
 
         if affected:
             # Rule: sell half stock from IRRIGATED pasture (rounded up).
@@ -498,8 +516,10 @@ class SpaceResolver:
             "spaces_blocked": player.restock_block_spaces_remaining if affected else 0,
             "no_effect": not affected,
             "reason": (
-                "You have no Irrigated pasture — Bore Dries Up has no effect."
-                if not affected else None
+                ("Already affected by Bore Dries Up — no effect, and the "
+                 "restriction is not extended.") if already_blocked
+                else ("You have no Irrigated pasture — Bore Dries Up has no effect."
+                      if not affected else None)
             ),
         })
 

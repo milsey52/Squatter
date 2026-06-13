@@ -531,18 +531,23 @@ class CardService:
                     player, total_income, "drought_sale", turn_id, notes=notes
                 )
 
-        # No board_index for a card-triggered drought — pass the player's
-        # current space so drought_start_space is recorded sensibly.
-        self.drought.apply_drought(player, player.current_board_index)
+            # Max's rule: only a fresh drought applies. A drought card drawn
+            # while already in drought has no effect and does not extend it.
+            # No board_index for a card-triggered drought — pass the player's
+            # current space so drought_start_space is recorded sensibly.
+            self.drought.apply_drought(player, player.current_board_index)
+
         self.session.flush()
 
         return {
-            "no_effect": False,
+            "no_effect": already_in_drought,
+            "reason": ("Already in drought — this card has no effect and does "
+                       "not extend it." if already_in_drought else None),
             "pens_sold": pens_sold,
             "income": total_income,
             "drought_spaces": player.drought_spaces_remaining,
             "had_haystack": had_haystack,
-            "extended": already_in_drought,
+            "extended": False,
             "by_type": by_type,
             "no_haystack_price_per_pen": DROUGHT_SELL_PRICE_NO_HAYSTACK,
             "stock_card_used": (
@@ -623,12 +628,14 @@ class CardService:
                         p, total_income, "drought_sale", turn_id, notes=notes
                     )
 
-            self.drought.apply_drought(p, p.current_board_index)
+                # Max's rule: only a fresh drought applies; players already in
+                # drought are unaffected and their clock is not extended.
+                self.drought.apply_drought(p, p.current_board_index)
 
             breakdowns.append({
                 "player_id": p.game_player_id,
                 "player_name": p.player_name,
-                "outcome": "extended" if already_in_drought else "affected",
+                "outcome": "no_effect" if already_in_drought else "affected",
                 "pens_sold": pens_sold,
                 "income": total_income,
                 "by_type": by_type,
