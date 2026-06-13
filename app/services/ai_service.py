@@ -142,28 +142,25 @@ class AIPlayerService:
         # kind == "roll": explain what was weighed and why it's just rolling.
         if self.difficulty == "easy":
             return f"{self._name()} sizes up the board and rolls."
+        # Narrate intent without revealing the AI's internal thresholds —
+        # vague "needs more cash", never the exact cushion/limit figures.
         bits = []
-        # Why not upgrade? (only relevant for medium/hard, not in drought)
         if self.player.is_in_drought:
             bits.append("in drought, so holding off on upgrades and restocking")
         else:
             imp = self.station.can_upgrade_to_improved(self.player.game_player_id)
             irr = self.station.can_upgrade_to_irrigated(self.player.game_player_id)
             buffer = self.t["upgrade_cash_buffer"] + self._cash_reserve_extra()
-            if irr.get("can_upgrade"):
-                need = IRRIGATED_PASTURE_COST + buffer
-                if balance < need:
-                    bits.append(f"wants to irrigate but is short of the ${need:,} cushion")
-            elif imp.get("can_upgrade"):
-                need = IMPROVED_PASTURE_COST + buffer
-                if balance < need:
-                    bits.append(f"wants to improve a paddock but is short of the ${need:,} cushion")
+            if irr.get("can_upgrade") and balance < IRRIGATED_PASTURE_COST + buffer:
+                bits.append("would like to irrigate but needs more cash first")
+            elif imp.get("can_upgrade") and balance < IMPROVED_PASTURE_COST + buffer:
+                bits.append("would like to improve a paddock but needs more cash first")
         mortgaged = [p for p in self.station.get_paddocks(self.player.game_player_id)
                      if p.is_mortgaged]
         if mortgaged and balance < self.t["lift_mortgage_cash_floor"]:
-            bits.append("not flush enough to lift a mortgage yet")
+            bits.append("wants to lift a mortgage but needs more cash first")
         reason = "; ".join(bits) if bits else "station's in good order"
-        return f"{self._name()}: {reason} — rolling the dice (${balance:,}, {pens} pens)."
+        return f"{self._name()}: {reason} — rolling the dice."
 
     def pending_thinking_summary(self, pending: models.PendingAction) -> str:
         """Narrate how the AI is leaning on a pending decision."""
@@ -179,11 +176,10 @@ class AIPlayerService:
                 return ("In drought — Natural/Improved would sell at half price, "
                         "so leaning toward passing.")
             if pens < self.t["buy_threshold_pens"] and balance >= self.t["buy_floor_cash"]:
-                return (f"Under the {self.t['buy_threshold_pens']}-pen goal with "
-                        f"${balance:,} in hand — looking to buy more stock.")
+                return "Still room to grow the flock — looking to buy more stock."
             if pens >= self.t["sell_threshold_pens"]:
-                return (f"Stocked up at {pens} pens — weighing a sell to bank the cash.")
-            return f"Holding cash (${balance:,}) — likely to pass this stock sale."
+                return "Well stocked up — weighing a sell to bank the cash."
+            return "Holding back — likely to pass this stock sale."
         if at == "stud_ram_purchase":
             price = int(data.get("purchase_price", 0) or 0)
             if self.difficulty == "easy":
@@ -191,12 +187,11 @@ class AIPlayerService:
             affordable = balance >= price + self.t["stud_ram_cash_buffer"]
             enough_pens = pens >= self.t["stud_ram_min_pens"]
             if affordable and enough_pens and not self.player.is_in_drought:
-                return (f"A stud ram for ${price:,} would boost wool cheques across "
-                        f"{pens} pens — inclined to buy.")
+                return f"A stud ram for ${price:,} would lift the wool cheques — inclined to buy."
             if not enough_pens:
-                return (f"A stud ram's on offer, but with only {pens} pens the wool "
-                        f"bonus wouldn't pay back — likely passing.")
-            return f"A stud ram for ${price:,} is tempting, but cash is too tight — likely passing."
+                return ("A stud ram's on offer, but the flock's too small to make "
+                        "it pay — likely passing.")
+            return f"A stud ram for ${price:,} is tempting, but needs more cash — likely passing."
         if at == "expense_payment":
             if data.get("alternative_payment"):
                 return "Choosing how to treat the flock for worms."
