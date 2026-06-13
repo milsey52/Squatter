@@ -116,9 +116,30 @@ export default function Board({ players = [], currentPlayerId, animatedPositions
     return acc;
   }, {});
 
+  // Haymaking-season banner: a bold vertical label running the length of the
+  // Haymaking spaces (board indices 37-42, the right column). Anchored at the
+  // strip's centre and rotated so it reads down the inner edge of the strip.
+  const hayTop = boardIndexToPixel(37).top;            // top of first hay space
+  const hayBottom = boardIndexToPixel(42).top + CELL;  // bottom of last hay space
+  const hayRun = hayBottom - hayTop;
+  const hayCenterY = (hayTop + hayBottom) / 2;
+  const hayInnerX = boardIndexToPixel(37).left - 14;   // just inside the strip
+
   return (
     <div style={{ position: "relative", width: 1130, height: 1130 }}>
       <img src={`${boardSVG}?v=${BOARD_SVG_VERSION}`} alt="Board" style={{ width: "100%", height: "100%" }} />
+
+      {/* Haymaking Season banner — vertical, along the right-column strip */}
+      <div style={{
+        position: "absolute", left: hayInnerX, top: hayCenterY,
+        width: hayRun, textAlign: "center", whiteSpace: "nowrap",
+        transform: "translate(-50%, -50%) rotate(90deg)", transformOrigin: "center",
+        pointerEvents: "none", zIndex: 2,
+        fontFamily: "'Georgia', serif", fontWeight: 900, fontSize: 30,
+        letterSpacing: 8, color: "#2d5016", textShadow: "0 1px 2px rgba(255,255,255,0.6)",
+      }}>
+        HAYMAKING SEASON
+      </div>
 
       {/* Circuit markers — pinned to the cell where the event began. */}
       {Object.entries(markersByCell).flatMap(([idxStr, cellMarkers]) => {
