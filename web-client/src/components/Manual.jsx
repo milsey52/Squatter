@@ -155,6 +155,14 @@ const SECTIONS = [
         <p>
           On your turn you may upgrade a paddock: <strong>Natural → Improved costs
           $500</strong>, and <strong>Improved → Irrigated costs $1,500</strong>.
+        </p>
+        <p>
+          <strong>You must upgrade all five paddocks to Improved before you can
+          irrigate any of them.</strong> In other words, no paddock can become
+          Irrigated until none of your paddocks are still Natural — then you
+          irrigate them one at a time.
+        </p>
+        <p>
           Irrigated pasture is immune to Local Drought (but exposed to Bore Dries
           Up). The win requires all five paddocks irrigated and fully stocked.
         </p>
