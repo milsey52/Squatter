@@ -12,6 +12,26 @@ from app.services.bankruptcy_service import BankruptcyService
 router = APIRouter()
 
 
+@router.get("/spaces")
+def list_spaces(session: Session = Depends(get_session)):
+    """Static board layout: every space's index, name, type and season.
+    Used by the client to draw clickable hotspots that link board spaces to
+    the in-game manual. Declared before /{game_id} so it isn't captured by
+    that route. Read-only and game-independent."""
+    spaces = session.query(models.Space).order_by(models.Space.board_index).all()
+    return {
+        "spaces": [
+            {
+                "board_index": s.board_index,
+                "name": s.name,
+                "space_type": s.space_type,
+                "season": s.season,
+            }
+            for s in spaces
+        ]
+    }
+
+
 @router.get("/{game_id}")
 def get_game(game_id: int, session: Session = Depends(get_session)):
     game = session.query(models.Game).filter_by(game_id=game_id).first()

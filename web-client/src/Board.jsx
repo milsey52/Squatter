@@ -116,7 +116,8 @@ function collectMarkers(players) {
   return markers;
 }
 
-export default function Board({ players = [], currentPlayerId, animatedPositions = {} }) {
+export default function Board({ players = [], currentPlayerId, animatedPositions = {},
+                               spaces = [], onSpaceClick }) {
   const stackMap = players.reduce((acc, player) => {
     const idx = toBoardIndex(player.current_board_index);
     if (!acc[idx]) acc[idx] = [];
@@ -145,6 +146,19 @@ export default function Board({ players = [], currentPlayerId, animatedPositions
   return (
     <div style={{ position: "relative", width: 1130, height: 1130 }}>
       <img src={`${boardSVG}?v=${BOARD_SVG_VERSION}`} alt="Board" style={{ width: "100%", height: "100%" }} />
+
+      {/* Clickable hotspots over each space — open the manual at the matching
+          section. Rendered first (z 1) so tokens/markers sit above them. */}
+      {onSpaceClick && spaces.map((sp) => {
+        const { left, top } = boardIndexToPixel(sp.board_index);
+        return (
+          <div key={sp.board_index}
+               onClick={() => onSpaceClick(sp.space_type)}
+               title={`${sp.name} — click for the rules`}
+               style={{ position: "absolute", left, top, width: CELL, height: CELL,
+                        cursor: "pointer", zIndex: 1 }} />
+        );
+      })}
 
       {/* Haymaking Season banner — vertical, along the right-column strip */}
       <div style={{

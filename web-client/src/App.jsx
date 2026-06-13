@@ -12,6 +12,8 @@ import PlayerList from "./components/PlayerList";
 import DebtBanner from "./components/DebtBanner";
 import WinnerBanner from "./components/WinnerBanner";
 import { StockSaleCardOverlay, TuckerBagDrawOverlay } from "./components/BoardOverlays";
+import Manual from "./components/Manual";
+import { SPACE_TYPE_TO_SECTION } from "./components/manualSections";
 import { useGameEvents } from "./hooks/useGameEvents";
 import { Z_INDEX } from "./constants/zIndex";
 import { useTheme } from "./theme";
@@ -49,6 +51,9 @@ function App() {
   const [aiThinking, setAiThinking] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
   const [showStationPanel, setShowStationPanel] = useState(false);
+  // Static board layout (for manual deep-links) + manual modal state.
+  const [boardSpaces, setBoardSpaces] = useState([]);
+  const [manualSection, setManualSection] = useState(null); // null = closed
   const [selectedCard, setSelectedCard] = useState(null);
   const [viewingPlayerId, setViewingPlayerId] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -140,6 +145,18 @@ function App() {
       setScreen('selector');
     }
   }, []);
+
+  // Board layout is static — fetch once for the manual deep-links.
+  useEffect(() => {
+    fetch(`${API_BASE}/games/spaces`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setBoardSpaces(d.spaces || []))
+      .catch(() => {});
+  }, []);
+
+  // Open the manual at the section for a clicked board space (or generally).
+  const openManualForSpace = (spaceType) =>
+    setManualSection(SPACE_TYPE_TO_SECTION[spaceType] || "objective");
 
   const fetchGameState = useCallback(async () => {
     if (!gameId) return;
@@ -493,6 +510,8 @@ function App() {
             players={game.players || []}
             currentPlayerId={game.current_player_id}
             animatedPositions={animatedPositions}
+            spaces={boardSpaces}
+            onSpaceClick={openManualForSpace}
           />
 
           {/* Winner banner + final standings table. */}
@@ -589,6 +608,10 @@ function App() {
               padding: "0.5rem 1rem", background: "#4caf50", color: "#fff",
               border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.9rem"
             }}>Station</button>
+            <button onClick={() => setManualSection("objective")} style={{
+              padding: "0.5rem 1rem", background: "#6a4c93", color: "#fff",
+              border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.9rem"
+            }}>📖 Rules</button>
             <button onClick={nextTurn} disabled={isSubmitting || pendingAction || !isCurrentPlayer} style={{
               padding: "0.5rem 1rem",
               background: (isSubmitting || pendingAction || !isCurrentPlayer) ? "#ccc" : "#1982c4",
@@ -697,6 +720,11 @@ function App() {
           />
         )}
       </div>
+
+      {/* Player Manual — opened by the Rules button or a board-space click */}
+      {manualSection !== null && (
+        <Manual initialSection={manualSection} onClose={() => setManualSection(null)} />
+      )}
 
       {/* Station Panel */}
       {showStationPanel && (
