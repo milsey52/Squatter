@@ -33,6 +33,51 @@ const SECTIONS = [
     ),
   },
   {
+    key: "lobby",
+    title: "Setting Up & The Lobby",
+    body: (
+      <>
+        <p>
+          One player <strong>creates the game</strong> and becomes the host. They
+          receive a <strong>6-character game code</strong> — share it (or the
+          join link / QR code) so others can join the same game.
+        </p>
+        <p><strong>Hosting choices (the host sets these in the lobby):</strong></p>
+        <ul>
+          <li><strong>Number of players</strong> — choose the maximum (2–6). Any
+          mix of humans and AI counts toward it.</li>
+          <li><strong>Add AI players</strong> — the host can add computer
+          opponents, each at a difficulty of <strong>Easy</strong>,
+          <strong> Medium</strong> or <strong>Hard</strong>. AI players are run by
+          the game automatically and take their turns on their own; you'll see a
+          short note of what they're weighing up while they act.</li>
+          <li><strong>Opening kitty</strong> — the starting cash each player gets
+          ($1,000–$3,000 in $500 steps; default $2,000). Only changeable before
+          the game starts.</li>
+          <li><strong>AI reaction time</strong> — how long an AI's pop-ups linger
+          on screen before it acts (1–10 seconds), so humans can follow along.</li>
+        </ul>
+        <p>
+          <strong>Joining &amp; starting:</strong> human players enter the game
+          code and their name to join. Each player marks <strong>Ready</strong>;
+          once everyone is ready the host starts the game. All players then roll
+          for turn order — highest total goes first, and ties roll again.
+        </p>
+        <p>
+          <strong>Logging out &amp; rejoining:</strong> if you log out, the game is
+          <strong> suspended</strong> until you return (AI players don't suspend
+          it). To come back, rejoin with the same game code. On the
+          <em> same device/browser</em> your session is remembered, so you slip
+          straight back in. From a <em>different device</em>, rejoin under your
+          original name and enter your personal <strong>rejoin code</strong> — a
+          private 6-digit number shown to you in the lobby. (This stops anyone
+          else from taking over your station just by knowing your name.) The game
+          resumes once every human player is back.
+        </p>
+      </>
+    ),
+  },
+  {
     key: "turn",
     title: "Taking a Turn",
     body: (

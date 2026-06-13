@@ -4,6 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import TurnOrderRoll from './TurnOrderRoll';
 import { useTheme } from '../theme';
 import SettingsModal, { SettingsButton } from './SettingsModal';
+import Manual from './Manual';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -22,6 +23,7 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
   const [aiDifficulty, setAiDifficulty] = useState('easy');
   const [addingAI, setAddingAI] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showManual, setShowManual] = useState(false);
   const [aiReactionSeconds, setAiReactionSeconds] = useState(4);
   const [startingCash, setStartingCash] = useState(2000);
   const [gameStatus, setGameStatus] = useState("lobby");
@@ -259,9 +261,16 @@ export default function GameLobby({ gameId, gameCode, sessionToken, userId, isHo
         width: '100%',
         position: 'relative'
       }}>
-        <div style={{ position: 'absolute', top: '1rem', right: '1rem' }}>
+        <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button onClick={() => setShowManual(true)} title="How to play" style={{
+            padding: '0.4rem 0.8rem', background: '#6a4c93', color: '#fff',
+            border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.85rem',
+          }}>📖 Rules</button>
           <SettingsButton onClick={() => setShowSettings(true)} />
         </div>
+        {showManual && (
+          <Manual initialSection="lobby" onClose={() => setShowManual(false)} />
+        )}
         {showSettings && (
           <SettingsModal
             gameId={gameId}
