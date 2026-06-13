@@ -84,8 +84,9 @@ class DroughtService:
         return True
 
     def is_drought_restricted(self, player: models.GamePlayer) -> bool:
-        """Check if player is under drought restrictions
-        (cannot buy stock, cannot upgrade paddocks, cannot sell stud rams)."""
+        """Check if player is under drought restrictions: restocking is limited
+        to Irrigated paddocks and paddocks cannot be upgraded. (Selling stud
+        rams is always allowed.)"""
         return player.is_in_drought
 
     def is_restock_blocked(self, player: models.GamePlayer) -> bool:

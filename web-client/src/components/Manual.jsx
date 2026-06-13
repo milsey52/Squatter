@@ -182,12 +182,13 @@ const SECTIONS = [
           <li>adds <strong>$25 per pen</strong> to every wool cheque you collect;</li>
           <li>earns you a <strong>stud fee</strong> whenever another player lands
           on that ram's space;</li>
-          <li>can be sold back to the bank for <strong>$400</strong>.</li>
+          <li>can be sold back to the bank <strong>at any time for $400</strong>,
+          after which it becomes available again to any player who lands on that
+          space.</li>
         </ul>
         <p>
           The <strong>Stud Ram Dies</strong> space removes the ram with the most
-          expensive rent (your highest stud fee). You cannot sell stud rams while
-          you are in drought.
+          expensive rent (your highest stud fee).
         </p>
       </>
     ),
@@ -270,7 +271,7 @@ const SECTIONS = [
         <p>While in drought you are restricted for one full circuit of the board:</p>
         <ul>
           <li>you may only restock into Irrigated paddocks;</li>
-          <li>you cannot upgrade paddocks or sell stud rams.</li>
+          <li>you cannot upgrade paddocks.</li>
         </ul>
         <p>
           <strong>House rule — no extension:</strong> a drought lasts exactly one
