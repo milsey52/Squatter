@@ -185,8 +185,9 @@ const SECTIONS = [
           <li>can be sold back to the bank for <strong>$400</strong>.</li>
         </ul>
         <p>
-          The <strong>Stud Ram Dies</strong> space removes one of your rams. You
-          cannot sell stud rams while you are in drought.
+          The <strong>Stud Ram Dies</strong> space removes the ram with the most
+          expensive rent (your highest stud fee). You cannot sell stud rams while
+          you are in drought.
         </p>
       </>
     ),
