@@ -233,3 +233,20 @@ def test_bore_dries_up_sets_circuit_marker(session, game_factory, hazard_board, 
     assert hu.restock_blocked_until_circuit
     assert hu.restock_block_source == "bore_dries_up"
     assert hu.restock_block_marker_board_index == BORE_INDEX
+
+
+def test_drought_with_no_stock_preserves_pasture_haystack(session, game_factory, hazard_board, monkeypatch):
+    """Rule: if a player has no Natural/Improved stock when a Local Drought
+    strikes, there is nothing to sell and the pasture haystack is NOT returned
+    to the bank — it is only consumed when it offsets a sale."""
+    g = game_factory(sheep_per_paddock=0, paddock_type="natural", current="Hu")
+    hu = session.query(models.GamePlayer).get(g.players["Hu"])
+    hu.current_board_index = 19
+    hu.haystack_pasture = True
+    session.commit()
+
+    play_roll(session, g, 1, 2, monkeypatch)  # land on 22 (local drought)
+
+    session.refresh(hu)
+    assert hu.is_in_drought              # owns Natural pasture, so affected
+    assert hu.haystack_pasture           # no stock to sell -> haystack kept

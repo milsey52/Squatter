@@ -266,7 +266,9 @@ const SECTIONS = [
           up) to the bank at <strong>$200 per pen</strong> — unless you hold a
           pasture haystack, which lets you sell that stock at full Stock Sale
           prices instead (the haystack is then used up). Irrigated stock is not
-          affected.
+          affected. <strong>If you have no Natural or Improved stock when the
+          drought strikes, there is nothing to sell and your haystack is kept</strong>
+          — it is only used up when it actually offsets a sale.
         </p>
         <p>While in drought you are restricted for one full circuit of the board:</p>
         <ul>
