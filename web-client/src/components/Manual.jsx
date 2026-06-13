@@ -244,7 +244,12 @@ const SECTIONS = [
           <li><strong>Sustainable Water Management</strong> — halves the length of
           your next drought or bore restriction.</li>
           <li><strong>Fire Fighting Equipment</strong> — a keepable card that
-          protects against fire.</li>
+          protects against fire: while held it cancels both Grass Fire and Fire
+          Destroys Haystack entirely, so you lose no stock and <em>neither</em>
+          haystack.</li>
+          <li><strong>Stud Ram Insurance</strong> — a keepable card; if a ram
+          dies while you hold it, the bank refunds you $500 (the card is then
+          used up).</li>
         </ul>
       </>
     ),
